@@ -91,11 +91,12 @@ export const actions: Actions = {
 
 		// Set Session Cookie
 		const isProd = process.env.NODE_ENV === 'production';
+		const isTest = process.env.DISABLE_RATE_LIMIT === 'true' || process.env.NODE_ENV === 'test';
 		cookies.set('session', token, {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'lax',
-			secure: isProd,
+			secure: isProd && !isTest,
 			maxAge: 30 * 24 * 60 * 60 // 30 days
 		});
 

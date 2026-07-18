@@ -167,17 +167,12 @@ describe('Observations CTE & Rollback Pipeline', () => {
 		expect(obs).toHaveLength(1);
 		expect(obs[0].value).toBe(750);
 
-		// 3. Rollback Batch 2 (mark as reverted, purge Batch 2 observations synchronously)
+		// 3. Rollback Batch 2 (only mark batch as reverted; do NOT delete observations!)
 		db.transaction((tx) => {
 			tx
 				.update(importBatches)
 				.set({ revertedAt: now + 120 })
 				.where(eq(importBatches.id, batch2Id))
-				.run();
-
-			tx
-				.delete(metricObservations)
-				.where(eq(metricObservations.importBatchId, batch2Id))
 				.run();
 		});
 

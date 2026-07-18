@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { db } from './db';
-import { users, sessions } from './db/schema';
+import { users, sessions, projects, projectMembers, dataSources, importBatches, importDrafts, metricObservations } from './db/schema';
 import { eq } from 'drizzle-orm';
 import { initDb } from './db/setup';
 import { runSeeding } from './db/seed';
@@ -23,7 +23,13 @@ describe('User Management Service', () => {
 
 	beforeAll(async () => {
 		await initDb();
-		// Clear all tables to guarantee test isolation
+		// Clear all tables in child-to-parent order to prevent foreign key constraint violations
+		await db.delete(metricObservations);
+		await db.delete(importBatches);
+		await db.delete(importDrafts);
+		await db.delete(projectMembers);
+		await db.delete(dataSources);
+		await db.delete(projects);
 		await db.delete(sessions);
 		await db.delete(users);
 		await runSeeding();

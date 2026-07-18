@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: koaladata_app
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATA_DIRECTORY=/data
+      - DATABASE_PATH=/data/data.db
+      - BACKUP_DIRECTORY=/backups
+      - PORT=3000
+      # Change the ORIGIN env var to match your public URL in production (required by SvelteKit CSRF)
+      - ORIGIN=http://localhost:3000
+    volumes:
+      - koaladata_data:/data
+      # Mount a local backups folder on host machine to backups folder inside container
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  koaladata_data:
+
+# ==============================================================================
+# CADDY REVERSE PROXY NETWORKING EXAMPLE
+# ==============================================================================
+# To deploy KoalaData behind Caddy with automated Let's Encrypt HTTPS certificates:
+#
+# 1. Create a Caddyfile with the following configuration:
+#    koaladata.yourdomain.com {
+#        reverse_proxy localhost:3000
+#    }
+#
+# 2. Run Caddy on your host:
+#    caddy run --config /path/to/Caddyfile
+#
+# 3. Ensure you update the ORIGIN environment variable in docker-compose.yml:
+#    - ORIGIN=https://koaladata.yourdomain.com
+# ==============================================================================

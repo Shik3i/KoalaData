@@ -41,7 +41,7 @@
 					<!-- Registration Mode -->
 					<div class="form-group">
 						<label for="registration_mode">Registration Policy</label>
-						<select id="registration_mode" name="registration_mode" required disabled={loading}>
+						<select id="registration_mode" name="registration_mode" required>
 							<option value="open" selected={data.settings.registration_mode === 'open'}>
 								🌍 Open Registration (Anyone can register and log in instantly)
 							</option>
@@ -63,7 +63,6 @@
 							name="default_max_projects" 
 							value={data.settings.default_max_projects || '5'} 
 							required 
-							disabled={loading}
 						/>
 					</div>
 
@@ -76,7 +75,6 @@
 							name="default_max_storage_bytes" 
 							value={data.settings.default_max_storage_bytes || '26214400'} 
 							required 
-							disabled={loading}
 						/>
 						<span class="text-muted help-text">e.g. 26,214,400 bytes = 25MB</span>
 					</div>
@@ -90,7 +88,6 @@
 							name="default_max_csv_size_bytes" 
 							value={data.settings.default_max_csv_size_bytes || '10485760'} 
 							required 
-							disabled={loading}
 						/>
 						<span class="text-muted help-text">e.g. 10,485,760 bytes = 10MB</span>
 					</div>
@@ -104,7 +101,6 @@
 							name="default_max_csv_rows" 
 							value={data.settings.default_max_csv_rows || '100000'} 
 							required 
-							disabled={loading}
 						/>
 					</div>
 

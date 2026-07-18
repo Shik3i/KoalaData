@@ -99,12 +99,6 @@ export const actions: Actions = {
 					})
 					.where(eq(importBatches.id, batchId))
 					.run();
-
-				// Purge observations associated with this batch
-				tx
-					.delete(metricObservations)
-					.where(eq(metricObservations.importBatchId, batchId))
-					.run();
 			});
 
 			await logAuditEvent(

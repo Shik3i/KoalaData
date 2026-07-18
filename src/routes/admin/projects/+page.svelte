@@ -83,7 +83,7 @@
 										<!-- Moderation Form -->
 										<form action="?/changeModeration" method="POST" use:enhance class="flex align-center gap-0.5">
 											<input type="hidden" name="projectId" value={project.id} />
-											<select name="moderationStatus" onchange="this.form.submit()" style="margin-bottom: 0; padding: 0.25rem 0.5rem; font-size: 0.8rem; height: auto;">
+											<select name="moderationStatus" onchange={(e) => e.currentTarget.form?.requestSubmit()} style="margin-bottom: 0; padding: 0.25rem 0.5rem; font-size: 0.8rem; height: auto;">
 												<option value="active" selected={project.moderationStatus === 'active'}>Active</option>
 												<option value="hidden" selected={project.moderationStatus === 'hidden'}>Hidden</option>
 												<option value="banned" selected={project.moderationStatus === 'banned'}>Banned</option>
@@ -93,7 +93,7 @@
 										<!-- Verification Form -->
 										<form action="?/changeVerification" method="POST" use:enhance class="flex align-center gap-0.5">
 											<input type="hidden" name="projectId" value={project.id} />
-											<select name="verificationStatus" onchange="this.form.submit()" style="margin-bottom: 0; padding: 0.25rem 0.5rem; font-size: 0.8rem; height: auto;">
+											<select name="verificationStatus" onchange={(e) => e.currentTarget.form?.requestSubmit()} style="margin-bottom: 0; padding: 0.25rem 0.5rem; font-size: 0.8rem; height: auto;">
 												<option value="unverified" selected={project.verificationStatus === 'unverified'}>Unverified</option>
 												<option value="verified" selected={project.verificationStatus === 'verified'}>Verified</option>
 											</select>
