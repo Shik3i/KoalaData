@@ -76,7 +76,7 @@ describe('Growth Leaderboard Rules', () => {
 				metricType: 'active_users',
 				name: 'WAU',
 				unit: 'count',
-				aggregation: 'avg',
+				aggregation: 'average',
 				isCumulative: 0,
 				participatesInLeaderboard: 1,
 				createdAt: now
@@ -88,7 +88,7 @@ describe('Growth Leaderboard Rules', () => {
 		const srcStaleId = crypto.randomUUID();
 		await db.insert(dataSources).values({ id: srcStaleId, projectId: projectStale.id, name: 'S1', sourceType: 'generic_csv', granularity: 'daily', createdAt: now, updatedAt: now });
 		const defStaleId = crypto.randomUUID();
-		await db.insert(metricDefinitions).values({ id: defStaleId, sourceId: srcStaleId, metricType: 'active_users', name: 'WAU', unit: 'count', aggregation: 'avg', isCumulative: 0, participatesInLeaderboard: 1, createdAt: now });
+		await db.insert(metricDefinitions).values({ id: defStaleId, sourceId: srcStaleId, metricType: 'active_users', name: 'WAU', unit: 'count', aggregation: 'average', isCumulative: 0, participatesInLeaderboard: 1, createdAt: now });
 		sourceStale = { id: srcStaleId };
 		defStale = { id: defStaleId };
 
@@ -97,7 +97,7 @@ describe('Growth Leaderboard Rules', () => {
 		const srcLowId = crypto.randomUUID();
 		await db.insert(dataSources).values({ id: srcLowId, projectId: projectLowStart.id, name: 'S2', sourceType: 'generic_csv', granularity: 'daily', createdAt: now, updatedAt: now });
 		const defLowId = crypto.randomUUID();
-		await db.insert(metricDefinitions).values({ id: defLowId, sourceId: srcLowId, metricType: 'active_users', name: 'WAU', unit: 'count', aggregation: 'avg', isCumulative: 0, participatesInLeaderboard: 1, createdAt: now });
+		await db.insert(metricDefinitions).values({ id: defLowId, sourceId: srcLowId, metricType: 'active_users', name: 'WAU', unit: 'count', aggregation: 'average', isCumulative: 0, participatesInLeaderboard: 1, createdAt: now });
 		sourceLow = { id: srcLowId };
 		defLow = { id: defLowId };
 
@@ -106,7 +106,7 @@ describe('Growth Leaderboard Rules', () => {
 		const srcHighId = crypto.randomUUID();
 		await db.insert(dataSources).values({ id: srcHighId, projectId: projectHighStart.id, name: 'S3', sourceType: 'generic_csv', granularity: 'daily', createdAt: now, updatedAt: now });
 		const defHighId = crypto.randomUUID();
-		await db.insert(metricDefinitions).values({ id: defHighId, sourceId: srcHighId, metricType: 'active_users', name: 'WAU', unit: 'count', aggregation: 'avg', isCumulative: 0, participatesInLeaderboard: 1, createdAt: now });
+		await db.insert(metricDefinitions).values({ id: defHighId, sourceId: srcHighId, metricType: 'active_users', name: 'WAU', unit: 'count', aggregation: 'average', isCumulative: 0, participatesInLeaderboard: 1, createdAt: now });
 		sourceHigh = { id: srcHighId };
 		defHigh = { id: defHighId };
 	});

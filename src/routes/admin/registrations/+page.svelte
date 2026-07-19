@@ -37,7 +37,6 @@
 					<thead>
 						<tr>
 							<th>Username</th>
-							<th>Display Name</th>
 							<th>Requested Date</th>
 							<th>Actions</th>
 						</tr>
@@ -48,7 +47,6 @@
 								<td>
 									<strong>{user.username}</strong>
 								</td>
-								<td>{user.displayName}</td>
 								<td>{formatDate(user.createdAt)}</td>
 								<td>
 									<div class="flex gap-1">

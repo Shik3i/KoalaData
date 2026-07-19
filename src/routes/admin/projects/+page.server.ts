@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { projects } from '$lib/server/db/schema';
-import { eq, and, isNull, like } from 'drizzle-orm';
+import { eq, and, like, isNotNull } from 'drizzle-orm';
 import { logAuditEvent } from '$lib/server/audit';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -8,9 +8,7 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const query = url.searchParams.get('q')?.trim() || '';
 
-	const conditions = [
-		isNull(projects.deletedAt)
-	];
+	const conditions = [];
 
 	if (query) {
 		conditions.push(like(projects.name, `%${query}%`));
@@ -103,5 +101,28 @@ export const actions: Actions = {
 		);
 
 		return { success: 'Project verification status updated.' };
+	},
+
+	restore: async ({ request, locals, getClientAddress }) => {
+		if (!locals.user || locals.user.role !== 'admin') {
+			return fail(403, { error: 'Forbidden' });
+		}
+
+		const data = await request.formData();
+		const projectId = data.get('projectId')?.toString() || '';
+		const restored = await db
+			.update(projects)
+			.set({ deletedAt: null, updatedAt: Math.floor(Date.now() / 1000) })
+			.where(and(eq(projects.id, projectId), isNotNull(projects.deletedAt)))
+			.returning({ id: projects.id });
+
+		if (restored.length === 0) {
+			return fail(404, { error: 'Deleted project not found.' });
+		}
+
+		let ip = '127.0.0.1';
+		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
+		await logAuditEvent(locals.user.id, locals.user.username, 'admin_restore_project', 'project', projectId, {}, ip);
+		return { success: 'Project restored successfully.' };
 	}
 };

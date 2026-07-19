@@ -18,20 +18,18 @@ export async function runSeeding() {
 			// Seed initial admin
 			const env = process.env;
 			const username = env.KOALADATA_ADMIN_USERNAME;
-			const displayName = env.KOALADATA_ADMIN_DISPLAY_NAME;
 			const password = env.KOALADATA_ADMIN_PASSWORD;
 
 			const isProd = env.NODE_ENV === 'production';
 
-			if (!username || !displayName || !password) {
+			if (!username || !password) {
 				if (isProd) {
-					console.error('[Seed] ERROR: No administrator exists and KOALADATA_ADMIN_USERNAME, KOALADATA_ADMIN_DISPLAY_NAME, or KOALADATA_ADMIN_PASSWORD environment variables are missing in production.');
+					console.error('[Seed] ERROR: No administrator exists and KOALADATA_ADMIN_USERNAME or KOALADATA_ADMIN_PASSWORD environment variables are missing in production.');
 					process.exit(1);
 				} else {
 					// In development, seed with insecure defaults and require password change
 					console.log('[Seed] No admin credentials provided in dev environment. Seeding default dev credentials...');
 					const defaultUsername = 'admin';
-					const defaultDisplayName = 'Dev Admin';
 					const defaultPassword = 'admin_password';
 
 					const passHash = await hashPassword(defaultPassword);
@@ -39,7 +37,7 @@ export async function runSeeding() {
 						id: crypto.randomUUID(),
 						username: defaultUsername,
 						normalizedUsername: defaultUsername.toLowerCase(),
-						displayName: defaultDisplayName,
+						displayName: defaultUsername,
 						passwordHash: passHash,
 						role: 'admin',
 						status: 'active',
@@ -47,7 +45,7 @@ export async function runSeeding() {
 						createdAt: Math.floor(Date.now() / 1000),
 						updatedAt: Math.floor(Date.now() / 1000)
 					});
-					console.log(`[Seed] Seeded default administrator: ${defaultUsername} (password: ${defaultPassword}). CHANGE PASSWORD IMMEDIATELY.`);
+					console.log(`[Seed] Seeded default development administrator: ${defaultUsername}. Change its password immediately.`);
 				}
 			} else {
 				// Seed using env vars
@@ -56,7 +54,7 @@ export async function runSeeding() {
 					id: crypto.randomUUID(),
 					username,
 					normalizedUsername: username.toLowerCase(),
-					displayName,
+					displayName: username,
 					passwordHash: passHash,
 					role: 'admin',
 					status: 'active',

@@ -6,20 +6,20 @@
 	let project = $derived(data.project);
 
 	// Date filter state
-	let dateFilter = $state('90'); // '30', '90', 'all'
+	let dateFilter = $state('90');
 
 	// Filter observations on the client side dynamically
 	let filteredMetrics = $derived(
 		data.metrics.map((metric) => {
 			let obs = [...metric.observations];
-			if (dateFilter === '30') {
-				obs = obs.slice(-30);
-			} else if (dateFilter === '90') {
-				obs = obs.slice(-90);
-			}
+			if (dateFilter !== 'all') obs = obs.slice(-Number(dateFilter));
+			const latest = obs.at(-1)?.value ?? null;
+			const previous = obs.at(-2)?.value ?? null;
 			return {
 				...metric,
-				observations: obs
+				observations: obs,
+				latest,
+				delta: latest !== null && previous !== null ? latest - previous : null
 			};
 		})
 	);
@@ -89,12 +89,14 @@
 	<div class="flex justify-between align-center filter-row flex-wrap gap-1">
 		<h2>Analytics & Metrics</h2>
 		<div class="filter-buttons flex gap-0.5">
+			<button class="btn btn-secondary btn-sm {dateFilter === '7' ? 'active' : ''}" onclick={() => dateFilter = '7'}>7D</button>
 			<button 
 				class="btn btn-secondary btn-sm {dateFilter === '30' ? 'active' : ''}" 
 				onclick={() => dateFilter = '30'}
 			>
 				Last 30 Days
 			</button>
+			<button class="btn btn-secondary btn-sm {dateFilter === '365' ? 'active' : ''}" onclick={() => dateFilter = '365'}>1Y</button>
 			<button 
 				class="btn btn-secondary btn-sm {dateFilter === '90' ? 'active' : ''}" 
 				onclick={() => dateFilter = '90'}
@@ -122,7 +124,17 @@
 			{#each filteredMetrics as metric}
 				<div class="card chart-card">
 					<div class="chart-header flex justify-between align-center">
-						<span class="source-tag text-muted">Source: {metric.sourceName}</span>
+						<div>
+							<span class="source-tag text-muted">Source: {metric.sourceName}</span>
+							{#if metric.latest !== null}
+								<div class="metric-kpi">
+									<strong>{metric.latest.toLocaleString()}</strong>
+									{#if metric.delta !== null}
+										<span class:positive={metric.delta > 0} class:negative={metric.delta < 0}>{metric.delta > 0 ? '+' : ''}{metric.delta.toLocaleString()}</span>
+									{/if}
+								</div>
+							{/if}
+						</div>
 						{#if metric.isCumulative}
 							<span class="badge badge-cumulative">Cumulative</span>
 						{/if}
@@ -177,6 +189,11 @@
 		font-size: 1.75rem;
 		margin-bottom: 0.25rem;
 	}
+	.metric-kpi { display: flex; align-items: baseline; gap: 0.6rem; margin-top: 0.3rem; }
+	.metric-kpi strong { font-size: 1.35rem; }
+	.metric-kpi span { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; }
+	.metric-kpi .positive { color: var(--success); }
+	.metric-kpi .negative { color: var(--error); }
 	.project-desc {
 		font-size: 0.95rem;
 		margin-bottom: 0;

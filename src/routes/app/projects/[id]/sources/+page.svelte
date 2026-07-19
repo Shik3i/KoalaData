@@ -57,7 +57,7 @@
 										action="?/deleteSource" 
 										method="POST" 
 										use:enhance={() => {
-											const ok = confirm('WARNING: Are you sure you want to delete this data source? This will NOT delete imported observations, but it will sever their metrics categories.');
+											const ok = confirm('Delete this unused data source? Sources with imports or metrics are protected from deletion.');
 											if (!ok) return;
 											return async ({ update }) => {
 												update();

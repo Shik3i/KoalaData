@@ -111,7 +111,7 @@ describe('CSV Import Draft Lifecycle & Cleanup', () => {
 					metricType: 'active_users',
 					name: 'Weekly Active Users',
 					unit: 'count',
-					aggregation: 'avg',
+					aggregation: 'average',
 					isCumulative: false
 				}
 			]

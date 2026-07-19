@@ -1,7 +1,7 @@
 import { argon2id } from 'hash-wasm';
 import crypto from 'crypto';
 import db from './db';
-import { sessions, users } from './db/schema';
+import { sessions, systemSettings, users } from './db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 
 
@@ -10,6 +10,17 @@ const MEMORY_SIZE = 15360; // 15 MB
 const ITERATIONS = 2;
 const PARALLELISM = 1;
 const HASH_LENGTH = 32;
+const DEFAULT_SESSION_MAX_AGE = 30 * 24 * 60 * 60;
+
+export async function getSessionMaxAgeSeconds(): Promise<number> {
+	const configured = await db
+		.select({ value: systemSettings.value })
+		.from(systemSettings)
+		.where(eq(systemSettings.key, 'session_max_age'))
+		.limit(1);
+	const value = Number.parseInt(configured[0]?.value || process.env.SESSION_MAX_AGE || '', 10);
+	return Number.isInteger(value) && value >= 300 ? value : DEFAULT_SESSION_MAX_AGE;
+}
 
 /**
  * Hash a password using Argon2id with hash-wasm.
@@ -91,8 +102,8 @@ export async function createSession(
 	userAgent?: string | null
 ) {
 	const hashedToken = hashSessionToken(token);
-	// Default persistent lifetime of 30 days
-	const expiresAt = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
+	// Persistent lifetime follows the global session setting.
+	const expiresAt = Math.floor(Date.now() / 1000) + await getSessionMaxAgeSeconds();
 	const now = Math.floor(Date.now() / 1000);
 
 	await db.insert(sessions).values({

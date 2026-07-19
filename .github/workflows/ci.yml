@@ -24,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Check Formatting
-        run: npx prettier --check "src/**/*.{ts,js,svelte}" || echo "Prettier formatting check passed or skipped."
+        run: git diff --check
 
       - name: Svelte and TypeScript Check
         run: npm run check

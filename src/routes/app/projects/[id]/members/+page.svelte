@@ -35,8 +35,7 @@
 				<div class="owner-box flex align-center gap-2">
 					<span class="owner-avatar">👑</span>
 					<div>
-						<strong>{data.owner.displayName}</strong>
-						<div class="text-muted">@{data.owner.username}</div>
+						<strong>@{data.owner.username}</strong>
 					</div>
 				</div>
 			</section>
@@ -53,8 +52,8 @@
 						{#each data.editors as editor}
 							<div class="editor-item flex justify-between align-center">
 								<div>
-									<strong>{editor.displayName}</strong>
-									<div class="text-muted">@{editor.username} • Joined {formatDate(editor.createdAt)}</div>
+									<strong>@{editor.username}</strong>
+									<div class="text-muted">Joined {formatDate(editor.createdAt)}</div>
 								</div>
 								{#if isOwnerOrAdmin}
 									<form action="?/removeEditor" method="POST" use:enhance>

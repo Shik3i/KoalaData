@@ -27,7 +27,7 @@
 	<div class="flex justify-between align-center page-header">
 		<div>
 			<a href="/admin/users" class="back-link">← Back to User List</a>
-			<h1 class="user-title">👤 {data.targetUser.displayName} <span class="username-tag">({data.targetUser.username})</span></h1>
+			<h1 class="user-title">👤 {data.targetUser.username}</h1>
 		</div>
 		<div class="user-status-badges flex gap-1">
 			<span class="badge {data.targetUser.role === 'admin' ? 'badge-admin' : ''}">{data.targetUser.role}</span>
@@ -274,12 +274,6 @@
 	.page-header {
 		border-bottom: 1px solid var(--border-color);
 		padding-bottom: 1rem;
-	}
-
-	.username-tag {
-		font-weight: 500;
-		color: var(--text-muted);
-		font-size: 1.25rem;
 	}
 
 	.divider {

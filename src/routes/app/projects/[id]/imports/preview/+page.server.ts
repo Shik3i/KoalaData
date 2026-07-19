@@ -110,6 +110,9 @@ export const actions: Actions = {
 				const name = data.get(`name_col_${i}`)?.toString().trim() || colName;
 				const aggregation = data.get(`agg_col_${i}`)?.toString() || 'sum';
 				const isCumulative = data.get(`cum_col_${i}`) === 'true';
+				if (!['latest', 'sum', 'average', 'minimum', 'maximum'].includes(aggregation)) {
+					return fail(400, { error: `Invalid aggregation for column "${colName}".` });
+				}
 
 				metrics.push({
 					columnName: colName,

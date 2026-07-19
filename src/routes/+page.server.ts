@@ -1,26 +1,27 @@
 import { db } from '$lib/server/db';
 import { projects } from '$lib/server/db/schema';
-import { eq, and, isNull, like, or } from 'drizzle-orm';
+import { eq, and, isNull, like, or, type SQL } from 'drizzle-orm';
 import { getLeaderboard } from '$lib/server/growth';
 import type { PageServerLoad } from './$types';
+import { getPublicSiteSettings } from '$lib/server/settings';
 
 export const load: PageServerLoad = async ({ url }) => {
+	const site = await getPublicSiteSettings();
 	const query = url.searchParams.get('q')?.trim() || '';
 	const category = url.searchParams.get('category')?.trim() || '';
 
-	const conditions = [
+	const conditions: SQL<unknown>[] = [
 		eq(projects.visibility, 'public'),
 		isNull(projects.deletedAt),
 		eq(projects.moderationStatus, 'active')
 	];
 
 	if (query) {
-		conditions.push(
-			or(
+		const searchCondition = or(
 				like(projects.name, `%${query}%`),
 				like(projects.shortDescription, `%${query}%`)
-			)
-		);
+			);
+		if (searchCondition) conditions.push(searchCondition);
 	}
 
 	if (category) {
@@ -28,14 +29,14 @@ export const load: PageServerLoad = async ({ url }) => {
 	}
 
 	// Fetch matching projects
-	const exploreList = await db
+	const exploreList = site.publicDiscoveryEnabled ? await db
 		.select()
 		.from(projects)
 		.where(and(...conditions))
-		.orderBy(projects.name);
+		.orderBy(projects.name) : [];
 
 	// Fetch leaderboard rankings
-	const leaderboard = await getLeaderboard();
+	const leaderboard = site.publicLeaderboardsEnabled ? await getLeaderboard() : [];
 
 	return {
 		exploreProjects: exploreList,

@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { dataSources } from '$lib/server/db/schema';
+import { dataSources, importBatches, importDrafts, metricDefinitions } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { logAuditEvent } from '$lib/server/audit';
@@ -77,13 +77,25 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const sourceId = data.get('sourceId')?.toString() || '';
+		const deletion = db.transaction((tx) => {
+			const source = tx.select({ id: dataSources.id }).from(dataSources)
+				.where(and(eq(dataSources.id, sourceId), eq(dataSources.projectId, projectId))).get();
+			if (!source) return 'missing' as const;
+			const batch = tx.select({ id: importBatches.id }).from(importBatches).where(eq(importBatches.sourceId, sourceId)).get();
+			const draft = tx.select({ id: importDrafts.id }).from(importDrafts).where(eq(importDrafts.sourceId, sourceId)).get();
+			const metric = tx.select({ id: metricDefinitions.id }).from(metricDefinitions).where(eq(metricDefinitions.sourceId, sourceId)).get();
+			if (batch || draft || metric) return 'protected' as const;
+			tx.delete(dataSources).where(and(eq(dataSources.id, sourceId), eq(dataSources.projectId, projectId))).run();
+			return 'deleted' as const;
+		});
+
+		if (deletion === 'missing') return fail(404, { error: 'Data source not found.' });
+		if (deletion === 'protected') {
+			return fail(409, { error: 'This source contains import history or metrics and cannot be deleted.' });
+		}
 
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
-
-		await db
-			.delete(dataSources)
-			.where(and(eq(dataSources.id, sourceId), eq(dataSources.projectId, projectId)));
 
 		await logAuditEvent(locals.user.id, locals.user.username, 'delete_data_source', 'data_source', sourceId, {}, ip);
 

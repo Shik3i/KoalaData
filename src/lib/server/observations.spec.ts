@@ -70,7 +70,7 @@ describe('Observations CTE & Rollback Pipeline', () => {
 			metricType: 'active_users',
 			name: 'Weekly Active Users',
 			unit: 'count',
-			aggregation: 'avg',
+			aggregation: 'average',
 			isCumulative: 0,
 			participatesInLeaderboard: 1,
 			createdAt: now

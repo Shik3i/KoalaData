@@ -62,6 +62,13 @@
 			</div>
 		{/if}
 	</div>
+	{#if data.pagination.totalPages > 1}
+		<nav class="pagination flex justify-between align-center" aria-label="Audit log pages">
+			<a class="btn btn-secondary btn-sm" class:disabled={data.pagination.page <= 1} href="?page={data.pagination.page - 1}">Previous</a>
+			<span class="text-muted">Page {data.pagination.page} of {data.pagination.totalPages} · {data.pagination.total} events</span>
+			<a class="btn btn-secondary btn-sm" class:disabled={data.pagination.page >= data.pagination.totalPages} href="?page={data.pagination.page + 1}">Next</a>
+		</nav>
+	{/if}
 </div>
 
 <style>
@@ -140,4 +147,6 @@
 		color: var(--primary);
 		width: fit-content;
 	}
+	.pagination { margin-top: 1rem; }
+	.disabled { pointer-events: none; opacity: 0.45; }
 </style>

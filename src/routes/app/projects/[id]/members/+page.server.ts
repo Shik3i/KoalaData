@@ -3,7 +3,7 @@ import { projectMembers, projects, users } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { logAuditEvent } from '$lib/server/audit';
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ parent }) => {
@@ -13,8 +13,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 	const ownerRecord = await db
 		.select({
 			id: users.id,
-			username: users.username,
-			displayName: users.displayName
+			username: users.username
 		})
 		.from(users)
 		.where(eq(users.id, project.ownerId))
@@ -26,7 +25,6 @@ export const load: PageServerLoad = async ({ parent }) => {
 			memberId: projectMembers.id,
 			userId: users.id,
 			username: users.username,
-			displayName: users.displayName,
 			role: projectMembers.role,
 			createdAt: projectMembers.createdAt
 		})

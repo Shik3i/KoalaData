@@ -11,7 +11,6 @@ export const load: PageServerLoad = async () => {
 		.select({
 			id: users.id,
 			username: users.username,
-			displayName: users.displayName,
 			createdAt: users.createdAt
 		})
 		.from(users)

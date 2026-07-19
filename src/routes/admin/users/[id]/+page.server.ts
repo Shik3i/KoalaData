@@ -45,7 +45,6 @@ export const load: PageServerLoad = async ({ params }) => {
 		targetUser: {
 			id: user.id,
 			username: user.username,
-			displayName: user.displayName,
 			role: user.role,
 			status: user.status,
 			forcePasswordChange: user.forcePasswordChange,

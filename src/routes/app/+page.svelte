@@ -27,7 +27,7 @@
 	<div class="flex justify-between align-center dashboard-header flex-wrap gap-2">
 		<div>
 			<h1>Developer Workspace</h1>
-			<p class="text-muted">Welcome, {data.user.displayName}. Manage your extensions and imports.</p>
+			<p class="text-muted">Welcome, {data.user.username}. Manage your extensions and imports.</p>
 		</div>
 		<div>
 			<a href="/app/projects/new" class="btn btn-primary">➕ New Project</a>

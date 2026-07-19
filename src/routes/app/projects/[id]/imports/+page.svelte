@@ -155,7 +155,7 @@
 														action="?/rollbackBatch" 
 														method="POST" 
 														use:enhance={() => {
-															const ok = confirm('WARNING: Are you sure you want to revert this import? All observations will be purged immediately.');
+													const ok = confirm('Revert this import? Its observations will be excluded from active metrics while the audit record is preserved.');
 															if (!ok) return;
 															return async ({ update }) => {
 																update();

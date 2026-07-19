@@ -111,7 +111,7 @@ export const actions: Actions = {
 				ip
 			);
 
-			return { success: 'Import batch rolled back successfully. Observations purged.' };
+			return { success: 'Import batch rolled back successfully. Its observations are excluded from active metrics.' };
 		} catch (e: any) {
 			return fail(400, { error: e.message || 'Rollback failed.' });
 		}

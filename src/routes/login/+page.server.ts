@@ -3,6 +3,7 @@ import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { verifyPassword, generateSessionToken, createSession, invalidateSession } from '$lib/server/auth';
 import { logAuditEvent } from '$lib/server/audit';
+import { safeInternalRedirect } from '$lib/server/redirects';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -41,7 +42,7 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const username = data.get('username')?.toString().trim() || '';
 		const password = data.get('password')?.toString() || '';
-		const redirectTo = data.get('redirectTo')?.toString() || '/app';
+		const redirectTo = safeInternalRedirect(data.get('redirectTo'));
 
 		let clientIp = '127.0.0.1';
 		try {
@@ -91,7 +92,8 @@ export const actions: Actions = {
 
 		// 3. Create Session
 		const token = generateSessionToken();
-		await createSession(token, user.id, clientIp, request.headers.get('user-agent'));
+		const session = await createSession(token, user.id, clientIp, request.headers.get('user-agent'));
+		const sessionMaxAge = Math.max(300, session.expiresAt - Math.floor(Date.now() / 1000));
 
 		// Set Session Cookie
 		const isProd = process.env.NODE_ENV === 'production';
@@ -101,7 +103,7 @@ export const actions: Actions = {
 			httpOnly: true,
 			sameSite: 'lax',
 			secure: isProd && !isTest,
-			maxAge: 30 * 24 * 60 * 60 // 30 days
+			maxAge: sessionMaxAge
 		});
 
 		// Audit Log

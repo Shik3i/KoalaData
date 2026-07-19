@@ -1,7 +1,7 @@
 {
 	"name": "koaladata",
 	"private": true,
-	"version": "0.0.1",
+	"version": "1.0.1",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -10,7 +10,7 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"test:e2e": "playwright install && playwright test",
+		"test:e2e": "playwright test",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:unit": "vitest --no-file-parallelism",
 		"db:push": "drizzle-kit push",
@@ -19,6 +19,8 @@
 		"db:studio": "drizzle-kit studio"
 	},
 	"devDependencies": {
+		"@emnapi/core": "^1.11.2",
+		"@emnapi/runtime": "^1.11.2",
 		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/kit": "^2.63.0",

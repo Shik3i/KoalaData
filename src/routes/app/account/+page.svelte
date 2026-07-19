@@ -1,9 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-
-	let { data, form } = $props();
-
-	let loading = $state(false);
+	let { data } = $props();
 </script>
 
 <svelte:head>
@@ -24,33 +20,11 @@
 		<!-- Main Settings area -->
 		<main class="card settings-card">
 			<h2>Profile Settings</h2>
-			<p class="text-muted">Manage your public and display metadata.</p>
+			<p class="text-muted">Your username is your public account name.</p>
 
-			{#if form?.success}
-				<div class="alert alert-success">
-					{form.success}
-				</div>
-			{/if}
-
-			{#if form?.error}
-				<div class="alert alert-danger">
-					{form.error}
-				</div>
-			{/if}
-
-			<form 
-				action="?/updateProfile" 
-				method="POST" 
-				use:enhance={() => {
-					loading = true;
-					return async ({ update }) => {
-						loading = false;
-						update();
-					};
-				}}
-			>
+			<div>
 				<div class="form-group">
-					<label for="username">Username (Normalized)</label>
+					<label for="username">Username</label>
 					<input 
 						type="text" 
 						id="username" 
@@ -60,23 +34,7 @@
 					/>
 					<small class="help-text">Usernames cannot be changed once created.</small>
 				</div>
-
-				<div class="form-group">
-					<label for="displayName">Display Name</label>
-					<input 
-						type="text" 
-						id="displayName" 
-						name="displayName" 
-						value={data.user.displayName} 
-						required 
-						disabled={loading}
-					/>
-				</div>
-
-				<button type="submit" class="btn btn-primary" disabled={loading}>
-					{loading ? 'Saving...' : 'Save Profile'}
-				</button>
-			</form>
+			</div>
 
 			<hr class="divider" />
 

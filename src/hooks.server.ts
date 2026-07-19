@@ -2,25 +2,21 @@ import { initDb } from '$lib/server/db/setup';
 import { validateSession, invalidateSession } from '$lib/server/auth';
 import { checkRateLimit } from '$lib/server/security/limiter';
 import { redirect, type Handle } from '@sveltejs/kit';
-import crypto from 'crypto';
+import { cleanupExpiredDrafts } from '$lib/server/csv/pipeline';
 
 // Initialize the database on server startup
 export async function init() {
 	await initDb();
+	await cleanupExpiredDrafts();
+	const cleanupTimer = setInterval(() => {
+		cleanupExpiredDrafts().catch((error) => console.error('[Draft Cleanup] Scheduled cleanup failed:', error));
+	}, 15 * 60 * 1000);
+	cleanupTimer.unref();
 }
-
-import fs from 'fs';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
 	const clientIp = event.getClientAddress ? event.getClientAddress() : '127.0.0.1';
-
-	try {
-		const logLine = `[HooksRequest] ${event.request.method} ${pathname} | Cookies: ${event.request.headers.get('cookie')}\n`;
-		fs.appendFileSync('debug_hooks.log', logLine);
-	} catch (e) {}
-
-	console.log(`[HooksRequest] ${event.request.method} ${pathname} | Cookies: ${event.request.headers.get('cookie')}`);
 
 	// 1. Rate Limiting check
 	const disableRateLimit = process.env.DISABLE_RATE_LIMIT === 'true' || process.env.NODE_ENV === 'test';
@@ -94,27 +90,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	// 4. CSP Nonce Generation and Injection
-	const nonce = crypto.randomBytes(16).toString('base64');
-	
-	const resolveOptions: any = {
-		transformPageChunk: ({ html }) => html.replace(/%sveltekit\.nonce%/g, nonce)
-	};
-	if (!disableRateLimit) {
-		resolveOptions.nonce = nonce;
-	}
-
-	const response = await resolve(event, resolveOptions);
+	const response = await resolve(event);
 
 	// Apply security headers
-	const scriptSrc = disableRateLimit 
-		? `script-src 'self' 'unsafe-inline' https://unpkg.com;` 
-		: `script-src 'self' 'nonce-${nonce}' https://unpkg.com;`;
-
-	response.headers.set(
-		'Content-Security-Policy',
-		`default-src 'self'; ${scriptSrc} style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; font-src 'self' https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';`
-	);
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');

@@ -4,6 +4,15 @@
 	function formatDate(timestamp: number) {
 		return new Date(timestamp * 1000).toLocaleDateString();
 	}
+
+	function pageUrl(targetPage: number) {
+		const params = new URLSearchParams();
+		if (data.searchQuery) params.set('q', data.searchQuery);
+		if (data.roleFilter) params.set('role', data.roleFilter);
+		if (data.statusFilter) params.set('status', data.statusFilter);
+		params.set('page', String(targetPage));
+		return `?${params}`;
+	}
 </script>
 
 <div class="users-list-page">
@@ -17,7 +26,7 @@
 				<input 
 					type="text" 
 					name="q" 
-					placeholder="Search username or display name..." 
+					placeholder="Search username..."
 					value={data.searchQuery}
 				/>
 			</div>
@@ -62,7 +71,6 @@
 					<thead>
 						<tr>
 							<th>Username</th>
-							<th>Display Name</th>
 							<th>Role</th>
 							<th>Status</th>
 							<th>Joined Date</th>
@@ -75,7 +83,6 @@
 								<td>
 									<strong>{user.username}</strong>
 								</td>
-								<td>{user.displayName}</td>
 								<td>
 									<span class="badge {user.role === 'admin' ? 'badge-admin' : ''}">{user.role}</span>
 								</td>
@@ -93,6 +100,13 @@
 			</div>
 		{/if}
 	</div>
+	{#if data.pagination.totalPages > 1}
+		<nav class="pagination flex justify-between align-center" aria-label="User list pages">
+			<a class="btn btn-secondary btn-sm" class:disabled={data.pagination.page <= 1} href={pageUrl(data.pagination.page - 1)}>Previous</a>
+			<span class="text-muted">Page {data.pagination.page} of {data.pagination.totalPages} · {data.pagination.total} users</span>
+			<a class="btn btn-secondary btn-sm" class:disabled={data.pagination.page >= data.pagination.totalPages} href={pageUrl(data.pagination.page + 1)}>Next</a>
+		</nav>
+	{/if}
 </div>
 
 <style>
@@ -171,4 +185,6 @@
 		background-color: var(--error-bg);
 		color: var(--error);
 	}
+	.pagination { margin-top: 1rem; }
+	.disabled { pointer-events: none; opacity: 0.45; }
 </style>

@@ -1,17 +1,14 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { untrack } from 'svelte';
 
 	let { data, form } = $props();
 
 	let loading = $state(false);
 
-	// State for mapping selections
-	let dateColumn = $state('');
-	let dateFormat = $state('YYYY-MM-DD');
-
-	// Create mapping structure based on header list and auto-detected options
-	let mappings = $state(
-		data.previewHeaders.map((header, idx) => {
+	const initialMapping = untrack(() => {
+		let detectedDateColumn = '';
+		const mappings = data.previewHeaders.map((header, idx) => {
 			const auto = data.autoDetect.mappings;
 			
 			// Check if this header matches an auto-detected metric type
@@ -22,7 +19,7 @@
 
 			// Date auto-detect
 			if (auto['date']?.column === header) {
-				dateColumn = header;
+				detectedDateColumn = header;
 			}
 
 			// Metric auto-detect
@@ -31,7 +28,7 @@
 					isMapped = true;
 					metricType = mapVal.metricType;
 					if (metricType === 'active_users') {
-						aggregation = 'avg';
+					aggregation = 'average';
 						isCumulative = false;
 					}
 					break;
@@ -47,13 +44,13 @@
 				aggregation,
 				isCumulative
 			};
-		})
-	);
+		});
+		return { mappings, dateColumn: detectedDateColumn || data.previewHeaders[0] || '' };
+	});
 
-	// Safe fallback if dateColumn was not detected automatically
-	if (!dateColumn && data.previewHeaders.length > 0) {
-		dateColumn = data.previewHeaders[0];
-	}
+	let dateColumn = $state(initialMapping.dateColumn);
+	let dateFormat = $state('YYYY-MM-DD');
+	let mappings = $state(initialMapping.mappings);
 </script>
 
 <svelte:head>
@@ -208,9 +205,9 @@
 											disabled={loading}
 										>
 											<option value="sum">Sum (Totals)</option>
-											<option value="avg">Average (Averages)</option>
-											<option value="max">Max</option>
-											<option value="min">Min</option>
+											<option value="average">Average</option>
+											<option value="maximum">Maximum</option>
+											<option value="minimum">Minimum</option>
 										</select>
 									</div>
 

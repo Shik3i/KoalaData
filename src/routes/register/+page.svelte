@@ -14,7 +14,7 @@
 	<div class="card auth-card">
 		<h1 class="auth-title">Create Account</h1>
 		
-		{#if data.registrationMode === 'closed'}
+		{#if data.registrationMode === 'invite_only'}
 			<div class="alert alert-warning">
 				🔒 Public registration is currently closed. Only administrators can create new user accounts.
 			</div>
@@ -51,18 +51,6 @@
 						id="username" 
 						name="username" 
 						placeholder="3 to 30 characters, a-z, 0-9, _, -, ." 
-						required 
-						disabled={loading}
-					/>
-				</div>
-
-				<div class="form-group">
-					<label for="displayName">Display Name</label>
-					<input 
-						type="text" 
-						id="displayName" 
-						name="displayName" 
-						placeholder="e.g. Shik3i" 
 						required 
 						disabled={loading}
 					/>

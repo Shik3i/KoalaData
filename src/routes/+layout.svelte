@@ -49,12 +49,16 @@
 		<div class="container flex align-center justify-between">
 			<a href="/" class="brand flex align-center gap-2">
 				<span class="logo-icon">🌿</span>
-				<span class="brand-name">KoalaData</span>
+				<span class="brand-name">{data.site.siteTitle}</span>
 			</a>
 			
 			<nav class="nav-links flex align-center gap-3">
-				<a href="/discover" class="nav-link {page.url.pathname === '/discover' ? 'active' : ''}">Discover</a>
-				<a href="/leaderboards" class="nav-link {page.url.pathname === '/leaderboards' ? 'active' : ''}">Leaderboards</a>
+				{#if data.site.publicDiscoveryEnabled}
+					<a href="/discover" class="nav-link {page.url.pathname === '/discover' ? 'active' : ''}">Discover</a>
+				{/if}
+				{#if data.site.publicLeaderboardsEnabled}
+					<a href="/leaderboards" class="nav-link {page.url.pathname === '/leaderboards' ? 'active' : ''}">Leaderboards</a>
+				{/if}
 				
 				{#if user}
 					<a href="/app" class="nav-link {page.url.pathname.startsWith('/app') ? 'active' : ''}">Dashboard</a>
@@ -79,14 +83,16 @@
 
 				{#if user}
 					<div class="user-menu flex align-center gap-2">
-						<a href="/app/account" class="username-btn">👤 {user.displayName}</a>
+						<a href="/app/account" class="username-btn">👤 {user.username}</a>
 						<form action="/login?/logout" method="POST" class="inline-form">
 							<button type="submit" class="btn btn-secondary btn-sm">Log out</button>
 						</form>
 					</div>
 				{:else}
 					<a href="/login" class="btn btn-secondary btn-sm">Log in</a>
-					<a href="/register" class="btn btn-primary btn-sm">Register</a>
+					{#if data.site.registrationMode !== 'invite_only'}
+						<a href="/register" class="btn btn-primary btn-sm">Register</a>
+					{/if}
 				{/if}
 			</div>
 		</div>
@@ -107,11 +113,11 @@
 
 	<footer class="main-footer">
 		<div class="container flex justify-between align-center text-muted">
-			<p>© {new Date().getFullYear()} KoalaData. Nature-crafted extension metrics.</p>
+			<p>© {new Date().getFullYear()} {data.site.siteTitle}. Nature-crafted extension metrics.</p>
 			<div class="footer-links flex gap-2">
-				<a href="/discover">Projects Index</a>
-				<span>•</span>
-				<a href="/leaderboards">Leaderboards</a>
+				{#if data.site.publicDiscoveryEnabled}<a href="/discover">Projects Index</a>{/if}
+				{#if data.site.publicDiscoveryEnabled && data.site.publicLeaderboardsEnabled}<span>•</span>{/if}
+				{#if data.site.publicLeaderboardsEnabled}<a href="/leaderboards">Leaderboards</a>{/if}
 			</div>
 		</div>
 	</footer>

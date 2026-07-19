@@ -40,6 +40,11 @@
 				>
 					<!-- Registration Mode -->
 					<div class="form-group">
+						<label for="site_title">Site Title</label>
+						<input type="text" id="site_title" name="site_title" maxlength="60" value={data.settings.site_title || 'KoalaData'} required />
+					</div>
+
+					<div class="form-group">
 						<label for="registration_mode">Registration Policy</label>
 						<select id="registration_mode" name="registration_mode" required>
 							<option value="open" selected={data.settings.registration_mode === 'open'}>
@@ -52,6 +57,15 @@
 								🔒 Invite Only / Closed (Disable new visitor registrations entirely)
 							</option>
 						</select>
+					</div>
+
+					<div class="form-group checkbox-group flex align-center gap-1">
+						<input type="checkbox" id="public_discovery_enabled" name="public_discovery_enabled" value="true" checked={data.settings.public_discovery_enabled !== 'false'} />
+						<label for="public_discovery_enabled">Enable public project discovery</label>
+					</div>
+					<div class="form-group checkbox-group flex align-center gap-1">
+						<input type="checkbox" id="public_leaderboards_enabled" name="public_leaderboards_enabled" value="true" checked={data.settings.public_leaderboards_enabled !== 'false'} />
+						<label for="public_leaderboards_enabled">Enable public leaderboards</label>
 					</div>
 
 					<!-- Default Max Projects -->
@@ -102,6 +116,19 @@
 							value={data.settings.default_max_csv_rows || '100000'} 
 							required 
 						/>
+					</div>
+
+					<div class="form-group">
+						<label for="session_max_age">Session Lifetime (Seconds)</label>
+						<input
+							type="number"
+							id="session_max_age"
+							name="session_max_age"
+							min="300"
+							value={data.settings.session_max_age || '2592000'}
+							required
+						/>
+						<span class="text-muted help-text">2,592,000 seconds = 30 days</span>
 					</div>
 
 					<button type="submit" class="btn btn-primary" disabled={loading}>

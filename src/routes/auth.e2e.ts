@@ -58,7 +58,6 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await expect(page.locator('h1')).toContainText('Create Account');
 
 		await page.fill('input[name="username"]', testUsername);
-		await page.fill('input[name="displayName"]', 'E2E Developer');
 		await page.fill('input[name="password"]', testPassword);
 		await page.click('button[type="submit"]');
 
@@ -97,7 +96,7 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.waitForURL('/app');
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await expect(page.locator('h1')).toContainText('Developer Workspace');
-		await expect(page.locator('body')).toContainText('Welcome, E2E Developer');
+		await expect(page.locator('body')).toContainText(`Welcome, ${testUsername}`);
 
 		console.log('--- ALL LINKS ON DASHBOARD ---');
 		const links = await page.locator('a').all();

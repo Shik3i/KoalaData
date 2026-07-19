@@ -42,30 +42,37 @@ describe('User Management Service', () => {
 
 	it('should prevent registering reserved usernames', async () => {
 		await expect(
-			registerUser('admin', 'Test Admin', 'password123', 'open')
+			registerUser('admin', 'password123', 'open')
 		).rejects.toThrow('Username is a reserved system path.');
 		
 		await expect(
-			registerUser('login', 'Login Page', 'password123', 'open')
+			registerUser('login', 'password123', 'open')
 		).rejects.toThrow('Username is a reserved system path.');
 	});
 
 	it('should prevent invalid username formats', async () => {
 		await expect(
-			registerUser('a', 'Short Name', 'password123', 'open')
+			registerUser('a', 'password123', 'open')
 		).rejects.toThrow('Username must be between 3 and 30 characters.');
 
 		await expect(
-			registerUser('user@name', 'Special Chars', 'password123', 'open')
+			registerUser('user@name', 'password123', 'open')
 		).rejects.toThrow('Username can only contain letters, numbers, underscores, hyphens, and dots.');
+	});
+
+	it('should block self-registration in invite-only mode', async () => {
+		await expect(registerUser('invite_blocked', 'password123', 'invite_only')).rejects.toThrow(
+			'Registration is currently closed.'
+		);
 	});
 
 	it('should register a pending user under approval_required mode', async () => {
 		const username = 'pending_user';
-		const userId = await registerUser(username, 'Pending User', 'password123', 'approval_required');
+		const userId = await registerUser(username, 'password123', 'approval_required');
 
 		const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 		expect(user[0].status).toBe('pending');
+		expect(user[0].displayName).toBe(username);
 
 		// Pending users should fail login check in application hooks (validateSession works, but status pending is checked)
 		expect(user[0].status).toBe('pending');
@@ -73,15 +80,34 @@ describe('User Management Service', () => {
 
 	it('should register an active user under open mode', async () => {
 		const username = 'active_user';
-		const userId = await registerUser(username, 'Active User', 'password123', 'open');
+		const userId = await registerUser(username, 'password123', 'open');
 
 		const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 		expect(user[0].status).toBe('active');
 	});
 
+	it('should enforce username as the display name at the database boundary', async () => {
+		const id = crypto.randomUUID();
+		const now = Math.floor(Date.now() / 1000);
+		await db.insert(users).values({
+			id,
+			username: 'database_name_test',
+			normalizedUsername: 'database_name_test',
+			displayName: 'Different Name',
+			passwordHash: 'unused',
+			role: 'user',
+			status: 'active',
+			createdAt: now,
+			updatedAt: now
+		});
+
+		const user = await db.select().from(users).where(eq(users.id, id)).limit(1);
+		expect(user[0].displayName).toBe(user[0].username);
+	});
+
 	it('should support admin approval of pending user', async () => {
 		const username = 'pending_approve_test';
-		const userId = await registerUser(username, 'Approve Test', 'password123', 'approval_required');
+		const userId = await registerUser(username, 'password123', 'approval_required');
 
 		await approveUser(adminUser.id, adminUser.username, userId);
 
@@ -91,7 +117,7 @@ describe('User Management Service', () => {
 
 	it('should support admin rejection of pending user', async () => {
 		const username = 'pending_reject_test';
-		const userId = await registerUser(username, 'Reject Test', 'password123', 'approval_required');
+		const userId = await registerUser(username, 'password123', 'approval_required');
 
 		await rejectUser(adminUser.id, adminUser.username, userId);
 
@@ -101,7 +127,7 @@ describe('User Management Service', () => {
 
 	it('should ban a user and invalidate their sessions', async () => {
 		const username = 'ban_test_user';
-		const userId = await registerUser(username, 'Ban Test', 'password123', 'open');
+		const userId = await registerUser(username, 'password123', 'open');
 
 		// Create a session
 		await createSession('mocktoken123456789012345678901234567890123456789012345678901234567890', userId);

@@ -5,6 +5,7 @@ export const users = sqliteTable('users', {
 	id: text('id').primaryKey(),
 	username: text('username').notNull().unique(),
 	normalizedUsername: text('normalized_username').notNull().unique(),
+	// Compatibility column; migration triggers enforce display_name === username.
 	displayName: text('display_name').notNull(),
 	passwordHash: text('password_hash').notNull(),
 	role: text('role', { enum: ['user', 'admin'] }).notNull().default('user'),

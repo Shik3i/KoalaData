@@ -63,20 +63,15 @@ async function assertNotLastActiveAdmin(targetUserId: string) {
  */
 export async function registerUser(
 	username: string,
-	displayName: string,
 	password: string,
-	mode: 'open' | 'approval_required' | 'closed',
+	mode: 'open' | 'approval_required' | 'invite_only',
 	actorIp = '127.0.0.1'
 ): Promise<string> {
-	if (mode === 'closed') {
+	if (mode === 'invite_only') {
 		throw new Error('Registration is currently closed.');
 	}
 
 	validateUsername(username);
-
-	if (displayName.length < 1 || displayName.length > 50) {
-		throw new Error('Display name must be between 1 and 50 characters.');
-	}
 
 	if (password.length < 8) {
 		throw new Error('Password must be at least 8 characters long.');
@@ -102,7 +97,7 @@ export async function registerUser(
 		id: userId,
 		username,
 		normalizedUsername: normalized,
-		displayName,
+		displayName: username,
 		passwordHash,
 		role: 'user',
 		status,

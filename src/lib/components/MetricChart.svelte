@@ -1,14 +1,21 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import * as echarts from 'echarts';
+	import * as echarts from 'echarts/core';
+	import { LineChart } from 'echarts/charts';
+	import { GridComponent, TitleComponent, TooltipComponent } from 'echarts/components';
+	import { SVGRenderer } from 'echarts/renderers';
+	import type { EChartsType } from 'echarts/core';
+
+	echarts.use([LineChart, GridComponent, TitleComponent, TooltipComponent, SVGRenderer]);
+	type Observation = { date: string; value: number };
 
 	let { title, observations } = $props<{
 		title: string;
-		observations: Array<{ date: string; value: number }>;
+		observations: Observation[];
 	}>();
 
 	let chartDom: HTMLDivElement;
-	let chart: echarts.ECharts | null = null;
+	let chart: EChartsType | null = null;
 
 	function initChart() {
 		if (!chartDom) return;
@@ -17,10 +24,10 @@
 			chart.dispose();
 		}
 
-		chart = echarts.init(chartDom);
+		chart = echarts.init(chartDom, undefined, { renderer: 'svg' });
 
-		const dates = observations.map((o) => o.date);
-		const values = observations.map((o) => o.value);
+		const dates = observations.map((o: Observation) => o.date);
+		const values = observations.map((o: Observation) => o.value);
 
 		const option = {
 			title: {
@@ -47,7 +54,6 @@
 				right: '5%',
 				bottom: '12%',
 				top: '18%',
-				containLabel: true
 			},
 			xAxis: {
 				type: 'category',
@@ -101,8 +107,8 @@
 	// Update chart when observations list changes reactively
 	$effect(() => {
 		if (chart && observations) {
-			const dates = observations.map((o) => o.date);
-			const values = observations.map((o) => o.value);
+			const dates = observations.map((o: Observation) => o.date);
+			const values = observations.map((o: Observation) => o.value);
 			chart.setOption({
 				xAxis: {
 					data: dates
