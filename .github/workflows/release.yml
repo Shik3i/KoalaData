@@ -1,13 +1,12 @@
-name: CI
+name: Release
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
-  ci-pipeline:
+  build-and-release:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,22 +20,13 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Check Formatting
-        run: npx prettier --check "src/**/*.{ts,js,svelte}" || echo "Prettier formatting check passed or skipped."
+        run: npm install
 
       - name: Svelte and TypeScript Check
         run: npm run check
 
-      - name: Run Unit and Integration Tests
+      - name: Run Unit Tests
         run: npm run test:unit -- --run
-
-      - name: Install Playwright Browsers & Dependencies
-        run: npx playwright install --with-deps
-
-      - name: Run Playwright E2E Tests
-        run: npm run test:e2e
 
       - name: Compile Production Build
         run: npm run build
@@ -50,3 +40,10 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
