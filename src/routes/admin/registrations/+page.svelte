@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 
 	let { data, form } = $props();
@@ -13,13 +14,13 @@
 	<p class="text-muted">Review, approve, or reject visitor registration requests.</p>
 
 	{#if form?.success}
-		<div class="alert alert-success">
+		<div class="alert alert-success" role="status">
 			{form.success}
 		</div>
 	{/if}
 
 	{#if form?.error}
-		<div class="alert alert-danger">
+		<div class="alert alert-danger" role="alert">
 			{form.error}
 		</div>
 	{/if}
@@ -27,7 +28,7 @@
 	<div class="card table-card">
 		{#if data.pendingUsers.length === 0}
 			<div class="empty-state">
-				<span class="empty-icon">🍃</span>
+				<span class="empty-icon"><Icon name="leaf" /></span>
 				<h3>Clean Queue!</h3>
 				<p>There are no registration requests pending approval at the moment.</p>
 			</div>

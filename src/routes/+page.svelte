@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	let { data } = $props();
 
 	function formatNumber(num: number) {
@@ -10,10 +11,10 @@
 	<title>KoalaData - Open Extension Metrics Platform</title>
 </svelte:head>
 
-<div class="homepage-container">
+<div class="container homepage-container">
 	<!-- Hero Section -->
 	<section class="hero card text-center">
-		<span class="hero-logo">🐨</span>
+		<span class="hero-logo"><Icon name="paw-print" weight="duotone" /></span>
 		<h1>KoalaData Analytics Hub</h1>
 		<p class="hero-subtitle text-muted">
 			Self-hosted open metrics, growth directories, and active ranks for browser extension developers.
@@ -30,25 +31,25 @@
 		<!-- Explore Directory Info -->
 		<div class="card info-card">
 			<div class="card-header flex align-center gap-1">
-				<span class="info-icon">📁</span>
+				<span class="info-icon"><Icon name="folder-open" weight="duotone" /></span>
 				<h2>Explore Extensions</h2>
 			</div>
 			<p class="text-muted">
 				Browse the public index of extensions, review project categories, find store/repository URLs, and inspect interactive timeseries charts.
 			</p>
-			<a href="/discover" class="btn btn-secondary btn-sm mt-1">Search Directory ➜</a>
+			<a href="/discover" class="btn btn-secondary btn-sm mt-1">Search Directory <Icon name="arrow-right" /></a>
 		</div>
 
 		<!-- Leaderboard Info -->
 		<div class="card info-card">
 			<div class="card-header flex align-center gap-1">
-				<span class="info-icon">🏆</span>
+				<span class="info-icon"><Icon name="trophy" weight="duotone" /></span>
 				<h2>Weekly Leaderboard</h2>
 			</div>
 			<p class="text-muted">
 				Inspect extension user bases ranked dynamically by weekly active user growth over the last 30 days, using automated sparse observations filtering.
 			</p>
-			<a href="/leaderboards" class="btn btn-secondary btn-sm mt-1">See Rankings ➜</a>
+			<a href="/leaderboards" class="btn btn-secondary btn-sm mt-1">See Rankings <Icon name="arrow-right" /></a>
 		</div>
 	</div>
 
@@ -89,17 +90,32 @@
 
 	.hero {
 		padding: 4rem 2rem;
-		background: linear-gradient(135deg, var(--bg-base) 0%, var(--primary-bg) 100%);
+		background:
+			radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 22rem),
+			linear-gradient(145deg, var(--bg-surface), var(--primary-bg));
+		box-shadow: var(--shadow-md);
+		overflow: hidden;
 	}
 
 	.hero-logo {
-		font-size: 4rem;
-		display: block;
-		margin-bottom: 1rem;
+		width: 4.5rem;
+		height: 4.5rem;
+		display: inline-grid;
+		place-items: center;
+		margin-bottom: 1.25rem;
+		border: 1px solid color-mix(in srgb, var(--primary) 32%, var(--border-color));
+		border-radius: 1.4rem;
+		background: color-mix(in srgb, var(--primary-bg) 84%, var(--bg-surface));
+		color: var(--primary);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.hero-logo :global(.app-icon) {
+		font-size: 2.35rem;
 	}
 
 	.hero h1 {
-		font-size: 3rem;
+		font-size: clamp(2rem, 6vw, 3rem);
 		font-weight: 800;
 		color: var(--text-base);
 		margin-bottom: 0.5rem;
@@ -119,13 +135,26 @@
 
 	.info-card {
 		padding: 2rem;
+		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+	}
+	.info-card:hover {
+		transform: translateY(-2px);
+		border-color: color-mix(in srgb, var(--primary) 32%, var(--border-color));
+		box-shadow: var(--shadow-md);
 	}
 	.info-card h2 {
 		margin-bottom: 0;
 		font-size: 1.4rem;
 	}
 	.info-icon {
-		font-size: 1.75rem;
+		width: 2.5rem;
+		height: 2.5rem;
+		display: inline-grid;
+		place-items: center;
+		border-radius: 0.8rem;
+		background: var(--primary-bg);
+		color: var(--primary);
+		font-size: 1.4rem;
 	}
 	.info-card p {
 		margin-top: 1rem;
@@ -181,5 +210,16 @@
 		color: var(--primary);
 		margin-left: 0.5rem;
 		font-weight: 600;
+	}
+
+	@media (max-width: 640px) {
+		.homepage-container { gap: 1rem; padding-block: 0.5rem 1.5rem; }
+		.hero { padding: 2.5rem 1rem; }
+		.hero-logo { font-size: 3rem; }
+		.hero-subtitle { font-size: 1.05rem; margin-bottom: 1.5rem; }
+		.hero .btn { width: 100%; }
+		.info-grid { gap: 1rem; }
+		.peek-section { padding: 1rem; }
+		.peek-item { align-items: flex-start; gap: 0.75rem; }
 	}
 </style>

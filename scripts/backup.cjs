@@ -5,7 +5,6 @@ const fs = require('fs');
 const dbPath = process.env.DATABASE_PATH || './data/data.db';
 const backupDir = process.env.BACKUP_DIRECTORY || './backups';
 
-// Ensure backup folder exists
 if (!fs.existsSync(backupDir)) {
 	fs.mkdirSync(backupDir, { recursive: true });
 }
@@ -17,15 +16,14 @@ try {
 	const backupPath = path.join(backupDir, backupFilename);
 
 	console.log(`[Backup] Starting online SQLite backup from ${dbPath} to ${backupPath}...`);
-	
+
 	db.backup(backupPath)
 		.then(() => {
 			console.log('[Backup] Online SQLite backup completed successfully.');
-			
-			// Retain only the last 7 days of backups
+
 			const files = fs.readdirSync(backupDir);
 			const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-			
+
 			for (const file of files) {
 				const filePath = path.join(backupDir, file);
 				if (fs.existsSync(filePath) && file.endsWith('.db')) {
@@ -36,9 +34,11 @@ try {
 					}
 				}
 			}
+			db.close();
 			process.exit(0);
 		})
 		.catch((err) => {
+			db.close();
 			console.error('[Backup] Backup promise rejected:', err);
 			process.exit(1);
 		});

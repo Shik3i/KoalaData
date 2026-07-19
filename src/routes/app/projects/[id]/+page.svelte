@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	let { data } = $props();
 
 	let project = $derived(data.project);
@@ -55,7 +56,7 @@
 			
 			<div class="flex justify-between align-center">
 				<strong>Public Page Link:</strong>
-				<a href="/p/{project.slug}" target="_blank" class="btn btn-secondary btn-sm">🌍 Visit Public Page</a>
+				<a href="/p/{project.slug}" target="_blank" class="btn btn-secondary btn-sm"><Icon name="arrow-square-out" /> Visit Public Page</a>
 			</div>
 		</div>
 
@@ -70,7 +71,7 @@
 				<hr class="divider" />
 				{#if data.sources.length === 0}
 					<p class="text-muted text-center py-2">No data sources defined yet.</p>
-					<a href="/app/projects/{project.id}/sources" class="btn btn-primary btn-sm btn-full">➕ Add Data Source</a>
+					<a href="/app/projects/{project.id}/sources" class="btn btn-primary btn-sm btn-full"><Icon name="plus" /> Add Data Source</a>
 				{:else}
 					<ul class="sources-list-overview">
 						{#each data.sources as src}

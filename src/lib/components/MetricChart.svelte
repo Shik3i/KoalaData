@@ -1,12 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import * as echarts from 'echarts/core';
-	import { LineChart } from 'echarts/charts';
-	import { GridComponent, TitleComponent, TooltipComponent } from 'echarts/components';
-	import { SVGRenderer } from 'echarts/renderers';
 	import type { EChartsType } from 'echarts/core';
 
-	echarts.use([LineChart, GridComponent, TitleComponent, TooltipComponent, SVGRenderer]);
 	type Observation = { date: string; value: number };
 
 	let { title, observations } = $props<{
@@ -16,9 +11,13 @@
 
 	let chartDom: HTMLDivElement;
 	let chart: EChartsType | null = null;
+	let destroyed = false;
 
-	function initChart() {
+	async function initChart() {
 		if (!chartDom) return;
+
+		const { echarts } = await import('$lib/chart-runtime');
+		if (destroyed || !chartDom.isConnected) return;
 
 		if (chart) {
 			chart.dispose();
@@ -123,7 +122,7 @@
 	});
 
 	onMount(() => {
-		initChart();
+		void initChart();
 		const handleResize = () => {
 			chart?.resize();
 		};
@@ -134,6 +133,7 @@
 	});
 
 	onDestroy(() => {
+		destroyed = true;
 		if (chart) {
 			chart.dispose();
 		}

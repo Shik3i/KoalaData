@@ -1,7 +1,7 @@
 {
 	"name": "koaladata",
 	"private": true,
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -11,6 +11,9 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test:e2e": "playwright test",
+		"test:quality": "playwright test src/routes/ui-quality.e2e.ts",
+		"check:lighthouse": "node scripts/check-lighthouse.mjs",
+		"backup:verify": "node scripts/verify-backup.mjs",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:unit": "vitest --no-file-parallelism",
 		"db:push": "drizzle-kit push",
@@ -19,11 +22,14 @@
 		"db:studio": "drizzle-kit studio"
 	},
 	"devDependencies": {
+		"@axe-core/playwright": "^4.12.1",
 		"@emnapi/core": "^1.11.2",
 		"@emnapi/runtime": "^1.11.2",
+		"@fontsource/inter": "^5.2.8",
+		"@fontsource/space-grotesk": "^5.2.8",
 		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-node": "^5.5.4",
-		"@sveltejs/kit": "^2.63.0",
+		"@sveltejs/kit": "^2.70.1",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@types/better-sqlite3": "^7.6.13",
 		"@types/node": "^24",
@@ -40,6 +46,7 @@
 		"csv-parse": "^7.0.1",
 		"echarts": "^6.1.0",
 		"hash-wasm": "^4.12.0",
+		"phosphor-svelte": "^3.1.0",
 		"zod": "^4.4.3"
 	}
 }

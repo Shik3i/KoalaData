@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	let { data } = $props();
 </script>
 
@@ -12,14 +13,14 @@
 		<aside class="card sidebar-nav">
 			<h3>Settings</h3>
 			<ul class="nav-list">
-				<li><a href="/app/account" class="active">👤 Profile Settings</a></li>
-				<li><a href="/app/account/security">🔒 Security & Sessions</a></li>
+				<li><a href="/app/account" class="active" aria-current="page"><Icon name="user-circle" /> Profile Settings</a></li>
+				<li><a href="/app/account/security"><Icon name="lock-key" /> Security & Sessions</a></li>
 			</ul>
 		</aside>
 
 		<!-- Main Settings area -->
-		<main class="card settings-card">
-			<h2>Profile Settings</h2>
+		<section class="card settings-card" aria-labelledby="profile-settings-title">
+			<h2 id="profile-settings-title">Profile Settings</h2>
 			<p class="text-muted">Your username is your public account name.</p>
 
 			<div>
@@ -28,6 +29,7 @@
 					<input 
 						type="text" 
 						id="username" 
+						autocomplete="username"
 						value={data.user.username} 
 						disabled 
 						readonly
@@ -43,13 +45,13 @@
 				<p><strong>Role:</strong> <span class="badge">{data.user.role}</span></p>
 				<p><strong>Status:</strong> <span class="badge badge-success">{data.user.status}</span></p>
 			</div>
-		</main>
+		</section>
 	</div>
 </div>
 
 <style>
 	.account-page {
-		padding: 2rem 0;
+		padding-block: 2rem;
 	}
 
 	.account-grid {

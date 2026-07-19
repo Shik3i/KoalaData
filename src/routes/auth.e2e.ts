@@ -10,7 +10,7 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 
 	test('should run the complete administrative, publisher, metrics, and moderation workflow', async ({ page, context }) => {
 		// Set E2E test timeout to 90s to cover full DB migrations and multiple system setups
-		test.setTimeout(90000);
+		test.setTimeout(180000);
 
 		// Log all page console outputs to node console
 		page.on('console', msg => console.log('E2E PAGE LOG:', msg.text()));
@@ -31,6 +31,12 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 
 		// Land on dashboard / force change password check
 		await page.waitForURL('/app');
+		await page.setViewportSize({ width: 390, height: 900 });
+		await page.goto('/admin');
+		await page.locator('.admin-nav-toggle').click();
+		await expect(page.locator('#admin-navigation')).toBeVisible();
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+		await page.setViewportSize({ width: 1280, height: 900 });
 
 		// Navigate to Admin settings and enforce approval_required registration policy
 		await page.goto('/admin/settings');
@@ -97,6 +103,11 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await expect(page.locator('h1')).toContainText('Developer Workspace');
 		await expect(page.locator('body')).toContainText(`Welcome, ${testUsername}`);
+		await page.setViewportSize({ width: 390, height: 900 });
+		await page.locator('.menu-toggle').click();
+		await expect(page.locator('#header-menu')).toBeVisible();
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+		await page.setViewportSize({ width: 1280, height: 900 });
 
 		console.log('--- ALL LINKS ON DASHBOARD ---');
 		const links = await page.locator('a').all();

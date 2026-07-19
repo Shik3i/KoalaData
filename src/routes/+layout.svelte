@@ -1,5 +1,12 @@
 <script lang="ts">
 	import '../app.css';
+	import Icon from '$lib/components/Icon.svelte';
+	import '@fontsource/inter/latin-400.css';
+	import '@fontsource/inter/latin-500.css';
+	import '@fontsource/inter/latin-600.css';
+	import '@fontsource/inter/latin-700.css';
+	import '@fontsource/space-grotesk/latin-600.css';
+	import '@fontsource/space-grotesk/latin-700.css';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 
@@ -9,13 +16,19 @@
 	let user = $derived(data.user);
 
 	// Theme handling state
-	let currentTheme = $state('system');
+	let currentTheme = $state('auto');
+	let themeReady = $state(false);
+	let mobileMenuOpen = $state(false);
+
+	function closeMobileMenu() {
+		mobileMenuOpen = false;
+	}
 
 	function applyTheme(theme: string) {
 		localStorage.setItem('theme', theme);
 		
 		const root = document.documentElement;
-		if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+		if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
 			root.classList.add('dark');
 		} else {
 			root.classList.remove('dark');
@@ -23,19 +36,20 @@
 	}
 
 	$effect(() => {
-		applyTheme(currentTheme);
+		if (themeReady) applyTheme(currentTheme);
 	});
 
 	onMount(() => {
 		// Read theme from localStorage
-		const savedTheme = localStorage.getItem('theme') || 'system';
-		currentTheme = savedTheme;
+		const savedTheme = localStorage.getItem('theme') || 'auto';
+		currentTheme = savedTheme === 'system' ? 'auto' : savedTheme;
+		themeReady = true;
 
 		// Listen for system theme changes if set to system
 		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		const handleSystemThemeChange = () => {
-			if (currentTheme === 'system') {
-				applyTheme('system');
+			if (currentTheme === 'auto') {
+				applyTheme('auto');
 			}
 		};
 
@@ -44,75 +58,85 @@
 	});
 </script>
 
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
 <div class="layout-wrapper">
 	<header class="main-header">
-		<div class="container flex align-center justify-between">
+		<div class="container header-shell">
 			<a href="/" class="brand flex align-center gap-2">
-				<span class="logo-icon">🌿</span>
+				<span class="logo-icon"><Icon name="leaf" weight="duotone" /></span>
 				<span class="brand-name">{data.site.siteTitle}</span>
 			</a>
-			
-			<nav class="nav-links flex align-center gap-3">
-				{#if data.site.publicDiscoveryEnabled}
-					<a href="/discover" class="nav-link {page.url.pathname === '/discover' ? 'active' : ''}">Discover</a>
-				{/if}
-				{#if data.site.publicLeaderboardsEnabled}
-					<a href="/leaderboards" class="nav-link {page.url.pathname === '/leaderboards' ? 'active' : ''}">Leaderboards</a>
-				{/if}
-				
-				{#if user}
-					<a href="/app" class="nav-link {page.url.pathname.startsWith('/app') ? 'active' : ''}">Dashboard</a>
-					{#if user.role === 'admin'}
-						<a href="/admin" class="nav-link admin-link {page.url.pathname.startsWith('/admin') ? 'active' : ''}">Admin</a>
+
+			<button
+				type="button"
+				class="menu-toggle"
+				aria-label="Toggle navigation"
+				aria-controls="header-menu"
+				aria-expanded={mobileMenuOpen}
+				onclick={() => mobileMenuOpen = !mobileMenuOpen}
+			>
+				<Icon name={mobileMenuOpen ? 'x' : 'list'} />
+			</button>
+
+			<div id="header-menu" class:open={mobileMenuOpen} class="header-menu">
+				<nav class="nav-links flex align-center gap-3" aria-label="Main navigation">
+					{#if data.site.publicDiscoveryEnabled}
+						<a href="/discover" onclick={closeMobileMenu} aria-current={page.url.pathname === '/discover' ? 'page' : undefined} class="nav-link {page.url.pathname === '/discover' ? 'active' : ''}">Discover</a>
 					{/if}
-				{/if}
-			</nav>
+					{#if data.site.publicLeaderboardsEnabled}
+						<a href="/leaderboards" onclick={closeMobileMenu} aria-current={page.url.pathname === '/leaderboards' ? 'page' : undefined} class="nav-link {page.url.pathname === '/leaderboards' ? 'active' : ''}">Leaderboards</a>
+					{/if}
+					{#if user}
+						<a href="/app" onclick={closeMobileMenu} aria-current={page.url.pathname.startsWith('/app') ? 'page' : undefined} class="nav-link {page.url.pathname.startsWith('/app') ? 'active' : ''}">Dashboard</a>
+						{#if user.role === 'admin'}
+							<a href="/admin" onclick={closeMobileMenu} aria-current={page.url.pathname.startsWith('/admin') ? 'page' : undefined} class="nav-link admin-link {page.url.pathname.startsWith('/admin') ? 'active' : ''}">Admin</a>
+						{/if}
+					{/if}
+				</nav>
 
-			<div class="header-actions flex align-center gap-2">
-				<!-- Theme Selector -->
-				<div class="theme-selector">
-					<select 
-						bind:value={currentTheme} 
-						aria-label="Theme mode"
-					>
-						<option value="light">☀️ Light</option>
-						<option value="dark">🌙 Dark</option>
-						<option value="system">💻 System</option>
-					</select>
-				</div>
-
-				{#if user}
-					<div class="user-menu flex align-center gap-2">
-						<a href="/app/account" class="username-btn">👤 {user.username}</a>
-						<form action="/login?/logout" method="POST" class="inline-form">
-							<button type="submit" class="btn btn-secondary btn-sm">Log out</button>
-						</form>
+				<div class="header-actions flex align-center gap-2">
+					<div class="theme-selector">
+						<select bind:value={currentTheme} aria-label="Theme mode">
+							<option value="auto">Auto</option>
+							<option value="light">Light</option>
+							<option value="dark">Dark</option>
+						</select>
 					</div>
-				{:else}
-					<a href="/login" class="btn btn-secondary btn-sm">Log in</a>
-					{#if data.site.registrationMode !== 'invite_only'}
-						<a href="/register" class="btn btn-primary btn-sm">Register</a>
+
+					{#if user}
+						<div class="user-menu flex align-center gap-2">
+							<a href="/app/account" onclick={closeMobileMenu} class="username-btn"><Icon name="user-circle" /> {user.username}</a>
+							<form action="/login?/logout" method="POST" class="inline-form">
+								<button type="submit" class="btn btn-secondary btn-sm">Log out</button>
+							</form>
+						</div>
+					{:else}
+						<a href="/login" onclick={closeMobileMenu} class="btn btn-secondary btn-sm">Log in</a>
+						{#if data.site.registrationMode !== 'invite_only'}
+							<a href="/register" onclick={closeMobileMenu} class="btn btn-primary btn-sm">Register</a>
+						{/if}
 					{/if}
-				{/if}
+				</div>
 			</div>
 		</div>
 	</header>
 
 	{#if user && user.forcePasswordChange && page.url.pathname !== '/app/account/security'}
 		<div class="container warning-banner">
-			<div class="alert alert-warning flex justify-between align-center">
-				<span>⚠️ For security reasons, you are required to change your password immediately.</span>
+			<div class="alert alert-warning flex justify-between align-center flex-mobile-column" role="alert">
+				<span><Icon name="warning" /> For security reasons, you are required to change your password immediately.</span>
 				<a href="/app/account/security" class="btn btn-primary btn-sm">Change Password</a>
 			</div>
 		</div>
 	{/if}
 
-	<main class="main-content">
+	<main id="main-content" class="main-content" tabindex="-1">
 		{@render children()}
 	</main>
 
 	<footer class="main-footer">
-		<div class="container flex justify-between align-center text-muted">
+		<div class="container footer-inner flex justify-between align-center text-muted">
 			<p>© {new Date().getFullYear()} {data.site.siteTitle}. Nature-crafted extension metrics.</p>
 			<div class="footer-links flex gap-2">
 				{#if data.site.publicDiscoveryEnabled}<a href="/discover">Projects Index</a>{/if}
@@ -131,13 +155,17 @@
 	}
 
 	.main-header {
-		background-color: var(--bg-surface);
+		background-color: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+		backdrop-filter: blur(14px);
 		border-bottom: 1px solid var(--border-color);
-		padding: 1rem 0;
+		padding: 0.75rem 0;
 		position: sticky;
 		top: 0;
 		z-index: 100;
 	}
+	.header-shell { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
+	.header-menu { display: flex; align-items: center; justify-content: flex-end; gap: 1.5rem; min-width: 0; }
+	.menu-toggle { display: none; width: 44px; height: 44px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-inset); color: var(--text-base); font-size: 1.35rem; cursor: pointer; }
 
 	.brand {
 		font-weight: 800;
@@ -148,7 +176,8 @@
 		text-decoration: none;
 	}
 	.logo-icon {
-		font-size: 1.5rem;
+		font-size: 1.55rem;
+		color: var(--primary);
 	}
 
 	.nav-link {
@@ -169,9 +198,10 @@
 
 	.theme-selector select {
 		margin-bottom: 0;
-		padding: 0.25rem 0.5rem;
+		padding: 0.5rem 0.75rem;
 		font-size: 0.85rem;
 		border-radius: var(--radius-sm);
+		min-width: 112px;
 	}
 
 	.username-btn {
@@ -209,5 +239,22 @@
 	}
 	.footer-links a:hover {
 		color: var(--primary);
+	}
+
+	@media (max-width: 900px) {
+		.header-shell { flex-wrap: wrap; }
+		.menu-toggle { display: inline-grid; place-items: center; margin-left: auto; }
+		.header-menu { display: none; width: 100%; align-items: stretch; padding-top: 0.75rem; border-top: 1px solid var(--border-color); }
+		.header-menu.open { display: flex; flex-direction: column; }
+		.nav-links, .header-actions, .user-menu { width: 100%; align-items: stretch; flex-direction: column; gap: 0.5rem; }
+		.nav-link, .username-btn { display: flex; align-items: center; min-height: 44px; padding: 0.55rem 0.75rem; border-radius: var(--radius-md); }
+		.nav-link.active { background: var(--primary-bg); }
+		.theme-selector select, .header-actions .btn, .inline-form, .inline-form .btn { width: 100%; }
+	}
+
+	@media (max-width: 640px) {
+		.main-content { padding: 1.25rem 0; }
+		.footer-inner { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+		.main-footer p { margin-bottom: 0; }
 	}
 </style>

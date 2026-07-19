@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 
 	let { data, form } = $props();
@@ -15,8 +16,8 @@
 		<h1 class="auth-title">Create Account</h1>
 		
 		{#if data.registrationMode === 'invite_only'}
-			<div class="alert alert-warning">
-				🔒 Public registration is currently closed. Only administrators can create new user accounts.
+			<div class="alert alert-warning" role="status">
+				<Icon name="lock-key" /> Public registration is currently closed. Only administrators can create new user accounts.
 			</div>
 			<div class="auth-actions">
 				<a href="/" class="btn btn-secondary btn-full">Back to Home</a>
@@ -24,12 +25,12 @@
 		{:else}
 			{#if data.registrationMode === 'approval_required'}
 				<div class="registration-notice">
-					🌱 <strong>Note:</strong> Registrations require administrator approval before you can access the platform.
+					<Icon name="user-plus" /> <strong>Note:</strong> Registrations require administrator approval before you can access the platform.
 				</div>
 			{/if}
 
 			{#if form?.error}
-				<div class="alert alert-danger">
+				<div class="alert alert-danger" role="alert">
 					{form.error}
 				</div>
 			{/if}
@@ -50,6 +51,7 @@
 						type="text" 
 						id="username" 
 						name="username" 
+						autocomplete="username"
 						placeholder="3 to 30 characters, a-z, 0-9, _, -, ." 
 						required 
 						disabled={loading}
@@ -62,6 +64,7 @@
 						type="password" 
 						id="password" 
 						name="password" 
+						autocomplete="new-password"
 						placeholder="Minimum 8 characters" 
 						required 
 						disabled={loading}
@@ -120,4 +123,6 @@
 		margin-top: 1.5rem;
 		font-size: 0.9rem;
 	}
+	.auth-footer a { text-decoration: underline; text-underline-offset: 0.18em; font-weight: 600; }
+	@media (max-width: 640px) { .auth-container { padding-block: 1rem; } }
 </style>

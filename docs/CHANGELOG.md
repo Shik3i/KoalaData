@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.0.2 - 2026-07-20
+
+### Responsive UI and accessibility
+
+- Constrained wide-screen content to a centered 1200px layout with fluid page gutters.
+- Added responsive mobile navigation for the main application and administrator area.
+- Refined light and dark palettes, typography, surfaces, cards, and interaction hierarchy.
+- Replaced emoji controls and decoration with locally bundled Phosphor SVG icons.
+- Renamed the automatic theme option from `System` to `Auto` and migrated saved preferences.
+- Removed horizontal overflow across public pages at 320px, 390px, 768px, and 1920px viewports.
+- Improved mobile cards, filters, tables, project tabs, forms, alerts, and account/session layouts.
+- Added a skip link, visible focus states, active-page semantics, live regions, reduced-motion support, labels, and autocomplete hints.
+- Added an application favicon and default metadata description.
+
+### Security and performance
+
+- Removed global third-party scripts and restricted CSP scripts and fonts to self-hosted resources.
+- Split ECharts into on-demand chunks so chart code is only loaded on metric pages.
+- Restored the documented SQLite backup command under the project's ESM configuration.
+- Updated SvelteKit to 2.70.1.
+
+### Quality assurance
+
+- Added Axe accessibility coverage for light and dark modes.
+- Added automated viewport-overflow and landmark regression tests.
+- Added authenticated mobile dashboard and administrator navigation checks.
+- Added a Lighthouse CI budget for performance, accessibility, best practices, SEO, and Core Web Vitals.
+
 ## v1.0.1 - 2026-07-19
 
 ### Security and data integrity

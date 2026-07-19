@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import { page } from '$app/state';
 
 	let { data, children } = $props();
@@ -20,16 +21,16 @@
 		
 		<div class="title-row flex justify-between align-center flex-wrap gap-2">
 			<div>
-				<h1 class="project-title"><i class="ph ph-folder-open"></i> {project.name}</h1>
+				<h1 class="project-title"><Icon name="folder-open" /> {project.name}</h1>
 				<p class="text-muted">{project.shortDescription}</p>
 			</div>
 			<div class="project-badges flex gap-1">
 				<span class="badge badge-visibility-{project.visibility}">{project.visibility}</span>
 				{#if project.verificationStatus === 'verified'}
-					<span class="badge badge-verified"><i class="ph ph-seal-check"></i> Verified</span>
+					<span class="badge badge-verified"><Icon name="seal-check" /> Verified</span>
 				{/if}
 				{#if project.leaderboardOptIn && project.leaderboardStatus === 'approved'}
-					<span class="badge badge-leaderboard"><i class="ph ph-trophy"></i> Ranked</span>
+					<span class="badge badge-leaderboard"><Icon name="trophy" /> Ranked</span>
 				{/if}
 			</div>
 		</div>
@@ -37,36 +38,41 @@
 
 	<!-- Project Tabs -->
 	<div class="project-tabs-card">
-		<nav class="project-tabs">
+		<nav class="project-tabs" aria-label="Project navigation">
 			<a 
 				href="/app/projects/{project.id}" 
+				aria-current={page.url.pathname === `/app/projects/${project.id}` ? 'page' : undefined}
 				class="tab-link {page.url.pathname === `/app/projects/${project.id}` ? 'active' : ''}"
 			>
-				<i class="ph ph-chart-bar"></i> Overview
+				<Icon name="chart-line" /> Overview
 			</a>
 			<a 
 				href="/app/projects/{project.id}/sources" 
+				aria-current={page.url.pathname.includes('/sources') ? 'page' : undefined}
 				class="tab-link {page.url.pathname.includes('/sources') ? 'active' : ''}"
 			>
-				<i class="ph ph-database"></i> Data Sources
+				<Icon name="database" /> Data Sources
 			</a>
 			<a 
 				href="/app/projects/{project.id}/imports" 
+				aria-current={page.url.pathname.includes('/imports') ? 'page' : undefined}
 				class="tab-link {page.url.pathname.includes('/imports') ? 'active' : ''}"
 			>
-				<i class="ph ph-clock"></i> Import History
+				<Icon name="clock-counter-clockwise" /> Import History
 			</a>
 			<a 
 				href="/app/projects/{project.id}/members" 
+				aria-current={page.url.pathname.includes('/members') ? 'page' : undefined}
 				class="tab-link {page.url.pathname.includes('/members') ? 'active' : ''}"
 			>
-				<i class="ph ph-users"></i> Members
+				<Icon name="users" /> Members
 			</a>
 			<a 
 				href="/app/projects/{project.id}/settings" 
+				aria-current={page.url.pathname.includes('/settings') ? 'page' : undefined}
 				class="tab-link {page.url.pathname.includes('/settings') ? 'active' : ''}"
 			>
-				<i class="ph ph-gear"></i> Settings
+				<Icon name="gear" /> Settings
 			</a>
 		</nav>
 	</div>

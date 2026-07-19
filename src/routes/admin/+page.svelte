@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	let { data } = $props();
 
 	function formatBytes(bytes: number) {
@@ -15,8 +16,8 @@
 	<p class="text-muted">High-level statistics and server health metrics.</p>
 
 	{#if data.stats.pendingUsers > 0}
-		<div class="alert alert-warning flex justify-between align-center">
-			<span>🌱 There are <strong>{data.stats.pendingUsers}</strong> registration requests pending review.</span>
+		<div class="alert alert-warning flex justify-between align-center flex-mobile-column" role="alert">
+			<span><Icon name="user-plus" /> There are <strong>{data.stats.pendingUsers}</strong> registration requests pending review.</span>
 			<a href="/admin/registrations" class="btn btn-primary btn-sm">Approve Requests</a>
 		</div>
 	{/if}
@@ -24,7 +25,7 @@
 	<!-- Stats Grid -->
 	<div class="grid grid-3 stats-grid">
 		<div class="card stat-card">
-			<span class="stat-icon">👥</span>
+			<span class="stat-icon"><Icon name="users" /></span>
 			<div class="stat-number">{data.stats.totalUsers}</div>
 			<div class="stat-label">Total Users</div>
 			<div class="stat-sub text-muted">
@@ -33,7 +34,7 @@
 		</div>
 
 		<div class="card stat-card">
-			<span class="stat-icon">📁</span>
+			<span class="stat-icon"><Icon name="folder-open" /></span>
 			<div class="stat-number">{data.stats.totalProjects}</div>
 			<div class="stat-label">Total Projects</div>
 			<div class="stat-sub text-muted">
@@ -42,7 +43,7 @@
 		</div>
 
 		<div class="card stat-card">
-			<span class="stat-icon">☁️</span>
+			<span class="stat-icon"><Icon name="cloud-arrow-up" /></span>
 			<div class="stat-number">{data.stats.totalImports}</div>
 			<div class="stat-label">CSV Imports</div>
 			<div class="stat-sub text-muted">

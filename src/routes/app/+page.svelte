@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	let { data } = $props();
 
 	function formatBytes(bytes: number) {
@@ -30,7 +31,7 @@
 			<p class="text-muted">Welcome, {data.user.username}. Manage your extensions and imports.</p>
 		</div>
 		<div>
-			<a href="/app/projects/new" class="btn btn-primary">➕ New Project</a>
+			<a href="/app/projects/new" class="btn btn-primary"><Icon name="plus" /> New Project</a>
 		</div>
 	</div>
 
@@ -39,7 +40,7 @@
 		<!-- Projects Limit -->
 		<div class="card limit-card">
 			<div class="flex justify-between align-center label-row">
-				<span class="limit-label">📁 Project Limit</span>
+				<span class="limit-label"><Icon name="folder-open" /> Project Limit</span>
 				<span class="limit-ratio">{data.usage.projectsCount} of {data.limits.maxProjects}</span>
 			</div>
 			<div class="progress-bar-bg">
@@ -50,7 +51,7 @@
 		<!-- Storage Limit -->
 		<div class="card limit-card">
 			<div class="flex justify-between align-center label-row">
-				<span class="limit-label">☁️ Storage Limit</span>
+				<span class="limit-label"><Icon name="cloud" /> Storage Limit</span>
 				<span class="limit-ratio">{formatBytes(data.usage.storageBytes)} of {formatBytes(data.limits.maxStorageBytes)}</span>
 			</div>
 			<div class="progress-bar-bg">
@@ -67,7 +68,7 @@
 			<div class="projects-list">
 				{#if data.projects.length === 0}
 					<div class="card empty-state">
-						<span class="empty-icon">📁</span>
+						<span class="empty-icon"><Icon name="folder-open" /></span>
 						<h3>No Projects Yet</h3>
 						<p>Get started by creating a project for your browser extension.</p>
 						<a href="/app/projects/new" class="btn btn-primary btn-sm">Create First Project</a>

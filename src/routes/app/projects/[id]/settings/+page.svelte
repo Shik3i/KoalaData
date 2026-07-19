@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 
 	let { data, form } = $props();
@@ -9,20 +10,20 @@
 
 <div class="project-settings-page">
 	{#if form?.success}
-		<div class="alert alert-success">
+		<div class="alert alert-success" role="status">
 			{form.success}
 		</div>
 	{/if}
 
 	{#if form?.error}
-		<div class="alert alert-danger">
+		<div class="alert alert-danger" role="alert">
 			{form.error}
 		</div>
 	{/if}
 
 	{#if !isOwnerOrAdmin}
 		<div class="card settings-card text-center text-muted">
-			<p>🔒 You must be the Project Owner to modify visibility, slugs, leaderboards, or delete this project.</p>
+			<p><Icon name="lock-key" /> You must be the Project Owner to modify visibility, slugs, leaderboards, or delete this project.</p>
 		</div>
 	{/if}
 
@@ -204,9 +205,9 @@
 						<div class="form-group">
 							<label for="visibility">Visibility Mode</label>
 							<select id="visibility" name="visibility" required>
-								<option value="public" selected={data.project.visibility === 'public'}>🌍 Public (Listed in discover / search)</option>
-								<option value="unlisted" selected={data.project.visibility === 'unlisted'}>🔗 Unlisted (Exempt from discover / search)</option>
-								<option value="private" selected={data.project.visibility === 'private'}>🔒 Private (Members & Admins only)</option>
+								<option value="public" selected={data.project.visibility === 'public'}>Public (Listed in discover / search)</option>
+								<option value="unlisted" selected={data.project.visibility === 'unlisted'}>Unlisted (Exempt from discover / search)</option>
+								<option value="private" selected={data.project.visibility === 'private'}>Private (Members & Admins only)</option>
 							</select>
 						</div>
 						<button type="submit" class="btn btn-primary">Save Visibility</button>

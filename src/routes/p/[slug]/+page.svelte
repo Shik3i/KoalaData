@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import MetricChart from '$lib/components/MetricChart.svelte';
 
 	let { data } = $props();
@@ -45,7 +46,7 @@
 					</div>
 				{:else}
 					<div class="project-logo-circle fallback-circle">
-						<span>🐨</span>
+						<Icon name="paw-print" />
 					</div>
 				{/if}
 				<div>
@@ -59,18 +60,18 @@
 				<div class="badges-row flex gap-0.5 justify-end">
 					<span class="badge badge-category">{project.category}</span>
 					{#if project.verificationStatus === 'verified'}
-						<span class="badge badge-verified">✅ Verified</span>
+						<span class="badge badge-verified"><Icon name="seal-check" /> Verified</span>
 					{/if}
 				</div>
 				<div class="urls-row flex gap-1 justify-end text-muted">
 					{#if project.websiteUrl}
-						<a href={project.websiteUrl} target="_blank" rel="noopener">🌍 Website</a>
+						<a href={project.websiteUrl} target="_blank" rel="noopener"><Icon name="globe" /> Website</a>
 					{/if}
 					{#if project.repositoryUrl}
-						<a href={project.repositoryUrl} target="_blank" rel="noopener">💻 Source Code</a>
+						<a href={project.repositoryUrl} target="_blank" rel="noopener"><Icon name="code" /> Source Code</a>
 					{/if}
 					{#if project.storeUrl}
-						<a href={project.storeUrl} target="_blank" rel="noopener">🛒 Store Page</a>
+						<a href={project.storeUrl} target="_blank" rel="noopener"><Icon name="storefront" /> Store Page</a>
 					{/if}
 				</div>
 			</div>
@@ -115,7 +116,7 @@
 	<!-- Charts Grid -->
 	{#if filteredMetrics.length === 0}
 		<div class="card empty-state text-center">
-			<span class="empty-icon">📊</span>
+			<span class="empty-icon"><Icon name="chart-line" /></span>
 			<h3>No charts available</h3>
 			<p class="text-muted">Metrics data will appear here once the extension developers import observation records.</p>
 		</div>
@@ -154,7 +155,7 @@
 
 <style>
 	.public-dashboard {
-		padding: 2rem 0;
+		padding-block: 2rem;
 		display: flex;
 		flex-direction: column;
 		gap: 2rem;
@@ -181,7 +182,7 @@
 		object-fit: cover;
 	}
 
-	.fallback-circle span {
+	.fallback-circle :global(.app-icon) {
 		font-size: 1.75rem;
 	}
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 
 	let { data, form } = $props();
@@ -17,13 +18,13 @@
 		<p class="text-muted">Register a new browser extension project in your workspace.</p>
 		
 		{#if data.limitReached}
-			<div class="alert alert-danger">
-				⚠️ <strong>Limit Reached:</strong> You have reached your limit of <strong>{data.maxProjects}</strong> projects. Please delete an existing project or contact an administrator to override your limits.
+			<div class="alert alert-danger" role="alert">
+				<Icon name="warning" /> <strong>Limit Reached:</strong> You have reached your limit of <strong>{data.maxProjects}</strong> projects. Please delete an existing project or contact an administrator to override your limits.
 			</div>
 		{/if}
 
 		{#if form?.error}
-			<div class="alert alert-danger">
+			<div class="alert alert-danger" role="alert">
 				{form.error}
 			</div>
 		{/if}
@@ -70,9 +71,9 @@
 				<div class="form-group">
 					<label for="visibility">Visibility</label>
 					<select id="visibility" name="visibility" required disabled={loading || data.limitReached}>
-						<option value="public" selected>🌍 Public (Visible to everyone, eligible for discovery)</option>
-						<option value="unlisted">🔗 Unlisted (Only visible via direct URL link)</option>
-						<option value="private">🔒 Private (Only visible to you and editors)</option>
+						<option value="public" selected>Public (Visible to everyone, eligible for discovery)</option>
+						<option value="unlisted">Unlisted (Only visible via direct URL link)</option>
+						<option value="private">Private (Only visible to you and editors)</option>
 					</select>
 				</div>
 			</div>

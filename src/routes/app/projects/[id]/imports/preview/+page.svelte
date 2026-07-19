@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 
@@ -64,14 +65,14 @@
 	<p class="text-muted">Map your spreadsheet headers to standard extension metrics or define custom charts.</p>
 
 	{#if form?.error}
-		<div class="alert alert-danger">
+		<div class="alert alert-danger" role="alert">
 			{form.error}
 		</div>
 	{/if}
 
 	{#if data.autoDetect.confidence === 'high'}
-		<div class="alert alert-success">
-			🎉 <strong>Chrome Web Store Format Detected:</strong> We auto-configured the date and metrics columns for this export. Please review and click confirm.
+		<div class="alert alert-success" role="status">
+			<Icon name="sparkle" /> <strong>Chrome Web Store Format Detected:</strong> We auto-configured the date and metrics columns for this export. Please review and click confirm.
 		</div>
 	{/if}
 

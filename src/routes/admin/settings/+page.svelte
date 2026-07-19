@@ -11,13 +11,13 @@
 	<p class="text-muted">Configure default system parameters, user quotas, and registration modes.</p>
 
 	{#if form?.success}
-		<div class="alert alert-success">
+		<div class="alert alert-success" role="status">
 			{form.success}
 		</div>
 	{/if}
 
 	{#if form?.error}
-		<div class="alert alert-danger">
+		<div class="alert alert-danger" role="alert">
 			{form.error}
 		</div>
 	{/if}
@@ -48,13 +48,13 @@
 						<label for="registration_mode">Registration Policy</label>
 						<select id="registration_mode" name="registration_mode" required>
 							<option value="open" selected={data.settings.registration_mode === 'open'}>
-								🌍 Open Registration (Anyone can register and log in instantly)
+								Open Registration (Anyone can register and log in instantly)
 							</option>
 							<option value="approval_required" selected={data.settings.registration_mode === 'approval_required'}>
-								🌱 Approval Required (Registrations must be approved by an administrator)
+								Approval Required (Registrations must be approved by an administrator)
 							</option>
 							<option value="invite_only" selected={data.settings.registration_mode === 'invite_only'}>
-								🔒 Invite Only / Closed (Disable new visitor registrations entirely)
+								Invite Only / Closed (Disable new visitor registrations entirely)
 							</option>
 						</select>
 					</div>

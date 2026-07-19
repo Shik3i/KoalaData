@@ -17,19 +17,19 @@
 		<h1 class="auth-title">Welcome Back</h1>
 
 		{#if data.successMessage}
-			<div class="alert alert-success">
+			<div class="alert alert-success" role="status">
 				{data.successMessage}
 			</div>
 		{/if}
 
 		{#if data.errorMessage}
-			<div class="alert alert-danger">
+			<div class="alert alert-danger" role="alert">
 				{data.errorMessage}
 			</div>
 		{/if}
 
 		{#if form?.error}
-			<div class="alert alert-danger">
+			<div class="alert alert-danger" role="alert">
 				{form.error}
 			</div>
 		{/if}
@@ -53,6 +53,7 @@
 					type="text" 
 					id="username" 
 					name="username" 
+					autocomplete="username"
 					placeholder="Enter your username" 
 					required 
 					disabled={loading}
@@ -65,6 +66,7 @@
 					type="password" 
 					id="password" 
 					name="password" 
+					autocomplete="current-password"
 					placeholder="Enter your password" 
 					required 
 					disabled={loading}
@@ -112,4 +114,6 @@
 		margin-top: 1.5rem;
 		font-size: 0.9rem;
 	}
+	.auth-footer a { text-decoration: underline; text-underline-offset: 0.18em; font-weight: 600; }
+	@media (max-width: 640px) { .auth-container { padding-block: 1rem; } }
 </style>

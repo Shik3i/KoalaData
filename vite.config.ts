@@ -9,9 +9,9 @@ export default defineConfig({
 				mode: 'nonce',
 				directives: {
 					'default-src': ['self'],
-					'script-src': ['self', 'https://unpkg.com'],
-					'style-src': ['self', 'unsafe-inline', 'https://unpkg.com', 'https://cdn.jsdelivr.net'],
-					'font-src': ['self', 'https://unpkg.com', 'https://cdn.jsdelivr.net'],
+					'script-src': ['self'],
+					'style-src': ['self', 'unsafe-inline'],
+					'font-src': ['self'],
 					'img-src': ['self', 'data:'],
 					'connect-src': ['self'],
 					'frame-ancestors': ['none'],

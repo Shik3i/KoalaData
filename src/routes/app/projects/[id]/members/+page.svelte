@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 
 	let { data, form } = $props();
@@ -13,13 +14,13 @@
 
 <div class="project-members-page">
 	{#if form?.success}
-		<div class="alert alert-success">
+		<div class="alert alert-success" role="status">
 			{form.success}
 		</div>
 	{/if}
 
 	{#if form?.error}
-		<div class="alert alert-danger">
+		<div class="alert alert-danger" role="alert">
 			{form.error}
 		</div>
 	{/if}
@@ -33,7 +34,7 @@
 				<p class="text-muted">The primary owner has full management permissions, visibility controls, and deletion rights.</p>
 				<hr class="divider" />
 				<div class="owner-box flex align-center gap-2">
-					<span class="owner-avatar">👑</span>
+					<span class="owner-avatar"><Icon name="crown" /></span>
 					<div>
 						<strong>@{data.owner.username}</strong>
 					</div>
@@ -141,7 +142,7 @@
 			</div>
 		{:else}
 			<div class="card settings-card text-center text-muted">
-				<p>🔒 You must be the Project Owner to add members or transfer ownership.</p>
+				<p><Icon name="lock-key" /> You must be the Project Owner to add members or transfer ownership.</p>
 			</div>
 		{/if}
 	</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	let { data } = $props();
 
 	function formatDate(timestamp: number) {
@@ -21,7 +22,7 @@
 	<div class="card table-card" style="margin-top: 1.5rem;">
 		{#if data.imports.length === 0}
 			<div class="empty-state py-4 text-center">
-				<span class="empty-icon">☁️</span>
+				<span class="empty-icon"><Icon name="cloud-arrow-up" /></span>
 				<h3>No Uploads Logged</h3>
 				<p class="text-muted">No files have been imported into the system yet.</p>
 			</div>

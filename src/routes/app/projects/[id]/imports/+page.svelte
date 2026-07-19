@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 
@@ -15,13 +16,13 @@
 
 <div class="project-imports-page">
 	{#if form?.success || page.url.searchParams.get('success')}
-		<div class="alert alert-success">
+		<div class="alert alert-success" role="status">
 			{form?.success || page.url.searchParams.get('success')}
 		</div>
 	{/if}
 
 	{#if form?.error || page.url.searchParams.get('error')}
-		<div class="alert alert-danger">
+		<div class="alert alert-danger" role="alert">
 			{form?.error || page.url.searchParams.get('error')}
 		</div>
 	{/if}
@@ -36,8 +37,8 @@
 					<hr class="divider" />
 					
 					{#if data.sources.length === 0}
-						<div class="alert alert-warning py-2 text-center" style="margin-bottom: 0;">
-							⚠️ You must define a <strong>Data Source</strong> before you can upload data.
+						<div class="alert alert-warning py-2 text-center" role="status" style="margin-bottom: 0;">
+							<Icon name="warning" /> You must define a <strong>Data Source</strong> before you can upload data.
 							<a href="/app/projects/{data.project.id}/sources" class="btn btn-secondary btn-sm mt-1" style="display: block;">Manage Sources</a>
 						</div>
 					{:else}
@@ -83,7 +84,7 @@
 				</section>
 			{:else}
 				<div class="card settings-card text-center text-muted">
-					<p>🔒 You must be an Editor or Owner to upload CSV files.</p>
+					<p><Icon name="lock-key" /> You must be an Editor or Owner to upload CSV files.</p>
 				</div>
 			{/if}
 		</div>
@@ -99,7 +100,7 @@
 				
 				{#if data.history.length === 0}
 					<div class="empty-state py-4 text-center">
-						<span class="empty-icon">🕒</span>
+						<span class="empty-icon"><Icon name="clock-counter-clockwise" /></span>
 						<h3>No Imports Yet</h3>
 						<p class="text-muted">Import history will appear here once files are parsed and committed.</p>
 					</div>
@@ -166,7 +167,7 @@
 														<button type="submit" class="btn btn-secondary btn-danger btn-sm">Rollback</button>
 													</form>
 												{:else}
-													<span class="text-muted" style="font-size: 0.8rem;">🔒 Owner only</span>
+											<span class="text-muted" style="font-size: 0.8rem;"><Icon name="lock-key" /> Owner only</span>
 												{/if}
 											{:else}
 												<span class="text-muted">—</span>

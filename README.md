@@ -72,7 +72,7 @@ KoalaData includes a native Node script that performs online SQLite database bac
 ### Trigger a Backup
 Run the backup script inside the active container:
 ```bash
-docker compose exec app node scripts/backup.js
+docker compose exec app node scripts/backup.cjs
 ```
 This saves a copy of the database named `backup-[timestamp].db` to the host's `./backups/` directory and prunes backups older than 7 days.
 

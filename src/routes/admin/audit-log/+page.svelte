@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	let { data } = $props();
 
 	function formatDate(timestamp: number) {
@@ -13,7 +14,7 @@
 	<div class="card table-card" style="margin-top: 1.5rem;">
 		{#if data.logs.length === 0}
 			<div class="empty-state py-4 text-center">
-				<span class="empty-icon">📋</span>
+				<span class="empty-icon"><Icon name="clipboard-text" /></span>
 				<h3>Audit Log is empty</h3>
 				<p class="text-muted">Security actions will be logged here as users interact with the system.</p>
 			</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 
 	let { data, form } = $props();
@@ -26,13 +27,13 @@
 	</div>
 
 	{#if form?.success}
-		<div class="alert alert-success mt-2">
+		<div class="alert alert-success mt-2" role="status">
 			{form.success}
 		</div>
 	{/if}
 
 	{#if form?.error}
-		<div class="alert alert-danger mt-2">
+		<div class="alert alert-danger mt-2" role="alert">
 			{form.error}
 		</div>
 	{/if}
@@ -40,7 +41,7 @@
 	<div class="card table-card" style="margin-top: 1.5rem;">
 		{#if data.projects.length === 0}
 			<div class="empty-state py-4 text-center">
-				<span class="empty-icon">📁</span>
+				<span class="empty-icon"><Icon name="folder-open" /></span>
 				<h3>No Projects Found</h3>
 				<p class="text-muted">No projects exist matching your search criteria.</p>
 			</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 
 	let { data, form } = $props();
@@ -10,13 +11,13 @@
 
 <div class="data-sources-page">
 	{#if form?.success}
-		<div class="alert alert-success">
+		<div class="alert alert-success" role="status">
 			{form.success}
 		</div>
 	{/if}
 
 	{#if form?.error}
-		<div class="alert alert-danger">
+		<div class="alert alert-danger" role="alert">
 			{form.error}
 		</div>
 	{/if}
@@ -31,7 +32,7 @@
 
 				{#if data.sources.length === 0}
 					<div class="empty-state py-4 text-center">
-						<span class="empty-icon">☁️</span>
+						<span class="empty-icon"><Icon name="database" /></span>
 						<h3>No Data Sources</h3>
 						<p class="text-muted">Define a source to start importing metrics data.</p>
 					</div>
@@ -141,7 +142,7 @@
 				</section>
 			{:else}
 				<div class="card settings-card text-center text-muted">
-					<p>🔒 You must be an Editor or Owner to add new data sources.</p>
+					<p><Icon name="lock-key" /> You must be an Editor or Owner to add new data sources.</p>
 				</div>
 			{/if}
 		</div>

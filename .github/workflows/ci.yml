@@ -41,6 +41,22 @@ jobs:
       - name: Compile Production Build
         run: npm run build
 
+      - name: Start production preview for Lighthouse
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/koaladata-preview.log 2>&1 &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:4173/api/health && exit 0
+            sleep 1
+          done
+          cat /tmp/koaladata-preview.log
+          exit 1
+
+      - name: Enforce Lighthouse quality budget
+        run: |
+          mkdir -p test-results
+          npx --yes lighthouse@13.4.0 http://127.0.0.1:4173/ --quiet --chrome-flags="--headless --no-sandbox" --output=json --output-path=test-results/lighthouse.json
+          node scripts/check-lighthouse.mjs test-results/lighthouse.json
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

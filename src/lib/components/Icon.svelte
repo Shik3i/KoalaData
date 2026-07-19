@@ -1,0 +1,87 @@
+<script lang="ts">
+	import {
+		ArrowRightIcon,
+		ArrowSquareOutIcon,
+		ArrowUpRightIcon,
+		CaretDownIcon,
+		CaretUpIcon,
+		ChartLineIcon,
+		ChartLineUpIcon,
+		ClipboardTextIcon,
+		ClockCounterClockwiseIcon,
+		CloudIcon,
+		CloudArrowUpIcon,
+		CodeIcon,
+		CompassIcon,
+		CrownIcon,
+		DatabaseIcon,
+		DesktopIcon,
+		DeviceMobileIcon,
+		FolderOpenIcon,
+		GearIcon,
+		GlobeIcon,
+		LeafIcon,
+		ListIcon,
+		LockKeyIcon,
+		PawPrintIcon,
+		PlusIcon,
+		SealCheckIcon,
+		SparkleIcon,
+		StorefrontIcon,
+		TrophyIcon,
+		UserCircleIcon,
+		UserPlusIcon,
+		UsersIcon,
+		WarningIcon,
+		XIcon,
+		type IconWeight
+	} from 'phosphor-svelte';
+
+	const icons = {
+		'arrow-right': ArrowRightIcon,
+		'arrow-square-out': ArrowSquareOutIcon,
+		'arrow-up-right': ArrowUpRightIcon,
+		'caret-down': CaretDownIcon,
+		'caret-up': CaretUpIcon,
+		'chart-line': ChartLineIcon,
+		'chart-line-up': ChartLineUpIcon,
+		'clipboard-text': ClipboardTextIcon,
+		'clock-counter-clockwise': ClockCounterClockwiseIcon,
+		cloud: CloudIcon,
+		'cloud-arrow-up': CloudArrowUpIcon,
+		code: CodeIcon,
+		compass: CompassIcon,
+		crown: CrownIcon,
+		database: DatabaseIcon,
+		desktop: DesktopIcon,
+		'device-mobile': DeviceMobileIcon,
+		'folder-open': FolderOpenIcon,
+		gear: GearIcon,
+		globe: GlobeIcon,
+		leaf: LeafIcon,
+		list: ListIcon,
+		'lock-key': LockKeyIcon,
+		'paw-print': PawPrintIcon,
+		plus: PlusIcon,
+		'seal-check': SealCheckIcon,
+		sparkle: SparkleIcon,
+		storefront: StorefrontIcon,
+		trophy: TrophyIcon,
+		'user-circle': UserCircleIcon,
+		'user-plus': UserPlusIcon,
+		users: UsersIcon,
+		warning: WarningIcon,
+		x: XIcon
+	} as const;
+
+	type IconName = keyof typeof icons;
+	let {
+		name,
+		size = '1em',
+		weight = 'regular',
+		class: className = ''
+	}: { name: IconName; size?: number | string; weight?: IconWeight; class?: string } = $props();
+	let Glyph = $derived(icons[name]);
+</script>
+
+<Glyph {size} {weight} class="app-icon {className}" aria-hidden="true" focusable="false" />

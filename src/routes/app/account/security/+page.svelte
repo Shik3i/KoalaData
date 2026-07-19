@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 
 	let { data, form } = $props();
@@ -20,26 +21,26 @@
 		<aside class="card sidebar-nav">
 			<h3>Settings</h3>
 			<ul class="nav-list">
-				<li><a href="/app/account">👤 Profile Settings</a></li>
-				<li><a href="/app/account/security" class="active">🔒 Security & Sessions</a></li>
+				<li><a href="/app/account"><Icon name="user-circle" /> Profile Settings</a></li>
+				<li><a href="/app/account/security" class="active" aria-current="page"><Icon name="lock-key" /> Security & Sessions</a></li>
 			</ul>
 		</aside>
 
 		<!-- Main Settings Area -->
-		<main class="settings-content">
+		<div class="settings-content">
 			<!-- Password Form -->
 			<section class="card settings-card form-section">
 				<h2>Change Password</h2>
 				<p class="text-muted">Change your account password. Changing your password will log out all other active sessions.</p>
 
 				{#if form?.success && !form.success.includes('Session')}
-					<div class="alert alert-success">
+					<div class="alert alert-success" role="status">
 						{form.success}
 					</div>
 				{/if}
 
 				{#if form?.error && !form.error.includes('Session')}
-					<div class="alert alert-danger">
+					<div class="alert alert-danger" role="alert">
 						{form.error}
 					</div>
 				{/if}
@@ -61,6 +62,7 @@
 							type="password" 
 							id="oldPassword" 
 							name="oldPassword" 
+							autocomplete="current-password"
 							required 
 							disabled={loading}
 						/>
@@ -72,6 +74,7 @@
 							type="password" 
 							id="newPassword" 
 							name="newPassword" 
+							autocomplete="new-password"
 							placeholder="Minimum 8 characters"
 							required 
 							disabled={loading}
@@ -99,7 +102,7 @@
 				</div>
 
 				{#if form?.success && form.success.includes('Session')}
-					<div class="alert alert-success">
+					<div class="alert alert-success" role="status">
 						{form.success}
 					</div>
 				{/if}
@@ -109,7 +112,7 @@
 						<div class="session-item flex justify-between align-center {session.isCurrent ? 'current-session' : ''}">
 							<div class="session-details">
 								<div class="flex align-center gap-1">
-									<span class="session-icon">{session.isCurrent ? '📱' : '💻'}</span>
+									<span class="session-icon"><Icon name={session.isCurrent ? 'device-mobile' : 'desktop'} /></span>
 									<strong>{session.ipAddress || 'Unknown IP'}</strong>
 									{#if session.isCurrent}
 										<span class="current-badge">Current Session</span>
@@ -136,13 +139,13 @@
 					{/each}
 				</div>
 			</section>
-		</main>
+		</div>
 	</div>
 </div>
 
 <style>
 	.security-page {
-		padding: 2rem 0;
+		padding-block: 2rem;
 	}
 
 	.account-grid {
@@ -252,5 +255,12 @@
 		padding: 0.1rem 0.4rem;
 		border-radius: var(--radius-sm);
 		font-weight: 600;
+	}
+
+	@media (max-width: 640px) {
+		.security-page { padding-block: 0.5rem 1.5rem; }
+		.session-header, .session-item { flex-direction: column; align-items: stretch; gap: 1rem; }
+		.session-details { max-width: 100%; }
+		.session-action .btn, .session-header form, .session-header .btn { width: 100%; }
 	}
 </style>

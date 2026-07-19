@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	let { data } = $props();
 
 	function formatDate(timestamp: number) {
@@ -61,7 +62,7 @@
 	<div class="card table-card">
 		{#if data.users.length === 0}
 			<div class="empty-state">
-				<span class="empty-icon">👥</span>
+				<span class="empty-icon"><Icon name="users" /></span>
 				<h3>No Users Found</h3>
 				<p>Try modifying your search query or filter options.</p>
 			</div>

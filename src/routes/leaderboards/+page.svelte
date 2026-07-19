@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	let { data } = $props();
 
 	function formatNumber(num: number) {
@@ -11,14 +12,14 @@
 </svelte:head>
 
 <div class="container leaderboard-page">
-	<h1 class="page-title">🏆 Weekly Growth Leaderboard</h1>
+	<h1 class="page-title"><Icon name="trophy" /> Weekly Growth Leaderboard</h1>
 	<p class="text-muted">Ranked by weekly active user growth over the last 30 days. Only approved, public extensions are ranked.</p>
 
 	<div class="card leaderboard-card" style="margin-top: 1.5rem; padding: 1.5rem;">
 		{#if data.leaderboard.length === 0}
 			<div class="empty-state text-center py-4">
-				<span class="empty-icon">🏆</span>
-				<h3>Leaderboard is empty</h3>
+				<span class="empty-icon"><Icon name="trophy" /></span>
+				<h2>Leaderboard is empty</h2>
 				<p class="text-muted">Extensions will appear here once approved by administrators and data is imported.</p>
 			</div>
 		{:else}
@@ -44,7 +45,7 @@
 										{#if project.logoPath}
 											<img src="/api/projects/{project.projectId}/logo" alt={project.name} class="tbl-logo" />
 										{:else}
-											<span class="tbl-logo fallback-tbl-logo">🐨</span>
+											<span class="tbl-logo fallback-tbl-logo"><Icon name="paw-print" /></span>
 										{/if}
 										<div>
 											<strong><a href="/p/{project.slug}">{project.name}</a></strong>
@@ -76,7 +77,7 @@
 
 <style>
 	.leaderboard-page {
-		padding: 2rem 0;
+		padding-block: 2rem;
 	}
 
 	.page-title {
