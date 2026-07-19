@@ -1,0 +1,11 @@
+node_modules
+.svelte-kit
+build
+data
+koaladata.db
+koaladata.db-shm
+koaladata.db-wal
+.env
+.git
+test-results
+debug_hooks.log
