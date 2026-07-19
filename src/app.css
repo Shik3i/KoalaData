@@ -41,7 +41,7 @@
 	--max-width: 1200px;
 }
 
-html.dark {
+:root.dark {
 	/* Colors (Dark Mode) */
 	--bg-base: #131614; 
 	--bg-surface: #1c201d;

@@ -12,7 +12,6 @@
 	let currentTheme = $state('system');
 
 	function applyTheme(theme: string) {
-		currentTheme = theme;
 		localStorage.setItem('theme', theme);
 		
 		const root = document.documentElement;
@@ -23,10 +22,14 @@
 		}
 	}
 
+	$effect(() => {
+		applyTheme(currentTheme);
+	});
+
 	onMount(() => {
 		// Read theme from localStorage
 		const savedTheme = localStorage.getItem('theme') || 'system';
-		applyTheme(savedTheme);
+		currentTheme = savedTheme;
 
 		// Listen for system theme changes if set to system
 		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -65,8 +68,7 @@
 				<!-- Theme Selector -->
 				<div class="theme-selector">
 					<select 
-						value={currentTheme} 
-						onchange={(e) => applyTheme((e.target as HTMLSelectElement).value)}
+						bind:value={currentTheme} 
 						aria-label="Theme mode"
 					>
 						<option value="light">☀️ Light</option>
