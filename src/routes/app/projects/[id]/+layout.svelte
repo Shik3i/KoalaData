@@ -20,16 +20,16 @@
 		
 		<div class="title-row flex justify-between align-center flex-wrap gap-2">
 			<div>
-				<h1 class="project-title">📁 {project.name}</h1>
+				<h1 class="project-title"><i class="ph ph-folder-open"></i> {project.name}</h1>
 				<p class="text-muted">{project.shortDescription}</p>
 			</div>
 			<div class="project-badges flex gap-1">
 				<span class="badge badge-visibility-{project.visibility}">{project.visibility}</span>
 				{#if project.verificationStatus === 'verified'}
-					<span class="badge badge-verified">✅ Verified</span>
+					<span class="badge badge-verified"><i class="ph ph-seal-check"></i> Verified</span>
 				{/if}
 				{#if project.leaderboardOptIn && project.leaderboardStatus === 'approved'}
-					<span class="badge badge-leaderboard">🏆 Ranked</span>
+					<span class="badge badge-leaderboard"><i class="ph ph-trophy"></i> Ranked</span>
 				{/if}
 			</div>
 		</div>
@@ -42,31 +42,31 @@
 				href="/app/projects/{project.id}" 
 				class="tab-link {page.url.pathname === `/app/projects/${project.id}` ? 'active' : ''}"
 			>
-				📊 Overview
+				<i class="ph ph-chart-bar"></i> Overview
 			</a>
 			<a 
 				href="/app/projects/{project.id}/sources" 
 				class="tab-link {page.url.pathname.includes('/sources') ? 'active' : ''}"
 			>
-				☁️ Data Sources
+				<i class="ph ph-database"></i> Data Sources
 			</a>
 			<a 
 				href="/app/projects/{project.id}/imports" 
 				class="tab-link {page.url.pathname.includes('/imports') ? 'active' : ''}"
 			>
-				🕒 Import History
+				<i class="ph ph-clock"></i> Import History
 			</a>
 			<a 
 				href="/app/projects/{project.id}/members" 
 				class="tab-link {page.url.pathname.includes('/members') ? 'active' : ''}"
 			>
-				👥 Members
+				<i class="ph ph-users"></i> Members
 			</a>
 			<a 
 				href="/app/projects/{project.id}/settings" 
 				class="tab-link {page.url.pathname.includes('/settings') ? 'active' : ''}"
 			>
-				⚙️ Settings
+				<i class="ph ph-gear"></i> Settings
 			</a>
 		</nav>
 	</div>
@@ -110,6 +110,9 @@
 	.project-title {
 		font-size: 1.75rem;
 		margin-bottom: 0.25rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.badge {
@@ -117,6 +120,9 @@
 		padding: 0.15rem 0.5rem;
 		border-radius: var(--radius-sm);
 		font-weight: 700;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
 	}
 	.badge-visibility-public { background-color: var(--success-bg); color: var(--success); }
 	.badge-visibility-unlisted { background-color: var(--accent-light); color: var(--accent); }
@@ -142,6 +148,9 @@
 		font-size: 0.95rem;
 		border-bottom: 2px solid transparent;
 		white-space: nowrap;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
 	}
 	.tab-link:hover {
 		color: var(--primary);

@@ -108,12 +108,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Apply security headers
 	const scriptSrc = disableRateLimit 
-		? `script-src 'self' 'unsafe-inline';` 
-		: `script-src 'self' 'nonce-${nonce}';`;
+		? `script-src 'self' 'unsafe-inline' https://unpkg.com;` 
+		: `script-src 'self' 'nonce-${nonce}' https://unpkg.com;`;
 
 	response.headers.set(
 		'Content-Security-Policy',
-		`default-src 'self'; ${scriptSrc} style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';`
+		`default-src 'self'; ${scriptSrc} style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; font-src 'self' https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';`
 	);
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
