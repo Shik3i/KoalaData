@@ -3,8 +3,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Install build dependencies for compiling better-sqlite3 native C++ addon
+RUN apk add --no-cache python3 make g++ gcc
+
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY . .
 RUN npm run build
@@ -27,6 +30,7 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/migrations ./migrations
 
 EXPOSE 3000
 

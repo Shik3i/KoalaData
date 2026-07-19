@@ -13,8 +13,10 @@ services:
       - DATABASE_PATH=/data/data.db
       - BACKUP_DIRECTORY=/backups
       - PORT=3000
-      # Change the ORIGIN env var to match your public URL in production (required by SvelteKit CSRF)
       - ORIGIN=http://localhost:3000
+      - KOALADATA_ADMIN_USERNAME=${KOALADATA_ADMIN_USERNAME:-admin}
+      - KOALADATA_ADMIN_DISPLAY_NAME=${KOALADATA_ADMIN_DISPLAY_NAME:-Administrator}
+      - KOALADATA_ADMIN_PASSWORD=${KOALADATA_ADMIN_PASSWORD:-admin_password}
     volumes:
       - koaladata_data:/data
       # Mount a local backups folder on host machine to backups folder inside container
