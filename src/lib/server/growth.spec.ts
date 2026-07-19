@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import db from './db';
 import { users, projects, dataSources, metricDefinitions, importBatches, metricObservations } from './db/schema';
 import { getLeaderboard } from './growth';
+import { initDb } from './db/setup';
 import { eq } from 'drizzle-orm';
 
 describe('Growth Leaderboard Rules', () => {
@@ -19,6 +20,7 @@ describe('Growth Leaderboard Rules', () => {
 	let defHigh: any;
 
 	beforeAll(async () => {
+		await initDb();
 		const now = Math.floor(Date.now() / 1000);
 
 		// 1. Seed test user
@@ -27,7 +29,7 @@ describe('Growth Leaderboard Rules', () => {
 			id: userId,
 			username: 'growthtester',
 			normalizedUsername: 'growthtester',
-			displayName: 'Growth Tester',
+			displayName: 'growthtester',
 			passwordHash: 'dummy',
 			role: 'user',
 			status: 'active',
@@ -112,6 +114,8 @@ describe('Growth Leaderboard Rules', () => {
 	});
 
 	afterAll(async () => {
+		if (!testUser || !projectStale || !projectLowStart || !projectHighStart) return;
+
 		// Clean up created projects
 		const pIds = [projectStale.id, projectLowStart.id, projectHighStart.id];
 		await db.delete(metricObservations).where(eq(metricObservations.sourceId, sourceStale.id));
