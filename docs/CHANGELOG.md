@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.3 - 2026-07-20
+
+### Release hardening
+
+- Granted the tag workflow the GitHub contents permission required to publish releases.
+- Increased the Playwright production-server startup budget for slower CI runners.
+- Raised light-theme link contrast for data-populated cards to meet WCAG AA.
+
 ## v1.0.2 - 2026-07-20
 
 ### Responsive UI and accessibility

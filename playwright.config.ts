@@ -7,6 +7,7 @@ export default defineConfig({
 	webServer: process.env.PLAYWRIGHT_EXTERNAL_SERVER ? undefined : {
 		command: 'npm run build && node build',
 		url: 'http://127.0.0.1:4173/api/health',
+		timeout: 180_000,
 		env: {
 			DISABLE_RATE_LIMIT: 'true',
 			NODE_ENV: 'test',
