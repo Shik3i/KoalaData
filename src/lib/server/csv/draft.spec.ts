@@ -89,7 +89,8 @@ describe('CSV Import Draft Lifecycle & Cleanup', () => {
 		expect(draftRecord.rowCount).toBe(2);
 
 		const dataDir = process.env.DATA_DIRECTORY || './data';
-		const draftFilePath = path.join(dataDir, 'uploads', 'drafts', draftRecord.storedFilename);
+		const fileId = draftRecord.storedFilename.includes(':::') ? draftRecord.storedFilename.split(':::')[1] : draftRecord.storedFilename;
+		const draftFilePath = path.join(dataDir, 'uploads', 'drafts', fileId);
 		
 		// Assert file exists on disk
 		expect(fs.existsSync(draftFilePath)).toBe(true);

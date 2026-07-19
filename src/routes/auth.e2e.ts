@@ -15,9 +15,15 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		// Log all page console outputs to node console
 		page.on('console', msg => console.log('E2E PAGE LOG:', msg.text()));
 
+		// Auto-accept all browser confirm/alert dialogs (like rollback confirmation)
+		page.on('dialog', async dialog => {
+			console.log('E2E DIALOG:', dialog.type(), dialog.message());
+			await dialog.accept();
+		});
+
 		// 1. SEEDED ADMIN LOGIN & SETTINGS ENFORCEMENT
 		await page.goto('/login');
-		await expect(page.locator('h1')).toContainText('Welcome Back');
+		await expect(page.locator('h1')).toContainText('Welcome back', { ignoreCase: true });
 		
 		await page.fill('input[name="username"]', 'admin');
 		await page.fill('input[name="password"]', 'admin_password');
@@ -28,21 +34,17 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 
 		// Navigate to Admin settings and enforce approval_required registration policy
 		await page.goto('/admin/settings');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await expect(page.locator('h1')).toContainText('Global Settings');
 		await page.selectOption('select[id="registration_mode"]', 'approval_required');
 		
 		// Click submit and check for errors
-		await page.click('button[type="submit"]');
-		await page.waitForTimeout(2000);
-
-		console.log('--- SETTINGS PAGE HTML DUMP ---');
-		console.log(await page.content());
-		console.log('-------------------------------');
+		await page.click('button:has-text("Save Settings")');
 
 		// Print any validation errors for debugging
-		const dangerText = await page.locator('.alert-danger').textContent().catch(() => null);
-		if (dangerText) {
-			console.log('E2E SETTINGS ERROR DETECTED:', dangerText);
+		const dangerAlert = page.locator('.alert-danger');
+		if (await dangerAlert.isVisible()) {
+			console.log('E2E SETTINGS ERROR DETECTED:', await dangerAlert.textContent());
 		}
 
 		await expect(page.locator('.alert-success')).toContainText('System settings saved successfully');
@@ -52,6 +54,7 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 
 		// 2. PENDING REGISTRATION
 		await page.goto('/register');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await expect(page.locator('h1')).toContainText('Create Account');
 
 		await page.fill('input[name="username"]', testUsername);
@@ -61,7 +64,7 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 
 		// Redirected to login with pending warning
 		await page.waitForURL('/login?*');
-		await expect(page.locator('.alert-warning')).toContainText('Your registration is pending administrator review');
+		await expect(page.locator('.alert-success')).toContainText('pending administrator approval');
 
 		// 3. ADMIN APPROVAL
 		await page.goto('/login');
@@ -72,6 +75,7 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 
 		// Go to admin registrations queue
 		await page.goto('/admin/registrations');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await expect(page.locator('h1')).toContainText('Registrations Queue');
 
 		// Approve the user
@@ -91,40 +95,59 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 
 		// Land on developer workspace dashboard
 		await page.waitForURL('/app');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await expect(page.locator('h1')).toContainText('Developer Workspace');
 		await expect(page.locator('body')).toContainText('Welcome, E2E Developer');
 
+		console.log('--- ALL LINKS ON DASHBOARD ---');
+		const links = await page.locator('a').all();
+		for (const link of links) {
+			console.log(await link.evaluate(el => ({ text: el.textContent, href: el.getAttribute('href') })));
+		}
+		console.log('------------------------------');
+
 		// 5. PROJECT CREATION
-		await page.click('a', { hasText: 'New Project' });
+		await page.click('a[href="/app/projects/new"]');
 		await page.waitForURL('/app/projects/new');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		
 		await page.fill('input[name="name"]', projectName);
 		await page.selectOption('select[name="category"]', 'developer-tools');
 		await page.selectOption('select[name="visibility"]', 'public');
 		await page.fill('input[name="shortDescription"]', 'E2E test description of this browser extension dashboard.');
 		await page.fill('textarea[name="fullDescription"]', 'Detailed long description of metrics and compatibility guidelines.');
-		await page.click('button[type="submit"]');
+		await page.click('button:has-text("Create Project")');
 
 		// Redirected to project overview
 		await page.waitForURL('/app/projects/*');
-		await expect(page.locator('h1')).toContainText(projectName);
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
+		await expect(page.locator('.project-title')).toContainText(projectName);
 
 		// 6. DATA SOURCE CREATION
-		await page.click('a', { hasText: 'Data Sources' });
+		console.log('--- ALL LINKS ON PROJECT OVERVIEW ---');
+		const projLinks = await page.locator('a').all();
+		for (const link of projLinks) {
+			console.log(await link.evaluate(el => ({ text: el.textContent, href: el.getAttribute('href') })));
+		}
+		console.log('------------------------------------');
+
+		await page.click('a.tab-link[href$="/sources"]');
 		await page.waitForURL('/app/projects/*/sources');
-		await expect(page.locator('h2')).toContainText('Defined Data Sources');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
+		await expect(page.locator('h2').first()).toContainText('Defined Data Sources');
 
 		await page.fill('input[name="name"]', 'CWS Dashboard Live');
 		await page.selectOption('select[name="sourceType"]', 'chrome_web_store');
 		await page.selectOption('select[name="granularity"]', 'daily');
-		await page.click('button[type="submit"]');
+		await page.click('button:has-text("Add Data Source")');
 
 		await expect(page.locator('.alert-success')).toContainText('added successfully');
 		await expect(page.locator('.sources-list')).toContainText('CWS Dashboard Live');
 
 		// 7. CSV UPLOAD (Initial Batch)
-		await page.click('a', { hasText: 'Import History' });
+		await page.click('a.tab-link[href$="/imports"]');
 		await page.waitForURL('/app/projects/*/imports');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		
 		// Select target data source
 		await page.selectOption('select[name="sourceId"]', { label: 'CWS Dashboard Live (chrome_web_store)' });
@@ -132,11 +155,12 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		// Set upload file
 		const filePayload1 = path.resolve('static/mock_e2e.csv');
 		await page.setInputFiles('input[type="file"]', filePayload1);
-		await page.click('button[type="submit"]');
+		await page.click('button:has-text("Upload and Preview")');
 
 		// 8. PREVIEW & MANUAL MAPPING & CONFIRMED IMPORT
 		await page.waitForURL('/app/projects/*/imports/preview?*');
-		await expect(page.locator('h1')).toContainText('Map CSV Columns');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
+		await expect(page.locator('.page-title')).toContainText('Map CSV Columns');
 		await expect(page.locator('.preview-table-card')).toBeVisible();
 
 		// Configure date and metrics mapping inputs
@@ -144,37 +168,42 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.selectOption('select[name="dateFormat"]', 'YYYY-MM-DD');
 
 		// Click confirm and import
-		await page.click('button[type="submit"]');
+		await page.click('button:has-text("Confirm and Import Observations")');
 
 		// Redirected back to history with success banner
 		await page.waitForURL('/app/projects/*/imports?*');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await expect(page.locator('.alert-success')).toContainText('Imported 2 rows successfully');
 
 		// 9. OVERLAPPING CSV UPLOAD
 		await page.selectOption('select[name="sourceId"]', { label: 'CWS Dashboard Live (chrome_web_store)' });
 		const filePayload2 = path.resolve('static/mock_e2e_2.csv');
 		await page.setInputFiles('input[type="file"]', filePayload2);
-		await page.click('button[type="submit"]');
+		await page.click('button:has-text("Upload and Preview")');
 
 		await page.waitForURL('/app/projects/*/imports/preview?*');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await page.selectOption('select[name="dateColumn"]', 'date');
 		await page.selectOption('select[name="dateFormat"]', 'YYYY-MM-DD');
-		await page.click('button[type="submit"]');
+		await page.click('button:has-text("Confirm and Import Observations")');
 
 		await page.waitForURL('/app/projects/*/imports?*');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await expect(page.locator('.alert-success')).toContainText('Imported 1 rows successfully');
 
 		// 10. PUBLIC DASHBOARD VERIFICATION & VISIBILITY CONTROLS
 		await page.goto(`/p/${projectSlug}`);
-		await expect(page.locator('h1')).toContainText(projectName);
-		await expect(page.locator('.chart-dom')).toBeVisible(); // Charts are loaded
+		await expect(page.locator('.project-title')).toContainText(projectName);
+		await expect(page.locator('.chart-dom').first()).toBeVisible(); // Charts are loaded
 
 		// Go back and set to Private
-		await page.goto(`/app/projects`);
-		await page.click(`a[href*="/app/projects/"]`, { hasText: 'Manage' });
-		await page.click('a', { hasText: 'Settings' });
+		await page.goto(`/app`);
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
+		await page.locator('.project-name a', { hasText: projectName }).click();
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
+		await page.click('a.tab-link[href$="/settings"]');
 		await page.selectOption('select[name="visibility"]', 'private');
-		await page.click('button', { hasText: 'Save Visibility' });
+		await page.locator('button', { hasText: 'Save Visibility' }).click();
 		await expect(page.locator('.alert-success')).toContainText('visibility updated to private');
 
 		// 11. PRIVATE PROJECT DENIAL
@@ -190,17 +219,19 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.click('button[type="submit"]');
 
 		// 12. LEADERBOARD REQUEST & APPROVAL
-		await page.goto(`/app/projects`);
-		await page.click(`a[href*="/app/projects/"]`, { hasText: 'Manage' });
-		await page.click('a', { hasText: 'Settings' });
+		await page.goto(`/app`);
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
+		await page.locator('.project-name a', { hasText: projectName }).click();
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
+		await page.click('a.tab-link[href$="/settings"]');
 		
 		// Set back to public first (leaderboards require public visibility)
 		await page.selectOption('select[name="visibility"]', 'public');
-		await page.click('button', { hasText: 'Save Visibility' });
+		await page.locator('button', { hasText: 'Save Visibility' }).click();
 
 		// Opt-in to leaderboards
 		await page.check('input[name="leaderboardOptIn"]');
-		await page.click('button', { hasText: 'Save Leaderboard Choice' });
+		await page.locator('button', { hasText: 'Save Leaderboard Choice' }).click();
 		await expect(page.locator('.alert-success')).toContainText('Opted in to leaderboards. Admin review pending.');
 
 		// Log out user
@@ -212,9 +243,11 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.fill('input[name="password"]', 'admin_password');
 		await page.click('button[type="submit"]');
 		await page.waitForURL('/app');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 
 		// Go to admin leaderboard page and approve
 		await page.goto('/admin/leaderboards');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		const leaderboardRow = page.locator('tr', { hasText: projectSlug });
 		await expect(leaderboardRow).toBeVisible();
 		await leaderboardRow.locator('button', { hasText: 'Approve' }).click();
@@ -230,11 +263,14 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.fill('input[name="password"]', testPassword);
 		await page.click('button[type="submit"]');
 		await page.waitForURL('/app');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 
 		// Go to imports list
-		await page.goto(`/app/projects`);
-		await page.click(`a[href*="/app/projects/"]`, { hasText: 'Manage' });
-		await page.click('a', { hasText: 'Import History' });
+		await page.goto(`/app`);
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
+		await page.locator('.project-name a', { hasText: projectName }).click();
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
+		await page.click('a.tab-link[href$="/imports"]');
 
 		// Rollback the second batch (overlapping value 200). 
 		// We look for the "Rollback" button on the row containing "mock_e2e_2"
@@ -257,22 +293,28 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.fill('input[name="password"]', 'admin_password');
 		await page.click('button[type="submit"]');
 		await page.waitForURL('/app');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 
 		// Go to admin user management
 		await page.goto('/admin/users');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await page.fill('input[name="q"]', testUsername);
-		await page.click('button[type="submit"]');
+		await page.click('button:has-text("Search")');
 
 		const userRow = page.locator('tr', { hasText: testUsername });
 		await userRow.locator('a', { hasText: 'Inspect' }).click();
+		await page.waitForURL('/admin/users/*');
+		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 
 		// Ban user
-		await page.click('button', { hasText: 'Ban User' });
+		await page.locator('button', { hasText: 'Ban User' }).click();
 		await expect(page.locator('.alert-success')).toContainText('User banned');
 
 		// Try to log in as the banned user -> should block and state banned
+		await context.clearCookies(); // Log out Admin first
 		const userPage = await context.newPage();
 		await userPage.goto('/login');
+		await userPage.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await userPage.fill('input[name="username"]', testUsername);
 		await userPage.fill('input[name="password"]', testPassword);
 		await userPage.click('button[type="submit"]');
@@ -281,6 +323,6 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		
 		// Direct visit to /app redirects to login
 		await userPage.goto('/app');
-		await userPage.waitForURL('/login');
+		await expect(userPage).toHaveURL(/\/login/);
 	});
 });

@@ -19,11 +19,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 	};
 };
 
+import fs from 'fs';
+
 export const actions: Actions = {
 	default: async ({ request, locals, getClientAddress }) => {
-		console.log('[SettingsAction] Action invoked by user role:', locals.user?.role);
+		const writeLog = (msg: string) => {
+			try { fs.appendFileSync('debug_hooks.log', `[SettingsAction] ${msg}\n`); } catch(e) {}
+			console.log(`[SettingsAction] ${msg}`);
+		};
+
+		writeLog(`Action invoked by user role: ${locals.user?.role}`);
 		if (!locals.user || locals.user.role !== 'admin') {
-			console.log('[SettingsAction] Access denied - not an admin.');
+			writeLog('Access denied - not an admin.');
 			return fail(403, { error: 'Forbidden' });
 		}
 
@@ -34,7 +41,7 @@ export const actions: Actions = {
 		const defaultMaxCsvSizeBytes = data.get('default_max_csv_size_bytes')?.toString().trim() || '10485760';
 		const defaultMaxCsvRows = data.get('default_max_csv_rows')?.toString().trim() || '100000';
 
-		console.log('[SettingsAction] Form data parsed:', { registrationMode, defaultMaxProjects, defaultMaxStorageBytes });
+		writeLog(`Form data parsed: ${JSON.stringify({ registrationMode, defaultMaxProjects, defaultMaxStorageBytes })}`);
 
 		// Validate values
 		const validModes = ['open', 'invite_only', 'approval_required'];
@@ -64,7 +71,7 @@ export const actions: Actions = {
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
 		// Upsert helper inside transaction synchronously
-		console.log('[SettingsAction] Starting db transaction...');
+		writeLog('Starting db transaction...');
 		try {
 			db.transaction((tx) => {
 				const upsert = (key: string, value: string) => {
@@ -84,13 +91,13 @@ export const actions: Actions = {
 				upsert('default_max_csv_size_bytes', cleanCsvSize!);
 				upsert('default_max_csv_rows', cleanCsvRows!);
 			});
-			console.log('[SettingsAction] DB transaction completed successfully.');
+			writeLog('DB transaction completed successfully.');
 		} catch (e: any) {
-			console.error('[SettingsAction] DB transaction failed:', e);
+			writeLog(`DB transaction failed: ${e.message || e}`);
 			return fail(500, { error: `Database error: ${e.message || e}` });
 		}
 
-		console.log('[SettingsAction] Writing audit log...');
+		writeLog('Writing audit log...');
 		try {
 			await logAuditEvent(
 				locals.user.id,
@@ -101,9 +108,9 @@ export const actions: Actions = {
 				{ registrationMode, defaultMaxProjects, defaultMaxStorageBytes },
 				ip
 			);
-			console.log('[SettingsAction] Audit log written successfully.');
+			writeLog('Audit log written successfully.');
 		} catch (e: any) {
-			console.error('[SettingsAction] Audit log failed:', e);
+			writeLog(`Audit log failed: ${e.message || e}`);
 		}
 
 		return { success: 'System settings saved successfully.' };

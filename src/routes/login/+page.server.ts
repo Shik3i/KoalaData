@@ -66,23 +66,27 @@ export const actions: Actions = {
 
 		const user = userList[0];
 
+		// 2. Verify Password
+		const isValid = await verifyPassword(password, user.passwordHash);
+		if (!isValid) {
+			await logAuditEvent(user.id, user.username, 'login_failure', 'user', user.id, { reason: 'invalid_password' }, clientIp);
+			return fail(400, { error: 'Invalid username or password.' });
+		}
+
 		// Check status: pending users cannot log in
 		if (user.status === 'pending') {
 			await logAuditEvent(user.id, user.username, 'login_blocked_pending', 'user', user.id, {}, clientIp);
 			return fail(400, { error: 'Your account is pending administrator approval.' });
 		}
 
-		// Check status: banned or deleted users cannot log in
-		if (user.status === 'banned' || user.status === 'deleted' || user.status === 'rejected') {
-			await logAuditEvent(user.id, user.username, 'login_failure', 'user', user.id, { reason: 'account_disabled', status: user.status }, clientIp);
-			return fail(400, { error: 'Invalid username or password.' });
+		// Check status: banned, deleted or rejected users cannot log in
+		if (user.status === 'banned') {
+			await logAuditEvent(user.id, user.username, 'login_failure', 'user', user.id, { reason: 'account_banned', status: user.status }, clientIp);
+			return fail(400, { error: 'Your account has been banned.' });
 		}
-
-		// 2. Verify Password
-		const isValid = await verifyPassword(password, user.passwordHash);
-		if (!isValid) {
-			await logAuditEvent(user.id, user.username, 'login_failure', 'user', user.id, { reason: 'invalid_password' }, clientIp);
-			return fail(400, { error: 'Invalid username or password.' });
+		if (user.status === 'deleted' || user.status === 'rejected') {
+			await logAuditEvent(user.id, user.username, 'login_failure', 'user', user.id, { reason: 'account_disabled', status: user.status }, clientIp);
+			return fail(400, { error: 'Your account is disabled.' });
 		}
 
 		// 3. Create Session

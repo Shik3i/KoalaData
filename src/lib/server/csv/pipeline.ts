@@ -10,6 +10,14 @@ import { getUserLimits } from '../limits';
 
 const DRAFTS_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+function parseStoredFilename(storedFilename: string): { originalName: string; fileId: string } {
+	const parts = storedFilename.split(':::');
+	if (parts.length > 1) {
+		return { originalName: parts[0], fileId: parts[1] };
+	}
+	return { originalName: storedFilename, fileId: storedFilename };
+}
+
 /**
  * Normalizes number formats by removing currency signs, commas, and white spaces.
  */
@@ -103,8 +111,8 @@ export async function createImportDraft(
 
 	// Save temporary file
 	const draftFileId = crypto.randomUUID();
-	const storedFilename = `${draftFileId}.tmp`;
-	const draftFilePath = path.join(draftsDir, storedFilename);
+	const storedFilename = `${originalFilename}:::${draftFileId}.tmp`;
+	const draftFilePath = path.join(draftsDir, `${draftFileId}.tmp`);
 	
 	fs.writeFileSync(draftFilePath, buffer);
 
@@ -174,7 +182,8 @@ export async function confirmImportDraft(
 	// Verify user limits (storage bounds)
 	const { limits, usage } = await getUserLimits(userId);
 	const dataDir = process.env.DATA_DIRECTORY || './data';
-	const draftFilePath = path.join(dataDir, 'uploads', 'drafts', draft.storedFilename);
+	const { originalName, fileId } = parseStoredFilename(draft.storedFilename);
+	const draftFilePath = path.join(dataDir, 'uploads', 'drafts', fileId);
 	
 	if (!fs.existsSync(draftFilePath)) {
 		throw new Error('Temporary draft file is missing.');
@@ -348,7 +357,7 @@ export async function confirmImportDraft(
 				projectId,
 				sourceId: draft.sourceId,
 				userId,
-				originalFilename: draftRecord[0].storedFilename, 
+				originalFilename: originalName, 
 				storedFilename: finalFilename,
 				fileSize: draftStat.size,
 				checksum: crypto.createHash('sha256').update(fileBuffer).digest('hex'),
@@ -410,7 +419,7 @@ export async function confirmImportDraft(
 			projectId,
 			sourceId: draft.sourceId,
 			userId,
-			originalFilename: draft.storedFilename,
+			originalFilename: originalName,
 			storedFilename: null, // Null since file is removed
 			fileSize: draftStat.size,
 			checksum: crypto.createHash('sha256').update(fileBuffer).digest('hex'),
@@ -451,7 +460,8 @@ export async function cleanupDraft(draftId: string) {
 		if (draftRecord.length > 0) {
 			const draft = draftRecord[0];
 			const dataDir = process.env.DATA_DIRECTORY || './data';
-			const filePath = path.join(dataDir, 'uploads', 'drafts', draft.storedFilename);
+			const { fileId } = parseStoredFilename(draft.storedFilename);
+			const filePath = path.join(dataDir, 'uploads', 'drafts', fileId);
 			if (fs.existsSync(filePath)) {
 				fs.unlinkSync(filePath);
 			}

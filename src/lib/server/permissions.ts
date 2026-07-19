@@ -1,5 +1,5 @@
 import db from './db';
-import { projects, projectMembers } from './db/schema';
+import { projects, projectMembers, users } from './db/schema';
 import { eq, and } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 
@@ -40,7 +40,7 @@ export async function assertProjectAccess(
 
 	if (userId) {
 		// Fetch user to confirm admin status (optional if role is passed, but checking database is safest)
-		const userRecord = await db.select().from(db.schema.users).where(eq(db.schema.users.id, userId)).limit(1);
+		const userRecord = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 		const user = userRecord[0];
 
 		if (user && user.role === 'admin') {

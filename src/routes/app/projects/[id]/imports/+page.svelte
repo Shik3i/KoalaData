@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 
 	let { data, form } = $props();
 
@@ -13,15 +14,15 @@
 </script>
 
 <div class="project-imports-page">
-	{#if form?.success}
+	{#if form?.success || page.url.searchParams.get('success')}
 		<div class="alert alert-success">
-			{form.success}
+			{form?.success || page.url.searchParams.get('success')}
 		</div>
 	{/if}
 
-	{#if form?.error}
+	{#if form?.error || page.url.searchParams.get('error')}
 		<div class="alert alert-danger">
-			{form.error}
+			{form?.error || page.url.searchParams.get('error')}
 		</div>
 	{/if}
 

@@ -44,7 +44,8 @@ export const load: PageServerLoad = async ({ url, params, locals }) => {
 
 	// Read CSV file from disk to extract headers and preview rows
 	const dataDir = process.env.DATA_DIRECTORY || './data';
-	const draftFilePath = path.join(dataDir, 'uploads', 'drafts', draft.storedFilename);
+	const fileId = draft.storedFilename.includes(':::') ? draft.storedFilename.split(':::')[1] : draft.storedFilename;
+	const draftFilePath = path.join(dataDir, 'uploads', 'drafts', fileId);
 
 	if (!fs.existsSync(draftFilePath)) {
 		throw redirect(302, `/app/projects/${projectId}/imports?error=draft_file_missing`);

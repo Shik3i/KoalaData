@@ -9,16 +9,18 @@ export async function init() {
 	await initDb();
 }
 
+import fs from 'fs';
+
 export const handle: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
+	const clientIp = event.getClientAddress ? event.getClientAddress() : '127.0.0.1';
 
-	// Resolve client IP (fall back to 'local' if getClientAddress() throws)
-	let clientIp = '127.0.0.1';
 	try {
-		clientIp = event.getClientAddress() || '127.0.0.1';
-	} catch (e) {
-		// Ignore
-	}
+		const logLine = `[HooksRequest] ${event.request.method} ${pathname} | Cookies: ${event.request.headers.get('cookie')}\n`;
+		fs.appendFileSync('debug_hooks.log', logLine);
+	} catch (e) {}
+
+	console.log(`[HooksRequest] ${event.request.method} ${pathname} | Cookies: ${event.request.headers.get('cookie')}`);
 
 	// 1. Rate Limiting check
 	const disableRateLimit = process.env.DISABLE_RATE_LIMIT === 'true' || process.env.NODE_ENV === 'test';
