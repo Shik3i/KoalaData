@@ -30,3 +30,11 @@ debug_hooks.log
 *.db-wal
 /data
 /backups
+
+# IDEs
+.vscode/
+
+# Playwright Reports
+/playwright-report
+/blob-report
+/playwright/.local-browsers

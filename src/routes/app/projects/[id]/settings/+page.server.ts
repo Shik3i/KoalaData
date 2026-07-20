@@ -3,7 +3,7 @@ import { projects, projectSlugRedirects } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { isSlugAvailable, slugify } from '$lib/server/slugs';
-import { saveProjectLogo, removeProjectLogo } from '$lib/server/assets';
+import { saveProjectLogo, removeProjectLogo, downloadWebsiteFavicon } from '$lib/server/assets';
 import { logAuditEvent } from '$lib/server/audit';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -22,7 +22,7 @@ export const actions: Actions = {
 		if (!locals.user) return fail(401);
 
 		// Assert access: Must be Owner or Admin
-		await assertProjectAccess(locals.user.id, projectId, 'owner');
+		const { project } = await assertProjectAccess(locals.user.id, projectId, 'owner');
 
 		const data = await request.formData();
 		const name = data.get('name')?.toString().trim() || '';
@@ -49,6 +49,19 @@ export const actions: Actions = {
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
+		// Manage favicon download based on websiteUrl changes
+		let logoPath = project.logoPath;
+		if (websiteUrl && !logoPath) {
+			logoPath = await downloadWebsiteFavicon(projectId, websiteUrl);
+		} else if (websiteUrl && logoPath && logoPath.includes('-favicon-') && project.websiteUrl !== websiteUrl) {
+			removeProjectLogo(logoPath);
+			logoPath = await downloadWebsiteFavicon(projectId, websiteUrl);
+		} else if (!websiteUrl && logoPath && logoPath.includes('-favicon-')) {
+			// If websiteUrl is cleared and the logo was a favicon, remove it
+			removeProjectLogo(logoPath);
+			logoPath = null;
+		}
+
 		await db
 			.update(projects)
 			.set({
@@ -59,6 +72,7 @@ export const actions: Actions = {
 				repositoryUrl,
 				storeUrl,
 				category,
+				logoPath,
 				updatedAt: Math.floor(Date.now() / 1000)
 			})
 			.where(eq(projects.id, projectId));

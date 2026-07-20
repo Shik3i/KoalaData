@@ -2,17 +2,6 @@
 	import Icon from '$lib/components/Icon.svelte';
 	let { data } = $props();
 
-	function getDomain(url: string | null | undefined): string | null {
-		if (!url) return null;
-		try {
-			const parsed = new URL(url);
-			return parsed.hostname;
-		} catch (e) {
-			const cleaned = url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-			return cleaned || null;
-		}
-	}
-
 	function formatNumber(num: number) {
 		return num.toLocaleString();
 	}
@@ -55,8 +44,6 @@
 									<div class="flex align-center gap-1">
 										{#if project.logoPath}
 											<img src="/api/projects/{project.projectId}/logo" alt={project.name} class="tbl-logo" />
-										{:else if project.websiteUrl && getDomain(project.websiteUrl)}
-											<img src="https://www.google.com/s2/favicons?sz=64&domain={getDomain(project.websiteUrl)}" alt={project.name} class="tbl-logo" />
 										{:else}
 											<span class="tbl-logo fallback-tbl-logo"><Icon name="paw-print" /></span>
 										{/if}

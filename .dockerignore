@@ -1,11 +1,38 @@
+# Dependencies and logs
 node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+debug_hooks.log
+
+# Build outputs
 .svelte-kit
 build
-data
-koaladata.db
-koaladata.db-shm
-koaladata.db-wal
-.env
+.output
+dist
+
+# Data and databases
+data/
+backups/
+*.db
+*.db-shm
+*.db-wal
+
+# Version control and IDEs
 .git
+.github
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Test reports and configs
 test-results
-debug_hooks.log
+playwright-report
+blob-report
+playwright.config.ts
+
+# Configuration / Env
+.env
+.env.*
+!.env.example

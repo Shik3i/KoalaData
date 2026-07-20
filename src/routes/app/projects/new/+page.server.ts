@@ -3,6 +3,7 @@ import { projects } from '$lib/server/db/schema';
 import { generateUniqueSlug } from '$lib/server/slugs';
 import { getUserLimits } from '$lib/server/limits';
 import { logAuditEvent } from '$lib/server/audit';
+import { downloadWebsiteFavicon } from '$lib/server/assets';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -77,6 +78,11 @@ export const actions: Actions = {
 		const projectId = crypto.randomUUID();
 		const now = Math.floor(Date.now() / 1000);
 
+		let logoPath: string | null = null;
+		if (websiteUrl) {
+			logoPath = await downloadWebsiteFavicon(projectId, websiteUrl);
+		}
+
 		await db.insert(projects).values({
 			id: projectId,
 			ownerId: locals.user.id,
@@ -89,6 +95,7 @@ export const actions: Actions = {
 			storeUrl,
 			category,
 			visibility,
+			logoPath,
 			leaderboardOptIn: 0,
 			leaderboardStatus: 'not_requested',
 			verificationStatus: 'unverified',

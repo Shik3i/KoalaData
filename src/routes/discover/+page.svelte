@@ -1,17 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
 	let { data } = $props();
-
-	function getDomain(url: string | null | undefined): string | null {
-		if (!url) return null;
-		try {
-			const parsed = new URL(url);
-			return parsed.hostname;
-		} catch (e) {
-			const cleaned = url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-			return cleaned || null;
-		}
-	}
 </script>
 
 <svelte:head>
@@ -70,10 +59,6 @@
 								{#if project.logoPath}
 									<div class="mini-logo">
 										<img src="/api/projects/{project.id}/logo" alt={project.name} />
-									</div>
-								{:else if project.websiteUrl && getDomain(project.websiteUrl)}
-									<div class="mini-logo">
-										<img src="https://www.google.com/s2/favicons?sz=64&domain={getDomain(project.websiteUrl)}" alt={project.name} />
 									</div>
 								{:else}
 									<div class="mini-logo fallback-logo">

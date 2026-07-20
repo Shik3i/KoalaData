@@ -6,17 +6,6 @@
 
 	let project = $derived(data.project);
 
-	function getDomain(url: string | null | undefined): string | null {
-		if (!url) return null;
-		try {
-			const parsed = new URL(url);
-			return parsed.hostname;
-		} catch (e) {
-			const cleaned = url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-			return cleaned || null;
-		}
-	}
-
 	// Date filter state
 	let dateFilter = $state('90');
 
@@ -54,10 +43,6 @@
 				{#if project.logoPath}
 					<div class="project-logo-circle">
 						<img src="/api/projects/{project.id}/logo" alt="{project.name} Logo" />
-					</div>
-				{:else if project.websiteUrl && getDomain(project.websiteUrl)}
-					<div class="project-logo-circle">
-						<img src="https://www.google.com/s2/favicons?sz=64&domain={getDomain(project.websiteUrl)}" alt="{project.name} Logo" />
 					</div>
 				{:else}
 					<div class="project-logo-circle fallback-circle">
