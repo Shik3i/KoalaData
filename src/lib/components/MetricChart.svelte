@@ -9,15 +9,104 @@
 		observations: Observation[];
 	};
 
-	let { title, observations, seriesList } = $props<{
-		title: string;
+	let { title, observations, seriesList, showMovingAverage = true, showForecast = true } = $props<{
+		title?: string;
 		observations?: Observation[];
 		seriesList?: SeriesData[];
+		showMovingAverage?: boolean;
+		showForecast?: boolean;
 	}>();
+
+	let exporting = $state(false);
+
+	function exportPNG() {
+		if (!chart) return;
+		exporting = true;
+		try {
+			const url = chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' });
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = `${title || 'chart'}.png`;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+		} finally {
+			exporting = false;
+		}
+	}
+
+	function exportCSV() {
+		exporting = true;
+		try {
+			let csv = '';
+			if (seriesList && seriesList.length > 0) {
+				const headers = ['Date', ...seriesList.map((s: SeriesData) => s.name)];
+				csv = headers.join(',') + '\n';
+				const maxLen = Math.max(...seriesList.map((s: SeriesData) => s.observations.length));
+				for (let i = 0; i < maxLen; i++) {
+					const date = seriesList[0].observations[i]?.date ?? '';
+					const row = [date, ...seriesList.map((s: SeriesData) => s.observations[i]?.value ?? '')];
+					csv += row.join(',') + '\n';
+				}
+			} else if (observations) {
+				csv = 'Date,Value\n';
+				for (const o of observations) {
+					csv += `${o.date},${o.value}\n`;
+				}
+			} else {
+				return;
+			}
+			const blob = new Blob([csv], { type: 'text/csv' });
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = `${title || 'chart'}.csv`;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+		} finally {
+			exporting = false;
+		}
+	}
 
 	let chartDom: HTMLDivElement;
 	let chart: EChartsType | null = null;
 	let destroyed = false;
+
+	function computeSMA(data: number[]): (number | null)[] {
+		const result: (number | null)[] = [];
+		for (let i = 0; i < data.length; i++) {
+			if (i < 6) {
+				result.push(null);
+			} else {
+				let sum = 0;
+				for (let j = i - 6; j <= i; j++) sum += data[j];
+				result.push(sum / 7);
+			}
+		}
+		return result;
+	}
+
+	function computeForecast(data: number[], steps: number): { values: number[] } | null {
+		const n = data.length;
+		if (n < 3) return null;
+		const idx = Array.from({ length: n }, (_, i) => i);
+		const xMean = (n - 1) / 2;
+		const yMean = data.reduce((a, b) => a + b, 0) / n;
+		let num = 0, den = 0;
+		for (let i = 0; i < n; i++) {
+			num += (i - xMean) * (data[i] - yMean);
+			den += (i - xMean) * (i - xMean);
+		}
+		const slope = den !== 0 ? num / den : 0;
+		const intercept = yMean - slope * xMean;
+		const values: number[] = [];
+		for (let i = 0; i < steps; i++) {
+			values.push(Math.max(0, slope * (n + i) + intercept));
+		}
+		return { values };
+	}
 
 	async function initChart() {
 		if (!chartDom) return;
@@ -36,9 +125,10 @@
 
 		let dates: string[] = [];
 		let seriesOptions: any[] = [];
+		let hasMultipleSeries = false;
 
 		if (seriesList && seriesList.length > 0) {
-			// Extract dates from the first series
+			hasMultipleSeries = true;
 			dates = seriesList[0].observations.map((o: Observation) => o.date);
 			seriesOptions = seriesList.map((s: SeriesData) => ({
 				name: s.name,
@@ -46,61 +136,104 @@
 				type: 'line',
 				smooth: true,
 				symbol: 'circle',
-				symbolSize: 6,
+				symbolSize: 5,
 				color: s.color,
-				lineStyle: {
-					width: 3
-				},
+				lineStyle: { width: 2.5 },
 				areaStyle: {
 					color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-						{ offset: 0, color: s.color + '26' }, // ~15% opacity
-						{ offset: 1, color: s.color + '00' }  // 0% opacity
+						{ offset: 0, color: s.color + '1A' },
+						{ offset: 1, color: s.color + '00' }
 					])
 				}
 			}));
 		} else if (observations) {
 			dates = observations.map((o: Observation) => o.date);
 			const values = observations.map((o: Observation) => o.value);
+			const mainColor = isDark ? '#78d397' : '#2f6d47';
+
 			seriesOptions = [
 				{
-					data: values,
+					name: 'Actual',
+					data: [...values],
 					type: 'line',
 					smooth: true,
 					symbol: 'circle',
-					symbolSize: 6,
-					color: isDark ? '#78d397' : '#2f6d47',
-					lineStyle: {
-						width: 3
-					},
+					symbolSize: 5,
+					color: mainColor,
+					lineStyle: { width: 2.5 },
 					areaStyle: {
 						color: new echarts.graphic.LinearGradient(0, 0, 0, 1, isDark ? [
-							{ offset: 0, color: 'rgba(120, 211, 151, 0.3)' },
+							{ offset: 0, color: 'rgba(120, 211, 151, 0.25)' },
 							{ offset: 1, color: 'rgba(120, 211, 151, 0.0)' }
 						] : [
-							{ offset: 0, color: 'rgba(47, 109, 71, 0.3)' },
+							{ offset: 0, color: 'rgba(47, 109, 71, 0.25)' },
 							{ offset: 1, color: 'rgba(47, 109, 71, 0.0)' }
 						])
 					}
 				}
 			];
+
+			if (showMovingAverage && values.length >= 7) {
+				const sma = computeSMA(values);
+				seriesOptions.push({
+					name: '7-Day Avg',
+					data: sma,
+					type: 'line',
+					smooth: true,
+					symbol: 'none',
+					lineStyle: { width: 2, type: 'dashed' },
+					color: isDark ? '#788b82' : '#94a3b8',
+				});
+			}
+
+			if (showForecast && values.length >= 5) {
+				const forecast = computeForecast(values, 30);
+				if (forecast) {
+					const lastDate = new Date(dates[dates.length - 1]);
+					const forecastDates: string[] = [];
+					for (let i = 1; i <= 30; i++) {
+						const d = new Date(lastDate);
+						d.setDate(d.getDate() + i);
+						forecastDates.push(d.toISOString().split('T')[0]);
+					}
+					dates = [...dates, ...forecastDates];
+
+					for (const s of seriesOptions) {
+						s.data = [...s.data, ...new Array(30).fill(null)];
+					}
+
+					const forecastData = new Array(values.length - 1).fill(null);
+					forecastData.push(values[values.length - 1]);
+					forecastData.push(...forecast.values);
+
+					seriesOptions.push({
+						name: '30-Day Forecast',
+						data: forecastData,
+						type: 'line',
+						smooth: true,
+						symbol: 'none',
+						lineStyle: { width: 2, type: 'dotted' },
+						color: mainColor,
+					});
+				}
+			}
 		}
 
 		const hasZoom = dates.length > 14;
+		const legendData = seriesOptions.map((s: any) => s.name);
+		const hasLegend = legendData.length > 1;
 
 		const option = {
-			title: {
-				text: title,
-				left: 'center',
-				textStyle: {
-					fontFamily: 'Outfit, Inter, system-ui, sans-serif',
-					fontSize: 15,
-					fontWeight: 600,
-					color: isDark ? '#edf5ef' : '#2e3d30'
-				}
+			grid: {
+				left: '4%',
+				right: '4%',
+				bottom: hasZoom ? '18%' : '8%',
+				top: hasLegend ? '14%' : '6%',
 			},
-			legend: (seriesList && seriesList.length > 0) ? {
-				data: seriesList.map((s: SeriesData) => s.name),
-				top: '8%',
+			legend: hasLegend ? {
+				data: legendData,
+				top: 0,
+				right: 0,
 				textStyle: {
 					color: isDark ? '#a5b2a8' : '#64748b',
 					fontFamily: 'Inter, system-ui, sans-serif',
@@ -113,33 +246,33 @@
 				borderWidth: 1,
 				borderColor: isDark ? '#2a382e' : '#e2e8f0',
 				textStyle: {
-					color: isDark ? '#edf5ef' : '#1e293b'
+					color: isDark ? '#edf5ef' : '#1e293b',
+					fontSize: 12
 				}
-			},
-			grid: {
-				left: '8%',
-				right: '5%',
-				bottom: hasZoom ? '20%' : '12%',
-				top: (seriesList && seriesList.length > 0) ? '22%' : '18%',
 			},
 			xAxis: {
 				type: 'category',
 				data: dates,
 				axisLabel: {
-					rotate: 35,
+					rotate: 25,
 					fontSize: 10,
-					color: isDark ? '#a5b2a8' : '#64748b'
+					color: isDark ? '#a5b2a8' : '#64748b',
+					marginBottom: 4
 				},
 				axisLine: {
 					lineStyle: {
 						color: isDark ? '#2a382e' : '#e2e8f0'
 					}
+				},
+				axisTick: {
+					alignWithLabel: true
 				}
 			},
 			yAxis: {
 				type: 'value',
 				axisLabel: {
-					color: isDark ? '#a5b2a8' : '#64748b'
+					color: isDark ? '#a5b2a8' : '#64748b',
+					fontSize: 10
 				},
 				splitLine: {
 					lineStyle: {
@@ -155,16 +288,13 @@
 				},
 				{
 					type: 'slider',
-					bottom: '2%',
-					height: 18,
+					bottom: '1%',
+					height: 14,
 					borderColor: 'transparent',
-					fillerColor: isDark ? 'rgba(120, 211, 151, 0.15)' : 'rgba(47, 109, 71, 0.12)',
-					handleIcon: 'path://M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
-					handleSize: '120%',
+					fillerColor: isDark ? 'rgba(120, 211, 151, 0.12)' : 'rgba(47, 109, 71, 0.1)',
+					handleSize: '90%',
 					handleStyle: {
 						color: isDark ? '#78d397' : '#2f6d47',
-						shadowBlur: 3,
-						shadowColor: 'rgba(0, 0, 0, 0.3)'
 					},
 					textStyle: {
 						color: isDark ? '#a5b2a8' : '#64748b',
@@ -178,7 +308,6 @@
 		chart.setOption(option);
 	}
 
-	// Update chart when observations or seriesList changes reactively
 	$effect(() => {
 		if (observations || seriesList) {
 			void initChart();
@@ -205,19 +334,57 @@
 </script>
 
 <div class="chart-container-wrapper">
+	<div class="chart-export-buttons">
+		<button class="export-btn" onclick={exportPNG} disabled={exporting} title="Download PNG">PNG</button>
+		<button class="export-btn" onclick={exportCSV} disabled={exporting} title="Download CSV">CSV</button>
+	</div>
 	<div bind:this={chartDom} class="chart-dom"></div>
 </div>
 
 <style>
 	.chart-container-wrapper {
 		width: 100%;
-		height: 350px;
-		margin-top: 1rem;
+		height: 300px;
 		position: relative;
 	}
 
 	.chart-dom {
 		width: 100%;
 		height: 100%;
+	}
+
+	.chart-export-buttons {
+		position: absolute;
+		top: 0;
+		right: 0;
+		display: flex;
+		gap: 0.25rem;
+		opacity: 0;
+		transition: opacity 0.2s ease;
+		z-index: 10;
+	}
+	.chart-container-wrapper:hover .chart-export-buttons {
+		opacity: 1;
+	}
+	.export-btn {
+		font-size: 0.6rem;
+		font-weight: 700;
+		letter-spacing: 0.05em;
+		padding: 0.15rem 0.4rem;
+		border: 1px solid var(--border-color);
+		border-radius: var(--radius-sm);
+		background-color: var(--bg-surface);
+		color: var(--text-muted);
+		cursor: pointer;
+		transition: var(--transition-base);
+		line-height: 1.2;
+	}
+	.export-btn:hover {
+		background-color: var(--bg-inset);
+		color: var(--text-base);
+	}
+	.export-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
 	}
 </style>

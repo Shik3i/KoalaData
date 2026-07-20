@@ -20,7 +20,8 @@
 				...metric,
 				observations: obs,
 				latest,
-				delta: latest !== null && previous !== null ? latest - previous : null
+				delta: latest !== null && previous !== null ? latest - previous : null,
+				displayValue: latest
 			};
 		})
 	);
@@ -36,6 +37,8 @@
 		let totalInstalls = 0;
 		let totalUninstalls = 0;
 		let latestActiveUsers = null;
+		let installsObsCount = 0;
+		let uninstallsObsCount = 0;
 
 		for (const metric of filteredMetrics) {
 			const sum = metric.observations.reduce((acc: number, o: { value: number }) => acc + o.value, 0);
@@ -45,13 +48,16 @@
 				totalPageViews = sum;
 			} else if (metric.metricType === 'installs') {
 				totalInstalls = sum;
+				installsObsCount = metric.observations.length;
 			} else if (metric.metricType === 'uninstalls') {
 				totalUninstalls = sum;
+				uninstallsObsCount = metric.observations.length;
 			} else if (metric.metricType === 'active_users') {
 				latestActiveUsers = metric.latest;
 			}
 		}
 
+		const dayCount = Math.max(installsObsCount, uninstallsObsCount, 1);
 		const storeToPageRate = totalImpressions > 0 ? (totalPageViews / totalImpressions) * 100 : null;
 		const pageToInstallRate = totalPageViews > 0 ? (totalInstalls / totalPageViews) * 100 : null;
 		const churnRate = totalInstalls > 0 ? (totalUninstalls / totalInstalls) * 100 : null;
@@ -64,7 +70,10 @@
 			latestActiveUsers,
 			storeToPageRate,
 			pageToInstallRate,
-			churnRate
+			churnRate,
+			dayCount,
+			avgInstallsPerDay: installsObsCount > 0 ? totalInstalls / dayCount : null,
+			avgUninstallsPerDay: uninstallsObsCount > 0 ? totalUninstalls / dayCount : null
 		};
 	});
 
@@ -85,7 +94,59 @@
 		};
 	});
 
+	// Milestone prediction based on active user growth trend
+	let milestonePrediction = $derived.by(() => {
+		if (!milestoneInfo) return null;
+		const activeMetric = filteredMetrics.find((m) => m.metricType === 'active_users');
+		if (!activeMetric || activeMetric.observations.length < 2) return null;
+
+		const obs = activeMetric.observations;
+		let totalDelta = 0;
+		for (let i = 1; i < obs.length; i++) {
+			totalDelta += obs[i].value - obs[i - 1].value;
+		}
+		const avgDailyGrowth = totalDelta / (obs.length - 1);
+		if (avgDailyGrowth <= 0) return null;
+
+		const daysToTarget = Math.ceil(milestoneInfo.remaining / avgDailyGrowth);
+		const estimatedDate = new Date();
+		estimatedDate.setDate(estimatedDate.getDate() + daysToTarget);
+
+		return { avgDailyGrowth, daysToTarget, estimatedDate };
+	});
+
 	// All-Time High Installs (ATH)
+	// Best/Worst day-of-week analysis for installs
+	let dayAnalysis = $derived.by(() => {
+		const metric = filteredMetrics.find((m) => m.metricType === 'installs');
+		if (!metric || metric.observations.length < 7) return null;
+
+		const dayTotals: Record<number, { sum: number; count: number }> = {};
+		const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+		for (const obs of metric.observations) {
+			const d = new Date(obs.date);
+			const day = d.getDay();
+			if (!dayTotals[day]) dayTotals[day] = { sum: 0, count: 0 };
+			dayTotals[day].sum += obs.value;
+			dayTotals[day].count++;
+		}
+
+		const dayAvgs = Object.entries(dayTotals).map(([day, { sum, count }]) => ({
+			day: Number(day),
+			name: dayNames[Number(day)],
+			avg: sum / count
+		}));
+
+		dayAvgs.sort((a, b) => b.avg - a.avg);
+
+		return {
+			best: dayAvgs[0],
+			worst: dayAvgs[dayAvgs.length - 1],
+			all: dayAvgs
+		};
+	});
+
 	let installsRecord = $derived.by(() => {
 		const installsMetric = data.metrics.find((m) => m.metricType === 'installs');
 		if (!installsMetric || installsMetric.observations.length === 0) return null;
@@ -98,6 +159,18 @@
 		}
 		return maxObs;
 	});
+
+	// Compare mode vs previous period
+	let compareMode = $state(false);
+
+	function getCompareSeries(observations: Array<{ date: string; value: number }>) {
+		if (!compareMode || !observations || observations.length < 4) return null;
+		const mid = Math.floor(observations.length / 2);
+		return [
+			{ name: 'Previous Period', color: '#94a3b8', observations: observations.slice(0, mid) },
+			{ name: 'Current Period', color: '#2f6d47', observations: observations.slice(mid) }
+		];
+	}
 
 	// Combined installs & uninstalls chart logic
 	let installsMetric = $derived(filteredMetrics.find((m) => m.metricType === 'installs'));
@@ -112,6 +185,18 @@
 
 	let combinedSeriesList = $derived.by(() => {
 		if (!hasCombinedInstallsUninstalls) return [];
+		if (compareMode) {
+			const installsSplit = getCompareSeries(installsMetric!.observations);
+			const uninstallsSplit = getCompareSeries(uninstallsMetric!.observations);
+			if (installsSplit && uninstallsSplit) {
+				return [
+					{ name: 'Installs (Prev)', color: '#94a3b8', observations: installsSplit[0].observations },
+					{ name: 'Installs (Current)', color: '#2d6645', observations: installsSplit[1].observations },
+					{ name: 'Uninstalls (Prev)', color: '#c84e4680', observations: uninstallsSplit[0].observations },
+					{ name: 'Uninstalls (Current)', color: '#c84e46', observations: uninstallsSplit[1].observations }
+				];
+			}
+		}
 		return [
 			{
 				name: 'Installs',
@@ -210,26 +295,31 @@
 	<!-- Chart Date Filter Controls -->
 	<div class="flex justify-between align-center filter-row flex-wrap gap-1">
 		<h2>Analytics & Metrics</h2>
-		<div class="filter-buttons flex gap-0.5">
-			<button class="btn btn-secondary btn-sm {dateFilter === '7' ? 'active' : ''}" onclick={() => dateFilter = '7'}>7D</button>
-			<button 
-				class="btn btn-secondary btn-sm {dateFilter === '30' ? 'active' : ''}" 
-				onclick={() => dateFilter = '30'}
-			>
-				Last 30 Days
-			</button>
-			<button 
-				class="btn btn-secondary btn-sm {dateFilter === '90' ? 'active' : ''}" 
-				onclick={() => dateFilter = '90'}
-			>
-				Last 90 Days
-			</button>
-			<button class="btn btn-secondary btn-sm {dateFilter === '365' ? 'active' : ''}" onclick={() => dateFilter = '365'}>1Y</button>
-			<button 
-				class="btn btn-secondary btn-sm {dateFilter === 'all' ? 'active' : ''}" 
-				onclick={() => dateFilter = 'all'}
-			>
-				All Time
+		<div class="flex align-center gap-1 flex-wrap">
+			<div class="filter-buttons flex gap-0.5">
+				<button class="btn btn-secondary btn-sm {dateFilter === '7' ? 'active' : ''}" onclick={() => dateFilter = '7'}>7D</button>
+				<button 
+					class="btn btn-secondary btn-sm {dateFilter === '30' ? 'active' : ''}" 
+					onclick={() => dateFilter = '30'}
+				>
+					Last 30 Days
+				</button>
+				<button 
+					class="btn btn-secondary btn-sm {dateFilter === '90' ? 'active' : ''}" 
+					onclick={() => dateFilter = '90'}
+				>
+					Last 90 Days
+				</button>
+				<button class="btn btn-secondary btn-sm {dateFilter === '365' ? 'active' : ''}" onclick={() => dateFilter = '365'}>1Y</button>
+				<button 
+					class="btn btn-secondary btn-sm {dateFilter === 'all' ? 'active' : ''}" 
+					onclick={() => dateFilter = 'all'}
+				>
+					All Time
+				</button>
+			</div>
+			<button class="btn btn-sm {compareMode ? 'btn-primary' : 'btn-secondary'}" onclick={() => compareMode = !compareMode}>
+				<Icon name="clock-counter-clockwise" /> {compareMode ? 'Comparing' : 'Compare'}
 			</button>
 		</div>
 	</div>
@@ -276,6 +366,82 @@
 		</div>
 	</div>
 
+	<!-- Daily Averages Row -->
+	{#if kpis.avgInstallsPerDay !== null || kpis.avgUninstallsPerDay !== null}
+		<div class="grid grid-3 avg-grid">
+			{#if kpis.avgInstallsPerDay !== null}
+				<div class="card avg-card">
+					<div class="kpi-title text-muted">Avg Installs / Day</div>
+					<div class="avg-value">{kpis.avgInstallsPerDay.toFixed(1)}</div>
+					<div class="avg-bar-wrapper">
+						<div class="avg-bar avg-bar-installs" style="width: 100%"></div>
+					</div>
+					<p class="kpi-desc text-muted">{formatNumber(kpis.totalInstalls)} total in {kpis.dayCount} days</p>
+				</div>
+			{/if}
+			{#if kpis.avgUninstallsPerDay !== null}
+				<div class="card avg-card">
+					<div class="kpi-title text-muted">Avg Uninstalls / Day</div>
+					<div class="avg-value">{kpis.avgUninstallsPerDay.toFixed(1)}</div>
+					<div class="avg-bar-wrapper">
+						<div class="avg-bar avg-bar-uninstalls" style="width: {kpis.avgInstallsPerDay && kpis.avgInstallsPerDay > 0 ? Math.min((kpis.avgUninstallsPerDay / kpis.avgInstallsPerDay) * 100, 100) : 0}%"></div>
+					</div>
+					<p class="kpi-desc text-muted">{formatNumber(kpis.totalUninstalls)} total in {kpis.dayCount} days</p>
+				</div>
+			{/if}
+			{#if kpis.avgInstallsPerDay !== null && kpis.avgUninstallsPerDay !== null}
+				<div class="card avg-card">
+					<div class="kpi-title text-muted">Net Growth / Day</div>
+					<div class="avg-value" class:text-positive={(kpis.avgInstallsPerDay - kpis.avgUninstallsPerDay) > 0} class:text-danger={(kpis.avgInstallsPerDay - kpis.avgUninstallsPerDay) < 0}>
+						{(kpis.avgInstallsPerDay - kpis.avgUninstallsPerDay) > 0 ? '+' : ''}{(kpis.avgInstallsPerDay - kpis.avgUninstallsPerDay).toFixed(1)}
+					</div>
+					<div class="avg-bar-wrapper">
+						<div class="avg-bar avg-bar-net" style="width: {Math.min(Math.abs(kpis.avgInstallsPerDay - kpis.avgUninstallsPerDay) / Math.max(kpis.avgInstallsPerDay, kpis.avgUninstallsPerDay, 1) * 100, 100)}%"></div>
+					</div>
+					<p class="kpi-desc text-muted">Installs – Uninstalls per day</p>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- Conversion Funnel -->
+	{#if kpis.totalImpressions > 0 && kpis.totalPageViews > 0 && kpis.totalInstalls > 0}
+		<div class="card funnel-card">
+			<div class="kpi-title text-muted">Conversion Funnel</div>
+			<div class="funnel-steps">
+				<div class="funnel-step">
+					<div class="funnel-label">
+						<span>Store Impressions</span>
+						<span class="funnel-value">{formatNumber(kpis.totalImpressions)}</span>
+					</div>
+					<div class="funnel-bar-track">
+						<div class="funnel-bar" style="width: 100%"></div>
+					</div>
+				</div>
+				<div class="funnel-arrow">↓ {kpis.storeToPageRate?.toFixed(1)}% CTR</div>
+				<div class="funnel-step">
+					<div class="funnel-label">
+						<span>Store Page Views</span>
+						<span class="funnel-value">{formatNumber(kpis.totalPageViews)}</span>
+					</div>
+					<div class="funnel-bar-track">
+						<div class="funnel-bar" style="width: {Math.max((kpis.totalPageViews / kpis.totalImpressions) * 100, 5)}%"></div>
+					</div>
+				</div>
+				<div class="funnel-arrow">↓ {kpis.pageToInstallRate?.toFixed(1)}% conversion</div>
+				<div class="funnel-step">
+					<div class="funnel-label">
+						<span>Installs</span>
+						<span class="funnel-value">{formatNumber(kpis.totalInstalls)}</span>
+					</div>
+					<div class="funnel-bar-track">
+						<div class="funnel-bar funnel-bar-final" style="width: {Math.max((kpis.totalInstalls / kpis.totalImpressions) * 100, 3)}%"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Milestones and Growth records -->
 	{#if milestoneInfo || installsRecord}
 		<div class="grid grid-2 records-dashboard-grid">
@@ -292,6 +458,11 @@
 						<span>{formatNumber(milestoneInfo.current)} current</span>
 						<span>{formatNumber(milestoneInfo.remaining)} to go</span>
 					</div>
+					{#if milestonePrediction}
+						<div class="milestone-prediction">
+							<Icon name="chart-line-up" /> ~{milestonePrediction.daysToTarget} days ({new Date(milestonePrediction.estimatedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })})
+						</div>
+					{/if}
 				</div>
 			{/if}
 
@@ -305,6 +476,33 @@
 					</div>
 				</div>
 			{/if}
+		</div>
+	{/if}
+
+	<!-- Best/Worst Day Analysis -->
+	{#if dayAnalysis}
+		<div class="card day-card">
+			<div class="day-header">
+				<div class="day-best-block">
+					<div class="kpi-title text-muted">Most Installs</div>
+					<div class="day-name">{dayAnalysis.best.name}</div>
+					<div class="day-avg">{dayAnalysis.best.avg.toFixed(1)} <span class="text-muted">avg/day</span></div>
+				</div>
+				<div class="day-vs text-muted">vs</div>
+				<div class="day-worst-block">
+					<div class="kpi-title text-muted">Fewest Installs</div>
+					<div class="day-name">{dayAnalysis.worst.name}</div>
+					<div class="day-avg">{dayAnalysis.worst.avg.toFixed(1)} <span class="text-muted">avg/day</span></div>
+				</div>
+			</div>
+			<div class="day-bars">
+				{#each dayAnalysis.all as d}
+					<div class="day-bar-col" title="{d.name}: {d.avg.toFixed(1)}">
+						<div class="day-bar-fill" style="height: {Math.max((d.avg / dayAnalysis.best.avg) * 100, 10)}%"></div>
+						<div class="day-bar-label text-xs text-muted">{d.name.slice(0, 2)}</div>
+					</div>
+				{/each}
+			</div>
 		</div>
 	{/if}
 
@@ -322,15 +520,15 @@
 				<div class="card chart-card">
 					<div class="chart-header flex justify-between align-center">
 						<div>
-							<span class="source-tag text-muted">Combined growth events</span>
-							<div class="metric-kpi font-semibold" style="font-size: 1.1rem;">
-								<span>{(installsMetric?.displayValue ?? 0).toLocaleString()} Installs</span>
-								<span class="text-muted">vs</span>
-								<span style="color: var(--error);">{(uninstallsMetric?.displayValue ?? 0).toLocaleString()} Uninstalls</span>
+							<span class="source-tag text-muted">Daily Installs vs Uninstalls</span>
+							<div class="metric-kpi font-semibold">
+								<span class="kpi-installs">{kpis.totalInstalls.toLocaleString()} Installs</span>
+								<span class="kpi-vs">vs</span>
+								<span class="kpi-uninstalls">{kpis.totalUninstalls.toLocaleString()} Uninstalls</span>
 							</div>
 						</div>
 					</div>
-					<MetricChart title="Daily Installs vs Uninstalls" seriesList={combinedSeriesList} />
+					<MetricChart seriesList={combinedSeriesList} />
 				</div>
 			{/if}
 
@@ -339,7 +537,8 @@
 				<div class="card chart-card">
 					<div class="chart-header flex justify-between align-center">
 						<div>
-							<span class="source-tag text-muted">Source: {metric.sourceName}</span>
+							<span class="source-tag text-muted">{getMetricLabel(metric.metricType, metric.name)}</span>
+							<span class="metric-source text-xs text-muted">Source: {metric.sourceName}</span>
 							{#if metric.displayValue !== null && metric.displayValue !== undefined}
 								<div class="metric-kpi">
 									<strong>{metric.displayValue.toLocaleString()}</strong>
@@ -358,7 +557,12 @@
 							No data points in this timeframe.
 						</div>
 					{:else}
-						<MetricChart title={getMetricLabel(metric.metricType, metric.name)} observations={metric.observations} />
+						{@const compareSeries = getCompareSeries(metric.observations)}
+						{#if compareSeries}
+							<MetricChart seriesList={compareSeries} />
+						{:else}
+							<MetricChart observations={metric.observations} />
+						{/if}
 					{/if}
 				</div>
 			{/each}
@@ -465,11 +669,32 @@
 
 	.chart-header {
 		font-size: 0.75rem;
-		margin-bottom: 0.5rem;
+		margin-bottom: 0;
+	}
+
+	.chart-header .metric-kpi {
+		margin-top: 0.15rem;
+	}
+
+	.kpi-installs {
+		color: var(--primary);
+		font-weight: 700;
+	}
+
+	.kpi-vs {
+		color: var(--text-muted);
+		font-weight: 400;
+		font-size: 0.85rem;
+		text-transform: lowercase;
+	}
+
+	.kpi-uninstalls {
+		color: var(--error);
+		font-weight: 700;
 	}
 
 	.empty-chart {
-		height: 350px;
+		height: 300px;
 	}
 
 	.empty-state {
@@ -563,5 +788,178 @@
 	.ath-value {
 		font-size: 1.15rem;
 		margin-block: 0.15rem;
+	}
+
+	/* Daily Averages */
+	.avg-grid {
+		gap: 1rem;
+	}
+	.avg-card {
+		padding: 1.25rem;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		min-height: 120px;
+	}
+	.avg-value {
+		font-size: 1.6rem;
+		font-weight: 700;
+		color: var(--text-base);
+		margin-block: 0.2rem;
+	}
+	.avg-value.text-positive { color: var(--success); }
+	.avg-value.text-danger { color: var(--error); }
+	.avg-bar-wrapper {
+		width: 100%;
+		height: 6px;
+		background-color: var(--bg-inset);
+		border-radius: 3px;
+		overflow: hidden;
+		margin-bottom: 0.25rem;
+	}
+	.avg-bar {
+		height: 100%;
+		border-radius: 3px;
+		transition: width 0.3s ease;
+	}
+	.avg-bar-installs { background-color: var(--primary); }
+	.avg-bar-uninstalls { background-color: var(--error); }
+	.avg-bar-net { background-color: var(--accent); }
+
+	/* Milestone prediction */
+	.milestone-prediction {
+		margin-top: 0.75rem;
+		padding-top: 0.6rem;
+		border-top: 1px solid var(--border-color);
+		font-size: 0.8rem;
+		color: var(--text-muted);
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+	.milestone-prediction :global(.app-icon) {
+		color: var(--primary);
+	}
+
+	/* Metric source label */
+	.metric-source {
+		display: block;
+		margin-top: 0.1rem;
+	}
+
+	/* Conversion Funnel */
+	.funnel-card {
+		padding: 1.25rem;
+	}
+	.funnel-card .kpi-title {
+		margin-bottom: 0.75rem;
+	}
+	.funnel-steps {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+	}
+	.funnel-step {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+	.funnel-label {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		font-size: 0.9rem;
+		font-weight: 600;
+	}
+	.funnel-value {
+		font-weight: 700;
+		color: var(--text-base);
+	}
+	.funnel-bar-track {
+		width: 100%;
+		height: 20px;
+		background-color: var(--bg-inset);
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+	}
+	.funnel-bar {
+		height: 100%;
+		background-color: var(--primary);
+		border-radius: var(--radius-sm);
+		transition: width 0.4s ease;
+	}
+	.funnel-bar-final {
+		background-color: var(--primary);
+		opacity: 0.7;
+	}
+	.funnel-arrow {
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		padding: 0.1rem 0 0.1rem 0.5rem;
+		font-weight: 600;
+	}
+
+	/* Best/Worst Day Analysis */
+	.day-card {
+		padding: 1.25rem;
+	}
+	.day-header {
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 1rem;
+	}
+	.day-best-block, .day-worst-block {
+		text-align: center;
+	}
+	.day-best-block .day-name { color: var(--success); }
+	.day-worst-block .day-name { color: var(--error); }
+	.day-name {
+		font-size: 1.2rem;
+		font-weight: 700;
+		margin-block: 0.15rem;
+	}
+	.day-avg {
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--text-base);
+	}
+	.day-avg .text-muted {
+		font-weight: 400;
+	}
+	.day-vs {
+		font-size: 0.8rem;
+		font-weight: 600;
+		text-transform: lowercase;
+	}
+	.day-bars {
+		display: flex;
+		align-items: flex-end;
+		justify-content: center;
+		gap: 0.5rem;
+		height: 80px;
+		padding-top: 0.5rem;
+		border-top: 1px solid var(--border-color);
+	}
+	.day-bar-col {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.25rem;
+		flex: 1;
+		height: 100%;
+		justify-content: flex-end;
+	}
+	.day-bar-fill {
+		width: 100%;
+		max-width: 28px;
+		background-color: var(--primary);
+		border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+		transition: height 0.3s ease;
+		min-height: 4px;
+	}
+	.day-bar-label {
+		font-weight: 600;
 	}
 </style>
