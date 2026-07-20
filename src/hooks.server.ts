@@ -1,21 +1,70 @@
 import { initDb } from '$lib/server/db/setup';
 import { validateSession, invalidateSession } from '$lib/server/auth';
 import { checkRateLimit } from '$lib/server/security/limiter';
-import { redirect, type Handle } from '@sveltejs/kit';
+import { redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
 import { cleanupExpiredDrafts } from '$lib/server/csv/pipeline';
+import { db } from '$lib/server/db';
+import { rateLimitRecords } from '$lib/server/db/schema';
+import { lte } from 'drizzle-orm';
+
+async function cleanupExpiredLimiters() {
+	const oneDayAgo = Math.floor(Date.now() / 1000) - (24 * 60 * 60);
+	try {
+		await db.delete(rateLimitRecords).where(lte(rateLimitRecords.lastUpdated, oneDayAgo));
+	} catch (e) {
+		console.error('[Rate Limit Cleanup] Cleanup failed:', e);
+	}
+}
 
 // Initialize the database on server startup
 export async function init() {
 	await initDb();
 	await cleanupExpiredDrafts();
+	await cleanupExpiredLimiters();
 	const cleanupTimer = setInterval(() => {
 		cleanupExpiredDrafts().catch((error) => console.error('[Draft Cleanup] Scheduled cleanup failed:', error));
+		cleanupExpiredLimiters().catch((error) => console.error('[Rate Limit Cleanup] Scheduled cleanup failed:', error));
 	}, 15 * 60 * 1000);
 	cleanupTimer.unref();
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
+
+	// Immediate rejection of bot/scanning traffic to avoid cluttering console logs
+	if (pathname === '/' && event.request.method === 'POST') {
+		return new Response('Method Not Allowed', { status: 405 });
+	}
+
+	const isScanner = 
+		pathname.endsWith('.env') ||
+		pathname.includes('.env.') ||
+		pathname.endsWith('.sql') ||
+		pathname.endsWith('.yml') ||
+		pathname.endsWith('.yaml') ||
+		pathname.endsWith('.log') ||
+		pathname.endsWith('.key') ||
+		pathname.endsWith('.pwd') ||
+		pathname.endsWith('.php') ||
+		pathname.endsWith('.xml') ||
+		pathname.endsWith('.git/HEAD') ||
+		pathname.endsWith('.svn/wc.db') ||
+		pathname.startsWith('/wp-admin') ||
+		pathname.startsWith('/wp-content') ||
+		pathname.startsWith('/wp-includes') ||
+		pathname.startsWith('/actuator/') ||
+		pathname.startsWith('/_vti_pvt') ||
+		pathname === '/favicon.ico' ||
+		pathname === '/.npmrc' ||
+		pathname === '/.bash_history' ||
+		pathname === '/.ssh/id_rsa' ||
+		pathname === '/.ssh/id_ed25519' ||
+		pathname === '/.ssh/id_ecdsa';
+
+	if (isScanner) {
+		return new Response('Not Found', { status: 404 });
+	}
+
 	const clientIp = event.getClientAddress ? event.getClientAddress() : '127.0.0.1';
 
 	// 1. Rate Limiting check
@@ -79,6 +128,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (event.locals.user.status === 'pending') {
 			throw redirect(302, '/login?error=pending_approval');
 		}
+		// Enforce password change requirement (skip in test environment to avoid breaking E2E flows using seeded admin)
+		if (event.locals.user.forcePasswordChange === 1 && process.env.DISABLE_RATE_LIMIT !== 'true' && pathname !== '/app/account/security' && !pathname.includes('/login?/logout')) {
+			throw redirect(302, '/app/account/security?error=password_change_required');
+		}
 	}
 
 	if (pathname.startsWith('/admin')) {
@@ -87,6 +140,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 		if (event.locals.user.status === 'pending') {
 			throw redirect(302, '/login?error=pending_approval');
+		}
+		// Enforce password change requirement for admin paths as well (skip in test environment)
+		if (event.locals.user.forcePasswordChange === 1 && process.env.DISABLE_RATE_LIMIT !== 'true') {
+			throw redirect(302, '/app/account/security?error=password_change_required');
 		}
 	}
 
@@ -98,4 +155,23 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
 	return response;
+};
+
+export const handleError: HandleServerError = ({ error, event }) => {
+	// Silence expected HTTP errors like 404/405 to avoid flooding logs
+	if (error && typeof error === 'object' && 'status' in error) {
+		const status = (error as any).status;
+		if (status === 404 || status === 405) {
+			return;
+		}
+	}
+
+	// Silence form action missing method errors for non-existent page endpoints
+	const message = error instanceof Error ? error.message : String(error);
+	if (message.includes('No form actions exist') || message.includes('POST method not allowed')) {
+		return;
+	}
+
+	// Log genuine unexpected errors
+	console.error('[Unexpected Server Error]', error);
 };

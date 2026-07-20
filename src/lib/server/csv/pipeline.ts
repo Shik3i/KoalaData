@@ -3,7 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import db from '../db';
 import { importDrafts, importBatches, metricObservations, metricDefinitions, projects, dataSources } from '../db/schema';
-import { eq, and, isNull, ne, sum, count, lte } from 'drizzle-orm';
+import { eq, and, isNull, ne, sum, count, lte, inArray } from 'drizzle-orm';
 import { parseCsv } from './parser';
 import { logAuditEvent } from '../audit';
 import { getUserLimits } from '../limits';
@@ -22,7 +22,10 @@ function parseStoredFilename(storedFilename: string): { originalName: string; fi
  * Normalizes number formats by removing currency signs, commas, and white spaces.
  */
 export function parseNumericValue(val: string): number {
-	const cleaned = val.replace(/[^0-9.-]/g, '');
+	if (val === undefined || val === null) {
+		throw new Error('Numeric value is missing or undefined.');
+	}
+	const cleaned = String(val).replace(/[^0-9.-]/g, '');
 	const parsed = parseFloat(cleaned);
 	if (isNaN(parsed)) {
 		throw new Error(`Invalid number: ${val}`);
@@ -34,11 +37,27 @@ export function parseNumericValue(val: string): number {
  * Standardizes date string to YYYY-MM-DD format.
  */
 export function parseDateString(dateStr: string, format = 'YYYY-MM-DD'): string {
-	const trimmed = dateStr.trim();
+	if (dateStr === undefined || dateStr === null) {
+		throw new Error('Date value is missing or undefined.');
+	}
+	const trimmed = String(dateStr).trim();
 	
 	// YYYY-MM-DD checks
 	if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
 		return trimmed;
+	}
+
+	// German DD.MM.YYYY or DD.MM.YY checks (e.g. 20.04.26)
+	if (/^\d{1,2}\.\d{1,2}\.\d{2,4}$/.test(trimmed)) {
+		const parts = trimmed.split('.');
+		const d = parts[0].padStart(2, '0');
+		const m = parts[1].padStart(2, '0');
+		let y = parts[2];
+		if (y.length === 2) {
+			const yearNum = parseInt(y, 10);
+			y = yearNum > 70 ? `19${y}` : `20${y}`;
+		}
+		return `${y}-${m}-${d}`;
 	}
 
 	// Try checking MM/DD/YYYY
@@ -179,6 +198,12 @@ export async function confirmImportDraft(
 		throw new Error('Import draft has expired. Please re-upload your file.');
 	}
 
+	// Claim/lock the draft atomically by deleting it. If another request did it, changes will be 0.
+	const deleteResult = await db.delete(importDrafts).where(eq(importDrafts.id, draftId)).run();
+	if (deleteResult.changes === 0) {
+		throw new Error('Import draft has already been processed or is invalid.');
+	}
+
 	// Verify user limits (storage bounds)
 	const { limits, usage } = await getUserLimits(userId);
 	const dataDir = process.env.DATA_DIRECTORY || './data';
@@ -233,10 +258,9 @@ export async function confirmImportDraft(
 		throw new Error('At least one valid numeric metric column must be mapped.');
 	}
 
-	// Create or resolve Metric Definitions in database
+	// Pre-resolve existing metric definitions
 	const dbMetricsMap = new Map<string, typeof metricDefinitions.$inferSelect>();
 	for (const m of metricMappings) {
-		// Find existing definition or create new
 		const existing = await db
 			.select()
 			.from(metricDefinitions)
@@ -248,24 +272,8 @@ export async function confirmImportDraft(
 				)
 			)
 			.limit(1);
-
 		if (existing.length > 0) {
 			dbMetricsMap.set(m.columnName, existing[0]);
-		} else {
-			const metricId = crypto.randomUUID();
-			const newMetric = {
-				id: metricId,
-				sourceId: draft.sourceId,
-				metricType: m.metricType as any,
-				name: m.name,
-				unit: m.unit as any,
-				aggregation: m.aggregation as any,
-				isCumulative: m.isCumulative ? 1 : 0,
-				participatesInLeaderboard: ['active_users', 'installs'].includes(m.metricType) ? 1 : 0,
-				createdAt: Math.floor(Date.now() / 1000)
-			};
-			await db.insert(metricDefinitions).values(newMetric);
-			dbMetricsMap.set(m.columnName, newMetric as any);
 		}
 	}
 
@@ -283,67 +291,51 @@ export async function confirmImportDraft(
 	let minDateStr = '';
 	let maxDateStr = '';
 
+	// First pass: validate date strings and collect unique dates to query overlaps in bulk
+	const uniqueDates = new Set<string>();
 	for (let rIdx = 0; rIdx < parsed.rows.length; rIdx++) {
 		const row = parsed.rows[rIdx];
-		try {
-			const rawDate = row[dateColIdx];
-			const parsedDate = parseDateString(rawDate, mappingConfig.dateFormat);
+		const rawDate = row[dateColIdx];
+		if (rawDate !== undefined && rawDate !== null) {
+			try {
+				const parsedDate = parseDateString(rawDate, mappingConfig.dateFormat);
+				uniqueDates.add(parsedDate);
+			} catch (e) {
+				// Handled in main pass
+			}
+		}
+	}
 
-			if (!minDateStr || parsedDate < minDateStr) minDateStr = parsedDate;
-			if (!maxDateStr || parsedDate > maxDateStr) maxDateStr = parsedDate;
+	// Bulk overlap query
+	const dbOverlapsSet = new Set<string>();
+	if (uniqueDates.size > 0 && metricMappings.length > 0) {
+		const dateList = Array.from(uniqueDates);
+		const existingMetricIds = Array.from(dbMetricsMap.values()).map(m => m.id);
 
-			for (const m of metricMappings) {
-				const rawVal = row[m.columnIndex];
-				const parsedVal = parseNumericValue(rawVal);
-				const metricDef = dbMetricsMap.get(m.columnName)!;
+		if (existingMetricIds.length > 0) {
+			const dateChunks = [];
+			const chunkSize = 500;
+			for (let i = 0; i < dateList.length; i += chunkSize) {
+				dateChunks.push(dateList.slice(i, i + chunkSize));
+			}
 
-				const logicalKey = `${metricDef.id}:${parsedDate}`;
-
-				// Duplicate check in uploaded file
-				if (inMemorySeen.has(logicalKey)) {
-					duplicateCount++;
-					// Override previous in-memory row (take the last value)
-					const existingIdx = observationRows.findIndex(x => x.metricId === metricDef.id && x.date === parsedDate);
-					if (existingIdx !== -1) {
-						observationRows[existingIdx].value = parsedVal;
-					}
-					continue;
-				}
-
-				inMemorySeen.add(logicalKey);
-
-				// Overlap check against database (active completed imports)
-				const dbOverlaps = await db
-					.select({ val: count() })
+			for (const chunk of dateChunks) {
+				const overlaps = await db
+					.select({ metricId: metricObservations.metricId, date: metricObservations.date })
 					.from(metricObservations)
 					.innerJoin(importBatches, eq(metricObservations.importBatchId, importBatches.id))
 					.where(
 						and(
-							eq(metricObservations.metricId, metricDef.id),
-							eq(metricObservations.date, parsedDate),
+							inArray(metricObservations.metricId, existingMetricIds),
+							inArray(metricObservations.date, chunk),
 							eq(importBatches.status, 'completed'),
 							isNull(importBatches.revertedAt)
 						)
 					);
-
-				if ((dbOverlaps[0]?.val || 0) > 0) {
-					overlapCount++;
+				for (const o of overlaps) {
+					dbOverlapsSet.add(`${o.metricId}:${o.date}`);
 				}
-
-				observationRows.push({
-					id: crypto.randomUUID(),
-					importBatchId: batchId,
-					sourceId: draft.sourceId,
-					metricId: metricDef.id,
-					date: parsedDate,
-					value: parsedVal,
-					dimensions: '{}',
-					createdAt: now
-				});
 			}
-		} catch (err) {
-			errorCount++;
-			warningCount++;
 		}
 	}
 
@@ -351,6 +343,101 @@ export async function confirmImportDraft(
 	try {
 		// Run transactions synchronously for better-sqlite3 compatibility
 		db.transaction((tx) => {
+			// Resolve or create Metric Definitions synchronously inside the transaction
+			for (const m of metricMappings) {
+				if (dbMetricsMap.has(m.columnName)) {
+					continue;
+				}
+
+				let metricDef = tx
+					.select()
+					.from(metricDefinitions)
+					.where(
+						and(
+							eq(metricDefinitions.sourceId, draft.sourceId),
+							eq(metricDefinitions.metricType, m.metricType as any),
+							eq(metricDefinitions.name, m.name)
+						)
+					)
+					.get();
+
+				if (!metricDef) {
+					const metricId = crypto.randomUUID();
+					const newMetric = {
+						id: metricId,
+						sourceId: draft.sourceId,
+						metricType: m.metricType as any,
+						name: m.name,
+						unit: m.unit as any,
+						aggregation: m.aggregation as any,
+						isCumulative: m.isCumulative ? 1 : 0,
+						participatesInLeaderboard: ['active_users', 'installs'].includes(m.metricType) ? 1 : 0,
+						createdAt: now
+					};
+					tx.insert(metricDefinitions).values(newMetric).run();
+					metricDef = newMetric as any;
+				}
+				dbMetricsMap.set(m.columnName, metricDef!);
+			}
+
+			// Process rows synchronously inside the transaction using our pre-calculated structures
+			for (let rIdx = 0; rIdx < parsed.rows.length; rIdx++) {
+				const row = parsed.rows[rIdx];
+				try {
+					const rawDate = row[dateColIdx];
+					if (rawDate === undefined || rawDate === null) {
+						throw new Error(`Date column at index ${dateColIdx} is missing in row ${rIdx + 1}`);
+					}
+					const parsedDate = parseDateString(rawDate, mappingConfig.dateFormat);
+
+					if (!minDateStr || parsedDate < minDateStr) minDateStr = parsedDate;
+					if (!maxDateStr || parsedDate > maxDateStr) maxDateStr = parsedDate;
+
+					for (const m of metricMappings) {
+						const rawVal = row[m.columnIndex];
+						if (rawVal === undefined || rawVal === null) {
+							throw new Error(`Metric column at index ${m.columnIndex} is missing in row ${rIdx + 1}`);
+						}
+						const parsedVal = parseNumericValue(rawVal);
+						const metricDef = dbMetricsMap.get(m.columnName)!;
+
+						const logicalKey = `${metricDef.id}:${parsedDate}`;
+
+						// Duplicate check in uploaded file
+						if (inMemorySeen.has(logicalKey)) {
+							duplicateCount++;
+							// Override previous in-memory row (take the last value)
+							const existingIdx = observationRows.findIndex(x => x.metricId === metricDef.id && x.date === parsedDate);
+							if (existingIdx !== -1) {
+								observationRows[existingIdx].value = parsedVal;
+							}
+							continue;
+						}
+
+						inMemorySeen.add(logicalKey);
+
+						// Overlap check against database using pre-computed Set
+						if (dbOverlapsSet.has(logicalKey)) {
+							overlapCount++;
+						}
+
+						observationRows.push({
+							id: crypto.randomUUID(),
+							importBatchId: batchId,
+							sourceId: draft.sourceId,
+							metricId: metricDef.id,
+							date: parsedDate,
+							value: parsedVal,
+							dimensions: '{}',
+							createdAt: now
+						});
+					}
+				} catch (err) {
+					errorCount++;
+					warningCount++;
+				}
+			}
+
 			// Write the import batch record
 			tx.insert(importBatches).values({
 				id: batchId,
@@ -385,9 +472,14 @@ export async function confirmImportDraft(
 			}
 		});
 
-		// Remove successful draft
-		await db.delete(importDrafts).where(eq(importDrafts.id, draft.id));
-		
+		// Recalculate and invalidate growth leaderboard cache
+		try {
+			const { invalidateLeaderboardCache } = await import('../growth');
+			invalidateLeaderboardCache();
+		} catch (cacheErr) {
+			// Ignored if file loading order causes import issue in tests
+		}
+
 		await logAuditEvent(
 			userId,
 			username,

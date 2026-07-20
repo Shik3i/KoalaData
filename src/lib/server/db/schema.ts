@@ -115,7 +115,9 @@ export const metricDefinitions = sqliteTable('metric_definitions', {
 	isCumulative: integer('is_cumulative').notNull().default(0), // 0=false, 1=true
 	participatesInLeaderboard: integer('participates_in_leaderboard').notNull().default(0), // 0=false, 1=true
 	createdAt: integer('created_at').notNull()
-});
+}, (table) => ({
+	sourceTypeMetricNameUnq: uniqueIndex('idx_metric_defs_unq').on(table.sourceId, table.metricType, table.name)
+}));
 
 // Import Drafts
 export const importDrafts = sqliteTable('import_drafts', {

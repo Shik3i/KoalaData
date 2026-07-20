@@ -4,12 +4,49 @@ export interface ChromeDetectionResult {
 }
 
 // Aliases for Chrome Web Store standard exports
-const DATE_ALIASES = ['date', 'time', 'date_utc', 'timestamp', 'day'];
-const ACTIVE_USERS_ALIASES = ['weekly active users', 'active users', 'users', 'active_users', 'weekly_active_users'];
-const INSTALLS_ALIASES = ['daily installs', 'installs', 'daily_installs', 'downloads', 'download_count'];
-const UNINSTALLS_ALIASES = ['daily uninstalls', 'uninstalls', 'daily_uninstalls'];
-const PAGE_VIEWS_ALIASES = ['store page views', 'page views', 'pageviews', 'store_views', 'store_page_views'];
-const IMPRESSIONS_ALIASES = ['impressions', 'store impressions', 'store_impressions'];
+const DATE_ALIASES = ['date', 'time', 'date_utc', 'timestamp', 'day', 'datum'];
+const ACTIVE_USERS_ALIASES = [
+	'weekly active users',
+	'active users',
+	'users',
+	'active_users',
+	'weekly_active_users',
+	'nutzer pro woche',
+	'wöchentlich aktive nutzer',
+	'wöchentliche nutzer insgesamt'
+];
+const INSTALLS_ALIASES = [
+	'daily installs',
+	'installs',
+	'daily_installs',
+	'downloads',
+	'download_count',
+	'installationen',
+	'tägliche installationen'
+];
+const UNINSTALLS_ALIASES = [
+	'daily uninstalls',
+	'uninstalls',
+	'daily_uninstalls',
+	'deinstallationen',
+	'tägliche deinstallationen'
+];
+const PAGE_VIEWS_ALIASES = [
+	'store page views',
+	'page views',
+	'pageviews',
+	'store_views',
+	'store_page_views',
+	'seitenaufrufe',
+	'store-seitenaufrufe'
+];
+const IMPRESSIONS_ALIASES = [
+	'impressions',
+	'store impressions',
+	'store_impressions',
+	'impressionen',
+	'store-impressionen'
+];
 
 /**
  * Scan headers for standard Chrome Web Store export columns.

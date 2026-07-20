@@ -12,12 +12,11 @@ services:
       - BACKUP_DIRECTORY=/backups
       - PORT=3000
       - ORIGIN=http://localhost:3000
-      - KOALADATA_ADMIN_USERNAME=${KOALADATA_ADMIN_USERNAME:?KOALADATA_ADMIN_USERNAME is required}
-      - KOALADATA_ADMIN_PASSWORD=${KOALADATA_ADMIN_PASSWORD:?KOALADATA_ADMIN_PASSWORD is required}
+      - KOALADATA_ADMIN_USERNAME=admin
+      - KOALADATA_ADMIN_PASSWORD=admin_password
     volumes:
       - koaladata_data:/data
-      # Mount a local backups folder on host machine to backups folder inside container
-      - ./backups:/backups
+      - koaladata_backups:/backups
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
       interval: 30s
@@ -27,6 +26,7 @@ services:
 
 volumes:
   koaladata_data:
+  koaladata_backups:
 
 # ==============================================================================
 # CADDY REVERSE PROXY NETWORKING EXAMPLE

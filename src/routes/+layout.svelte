@@ -96,12 +96,34 @@
 				</nav>
 
 				<div class="header-actions flex align-center gap-2">
-					<div class="theme-selector">
-						<select bind:value={currentTheme} aria-label="Theme mode">
-							<option value="auto">Auto</option>
-							<option value="light">Light</option>
-							<option value="dark">Dark</option>
-						</select>
+					<div class="theme-selector-group">
+						<button 
+							type="button"
+							class="theme-toggle-btn {currentTheme === 'light' ? 'active' : ''}" 
+							onclick={() => currentTheme = 'light'}
+							aria-label="Light Mode"
+							title="Light Mode"
+						>
+							<Icon name="sun" />
+						</button>
+						<button 
+							type="button"
+							class="theme-toggle-btn {currentTheme === 'dark' ? 'active' : ''}" 
+							onclick={() => currentTheme = 'dark'}
+							aria-label="Dark Mode"
+							title="Dark Mode"
+						>
+							<Icon name="moon" />
+						</button>
+						<button 
+							type="button"
+							class="theme-toggle-btn {currentTheme === 'auto' ? 'active' : ''}" 
+							onclick={() => currentTheme = 'auto'}
+							aria-label="System Theme"
+							title="System Theme"
+						>
+							<Icon name="desktop" />
+						</button>
 					</div>
 
 					{#if user}
@@ -137,11 +159,13 @@
 
 	<footer class="main-footer">
 		<div class="container footer-inner flex justify-between align-center text-muted">
-			<p>© {new Date().getFullYear()} {data.site.siteTitle}. Nature-crafted extension metrics.</p>
+			<p>© {new Date().getFullYear()} {data.site.siteTitle}. Nature-crafted extension metrics. v{data.version}</p>
 			<div class="footer-links flex gap-2">
 				{#if data.site.publicDiscoveryEnabled}<a href="/discover">Projects Index</a>{/if}
 				{#if data.site.publicDiscoveryEnabled && data.site.publicLeaderboardsEnabled}<span>•</span>{/if}
 				{#if data.site.publicLeaderboardsEnabled}<a href="/leaderboards">Leaderboards</a>{/if}
+				<span>•</span>
+				<a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">GitHub</a>
 			</div>
 		</div>
 	</footer>
@@ -196,12 +220,43 @@
 		color: hsl(var(--accent-hue), 35%, 30%);
 	}
 
-	.theme-selector select {
-		margin-bottom: 0;
-		padding: 0.5rem 0.75rem;
-		font-size: 0.85rem;
+	.theme-selector-group {
+		display: flex;
+		background: var(--bg-card);
+		border: 1px solid var(--border-color);
 		border-radius: var(--radius-sm);
-		min-width: 112px;
+		padding: 2px;
+		gap: 2px;
+	}
+
+	.theme-toggle-btn {
+		background: transparent;
+		border: none;
+		color: var(--text-muted);
+		border-radius: calc(var(--radius-sm) - 2px);
+		width: 32px;
+		height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		padding: 0;
+		transition: all 0.2s ease;
+	}
+
+	.theme-toggle-btn:hover {
+		color: var(--text-base);
+		background: rgba(0, 0, 0, 0.05);
+	}
+
+	:global(.dark) .theme-toggle-btn:hover {
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.theme-toggle-btn.active {
+		color: var(--primary);
+		background: var(--bg-app);
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 	}
 
 	.username-btn {
@@ -249,7 +304,7 @@
 		.nav-links, .header-actions, .user-menu { width: 100%; align-items: stretch; flex-direction: column; gap: 0.5rem; }
 		.nav-link, .username-btn { display: flex; align-items: center; min-height: 44px; padding: 0.55rem 0.75rem; border-radius: var(--radius-md); }
 		.nav-link.active { background: var(--primary-bg); }
-		.theme-selector select, .header-actions .btn, .inline-form, .inline-form .btn { width: 100%; }
+		.theme-selector-group, .header-actions .btn, .inline-form, .inline-form .btn { width: 100%; }
 	}
 
 	@media (max-width: 640px) {

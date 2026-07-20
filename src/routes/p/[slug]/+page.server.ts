@@ -1,8 +1,7 @@
 import { db } from '$lib/server/db';
 import { projects, projectSlugRedirects, dataSources, metricDefinitions } from '$lib/server/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, inArray, sql } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
-import { getEffectiveObservations } from '$lib/server/observations';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -43,28 +42,76 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.from(dataSources)
 		.where(eq(dataSources.projectId, project.id));
 
-	// 5. Build structured metrics data
+	const sourceIds = sources.map((s) => s.id);
 	const metricsWithData: any[] = [];
-	for (const src of sources) {
+
+	if (sourceIds.length > 0) {
+		// Fetch all metric definitions for this project's sources in one query
 		const definitions = await db
 			.select()
 			.from(metricDefinitions)
-			.where(eq(metricDefinitions.sourceId, src.id));
+			.where(inArray(metricDefinitions.sourceId, sourceIds));
 
-		for (const def of definitions) {
-			const observations = await getEffectiveObservations(src.id, def.id);
-			metricsWithData.push({
-				sourceName: src.name,
-				metricId: def.id,
-				metricType: def.metricType,
-				name: def.name,
-				unit: def.unit,
-				isCumulative: def.isCumulative,
-				observations: observations.map(o => ({
-					date: o.date,
-					value: o.value
-				}))
-			});
+		const metricIds = definitions.map((d) => d.id);
+
+		if (metricIds.length > 0) {
+			// Query all effective observations for these metric IDs in one database round-trip
+			const query = sql`
+				WITH ranked_observations AS (
+					SELECT 
+						o.source_id,
+						o.metric_id,
+						o.date,
+						o.value,
+						ROW_NUMBER() OVER (
+							PARTITION BY o.source_id, o.metric_id, o.date, o.dimensions
+							ORDER BY b.completed_at DESC, o.id DESC
+						) as rn
+					FROM metric_observations o
+					INNER JOIN import_batches b ON o.import_batch_id = b.id
+					WHERE o.metric_id IN (${sql.join(metricIds.map((id) => sql`${id}`), sql`, `)})
+					  AND b.status = 'completed'
+					  AND b.reverted_at IS NULL
+				)
+				SELECT source_id, metric_id, date, value
+				FROM ranked_observations
+				WHERE rn = 1
+				ORDER BY date ASC
+			`;
+
+			const observations = await db.all<{
+				source_id: string;
+				metric_id: string;
+				date: string;
+				value: number;
+			}>(query);
+
+			// Group observations by metricId
+			const obsMap = new Map<string, Array<{ date: string; value: number }>>();
+			for (const o of observations) {
+				if (!obsMap.has(o.metric_id)) {
+					obsMap.set(o.metric_id, []);
+				}
+				obsMap.get(o.metric_id)!.push({ date: o.date, value: o.value });
+			}
+
+			// Map into the SvelteKit expected output format
+			for (const def of definitions) {
+				const src = sources.find((s) => s.id === def.sourceId)!;
+				const obs = obsMap.get(def.id) || [];
+				metricsWithData.push({
+					sourceName: src.name,
+					metricId: def.id,
+					metricType: def.metricType,
+					name: def.name,
+					unit: def.unit,
+					isCumulative: def.isCumulative,
+					observations: obs.map((o) => ({
+						date: o.date,
+						value: o.value
+					}))
+				});
+			}
 		}
 	}
 

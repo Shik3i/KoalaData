@@ -4,7 +4,7 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			user: typeof users.$inferSelect | null;
+			user: Omit<typeof users.$inferSelect, 'passwordHash'> | null;
 			session: typeof sessions.$inferSelect | null;
 		}
 		// interface PageData {}

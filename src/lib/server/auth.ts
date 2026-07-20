@@ -162,7 +162,8 @@ export async function validateSession(token: string) {
 		session.lastUsedAt = now;
 	}
 
-	return { session, user };
+	const { passwordHash, ...safeUser } = user;
+	return { session, user: safeUser };
 }
 
 /**

@@ -74,8 +74,15 @@ export function parseCsv(buffer: Buffer): ParsedCsv {
 			throw new Error('CSV file contains no rows.');
 		}
 
-		const headers = records[0].map((h) => h.trim());
-		const rows = records.slice(1);
+		let headers = records[0].map((h) => h.trim());
+		let rows = records.slice(1);
+
+		// If the first row contains only 1 column, and the second row exists and contains more columns,
+		// then the first row is a metadata/title line. Let's skip it!
+		if (records.length > 1 && records[0].length === 1 && records[1].length > 1) {
+			headers = records[1].map((h) => h.trim());
+			rows = records.slice(2);
+		}
 
 		return {
 			delimiter,

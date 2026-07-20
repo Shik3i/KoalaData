@@ -8,8 +8,8 @@
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 		<script nonce="%sveltekit.nonce%">
 			try {
-				const theme = localStorage.getItem('theme') || 'system';
-				if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+				const theme = localStorage.getItem('theme') || 'auto';
+				if (theme === 'dark' || (theme === 'auto' || theme === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches) {
 					document.documentElement.classList.add('dark');
 				} else {
 					document.documentElement.classList.remove('dark');

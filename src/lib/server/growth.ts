@@ -1,7 +1,5 @@
 import db from './db';
-import { projects, dataSources, metricDefinitions } from './db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
-import { getEffectiveObservations } from './observations';
+import { sql } from 'drizzle-orm';
 
 export interface ProjectLeaderboardItem {
 	projectId: string;
@@ -10,6 +8,7 @@ export interface ProjectLeaderboardItem {
 	category: string;
 	shortDescription: string;
 	logoPath: string | null;
+	websiteUrl: string | null;
 	activeUsers: number;
 	installs: number;
 	growth: number;
@@ -19,114 +18,183 @@ export interface ProjectLeaderboardItem {
 // Stale data cutoff tolerance: 14 days
 const STALENESS_CUTOFF_DAYS = 14;
 
+// In-memory cache for the leaderboard
+let cachedLeaderboard: ProjectLeaderboardItem[] | null = null;
+
+export function invalidateLeaderboardCache() {
+	cachedLeaderboard = null;
+}
+
 /**
  * Computes growth metrics and stats for opted-in and approved public projects.
  * Calculates WAUs and growth values over the last 30 days.
  * Results are returned sorted by absolute growth DESC.
  */
 export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
-	// Fetch active, public, leaderboard-approved projects
-	const list = await db
-		.select()
-		.from(projects)
-		.where(
-			and(
-				eq(projects.visibility, 'public'),
-				eq(projects.leaderboardOptIn, 1),
-				eq(projects.leaderboardStatus, 'approved'),
-				isNull(projects.deletedAt),
-				eq(projects.moderationStatus, 'active')
-			)
-		);
+	if (cachedLeaderboard !== null) {
+		return cachedLeaderboard;
+	}
+
+	// Fetch all effective observations for public, approved, active, and opted-in projects
+	// for the active_users and installs metrics in a single database round-trip.
+	const query = sql`
+		WITH ranked_observations AS (
+			SELECT 
+				p.id AS project_id,
+				p.name AS project_name,
+				p.slug AS project_slug,
+				p.category AS project_category,
+				p.short_description AS project_short_description,
+				p.logo_path AS project_logo_path,
+				p.website_url AS project_website_url,
+				md.metric_type,
+				o.date,
+				o.value,
+				ROW_NUMBER() OVER (
+					PARTITION BY md.id, o.date, o.dimensions
+					ORDER BY b.completed_at DESC, o.id DESC
+				) as rn
+			FROM projects p
+			INNER JOIN data_sources ds ON ds.project_id = p.id
+			INNER JOIN metric_definitions md ON md.source_id = ds.id
+			INNER JOIN metric_observations o ON o.metric_id = md.id
+			INNER JOIN import_batches b ON o.import_batch_id = b.id
+			WHERE p.visibility = 'public'
+			  AND p.leaderboard_opt_in = 1
+			  AND p.leaderboard_status = 'approved'
+			  AND p.deleted_at IS NULL
+			  AND p.moderation_status = 'active'
+			  AND md.metric_type IN ('active_users', 'installs')
+			  AND b.status = 'completed'
+			  AND b.reverted_at IS NULL
+		)
+		SELECT 
+			project_id,
+			project_name,
+			project_slug,
+			project_category,
+			project_short_description,
+			project_logo_path,
+			project_website_url,
+			metric_type,
+			date,
+			value
+		FROM ranked_observations
+		WHERE rn = 1
+		ORDER BY project_id, metric_type, date ASC
+	`;
+
+	const rows = await db.all<{
+		project_id: string;
+		project_name: string;
+		project_slug: string;
+		project_category: string;
+		project_short_description: string;
+		project_logo_path: string | null;
+		project_website_url: string | null;
+		metric_type: 'active_users' | 'installs';
+		date: string;
+		value: number;
+	}>(query);
+
+	// Group observations by project
+	const projectGroups = new Map<string, {
+		name: string;
+		slug: string;
+		category: string;
+		shortDescription: string;
+		logoPath: string | null;
+		websiteUrl: string | null;
+		activeUsersObs: Array<{ date: string; value: number }>;
+		installsObs: Array<{ date: string; value: number }>;
+	}>();
+
+	for (const row of rows) {
+		if (!projectGroups.has(row.project_id)) {
+			projectGroups.set(row.project_id, {
+				name: row.project_name,
+				slug: row.project_slug,
+				category: row.project_category,
+				shortDescription: row.project_short_description,
+				logoPath: row.project_logo_path,
+				websiteUrl: row.project_website_url,
+				activeUsersObs: [],
+				installsObs: []
+			});
+		}
+		const group = projectGroups.get(row.project_id)!;
+		if (row.metric_type === 'active_users') {
+			group.activeUsersObs.push({ date: row.date, value: row.value });
+		} else if (row.metric_type === 'installs') {
+			group.installsObs.push({ date: row.date, value: row.value });
+		}
+	}
 
 	const items: ProjectLeaderboardItem[] = [];
 	const nowTime = Date.now();
 
-	for (const p of list) {
+	for (const [projectId, group] of projectGroups.entries()) {
 		let activeUsers = 0;
 		let installs = 0;
 		let growth = 0;
 		let growthPercent = 0;
 		let hasValidData = false;
 
-		try {
-			const sources = await db
-				.select()
-				.from(dataSources)
-				.where(eq(dataSources.projectId, p.id));
+		// Process active_users
+		const activeObs = group.activeUsersObs;
+		if (activeObs.length > 0) {
+			const latestObs = activeObs[activeObs.length - 1];
+			const latestDate = new Date(latestObs.date);
 
-			for (const src of sources) {
-				const definitions = await db
-					.select()
-					.from(metricDefinitions)
-					.where(eq(metricDefinitions.sourceId, src.id));
+			// Enforce staleness cutoff tolerance (14 days)
+			const diffStaleMs = nowTime - latestDate.getTime();
+			const diffStaleDays = diffStaleMs / (1000 * 60 * 60 * 24);
 
-				for (const def of definitions) {
-					// Pull Weekly Active Users
-					if (def.metricType === 'active_users') {
-						const obs = await getEffectiveObservations(src.id, def.id);
-						if (obs.length > 0) {
-							const latestObs = obs[obs.length - 1];
-							const latestDate = new Date(latestObs.date);
+			if (diffStaleDays <= STALENESS_CUTOFF_DAYS) {
+				const latestVal = latestObs.value;
+				activeUsers = latestVal;
+				hasValidData = true;
 
-							// Enforce staleness cutoff tolerance (14 days)
-							const diffStaleMs = nowTime - latestDate.getTime();
-							const diffStaleDays = diffStaleMs / (1000 * 60 * 60 * 24);
-
-							if (diffStaleDays > STALENESS_CUTOFF_DAYS) {
-								console.log(`[Growth] Project ${p.name} excluded due to stale data (${Math.round(diffStaleDays)} days old).`);
-								continue;
-							}
-
-							const latestVal = latestObs.value;
-							activeUsers = latestVal;
-							hasValidData = true;
-
-							// Locate observation close to 30 days prior (tolerating irregular reporting intervals)
-							let pastVal = obs[0].value;
-
-							for (let i = obs.length - 1; i >= 0; i--) {
-								const obsDate = new Date(obs[i].date);
-								const diffDays = Math.round((latestDate.getTime() - obsDate.getTime()) / (1000 * 60 * 60 * 24));
-								if (diffDays >= 30) {
-									pastVal = obs[i].value;
-									break;
-								}
-							}
-
-							growth = latestVal - pastVal;
-
-							// Enforce the minimum starting value of 25 for percentage-growth calculation
-							if (pastVal >= 25) {
-								growthPercent = (growth / pastVal) * 100;
-							} else {
-								growthPercent = 0;
-							}
-						}
-					}
-
-					// Pull Installs
-					if (def.metricType === 'installs') {
-						const obs = await getEffectiveObservations(src.id, def.id);
-						if (obs.length > 0) {
-							installs = obs[obs.length - 1].value;
-							hasValidData = true;
-						}
+				// Locate observation close to 30 days prior (tolerating irregular reporting intervals)
+				let pastVal = activeObs[0].value;
+				for (let i = activeObs.length - 1; i >= 0; i--) {
+					const obsDate = new Date(activeObs[i].date);
+					const diffDays = Math.round((latestDate.getTime() - obsDate.getTime()) / (1000 * 60 * 60 * 24));
+					if (diffDays >= 30) {
+						pastVal = activeObs[i].value;
+						break;
 					}
 				}
+
+				growth = latestVal - pastVal;
+
+				// Enforce the minimum starting value of 25 for percentage-growth calculation
+				if (pastVal >= 25) {
+					growthPercent = (growth / pastVal) * 100;
+				} else {
+					growthPercent = 0;
+				}
+			} else {
+				console.log(`[Growth] Project ${group.name} excluded due to stale active users data (${Math.round(diffStaleDays)} days old).`);
 			}
-		} catch (e) {
-			console.error(`[Growth] Error compiling stats for project ID ${p.id}:`, e);
+		}
+
+		// Process installs
+		const instObs = group.installsObs;
+		if (instObs.length > 0) {
+			installs = instObs[instObs.length - 1].value;
+			hasValidData = true;
 		}
 
 		if (hasValidData) {
 			items.push({
-				projectId: p.id,
-				name: p.name,
-				slug: p.slug,
-				category: p.category,
-				shortDescription: p.shortDescription,
-				logoPath: p.logoPath,
+				projectId,
+				name: group.name,
+				slug: group.slug,
+				category: group.category,
+				shortDescription: group.shortDescription,
+				logoPath: group.logoPath,
+				websiteUrl: group.websiteUrl,
 				activeUsers,
 				installs,
 				growth,
@@ -136,5 +204,6 @@ export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 	}
 
 	// Sort by absolute growth descending
-	return items.sort((a, b) => b.growth - a.growth);
+	cachedLeaderboard = items.sort((a, b) => b.growth - a.growth);
+	return cachedLeaderboard;
 }

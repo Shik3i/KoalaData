@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `idx_metric_defs_unq` ON `metric_definitions` (`source_id`,`metric_type`,`name`);

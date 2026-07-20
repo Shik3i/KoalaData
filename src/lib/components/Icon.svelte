@@ -28,6 +28,8 @@
 		SealCheckIcon,
 		SparkleIcon,
 		StorefrontIcon,
+		SunIcon,
+		MoonIcon,
 		TrophyIcon,
 		UserCircleIcon,
 		UserPlusIcon,
@@ -71,6 +73,8 @@
 		'user-plus': UserPlusIcon,
 		users: UsersIcon,
 		warning: WarningIcon,
+		sun: SunIcon,
+		moon: MoonIcon,
 		x: XIcon
 	} as const;
 

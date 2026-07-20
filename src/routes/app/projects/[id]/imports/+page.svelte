@@ -9,6 +9,18 @@
 	let isOwnerOrAdmin = $derived(data.membershipRole === 'owner' || data.membershipRole === 'admin');
 	let isEditorOrAbove = $derived(isOwnerOrAdmin || data.membershipRole === 'editor');
 
+	let selectedSourceId = $state('');
+	const selectedSource = $derived(data.sources.find((s) => s.id === selectedSourceId));
+
+	function getExtensionId(url: string | null | undefined): string | null {
+		if (!url) return null;
+		const match = url.match(/[a-p]{32}/i);
+		return match ? match[0] : null;
+	}
+
+	const extensionId = $derived(selectedSource ? getExtensionId(selectedSource.externalUrl) : null);
+	const devConsoleUrl = $derived(extensionId ? `https://chrome.google.com/webstore/devconsole/${extensionId}/analytics?hl=en` : null);
+
 	function formatDate(timestamp: number) {
 		return new Date(timestamp * 1000).toLocaleString();
 	}
@@ -33,7 +45,7 @@
 			{#if isEditorOrAbove}
 				<section class="card settings-card">
 					<h2>Upload CSV Data</h2>
-					<p class="text-muted">Upload metrics data from Chrome Web Store dashboard exports or custom spreadsheets.</p>
+					<p class="text-muted">Upload metrics data from Chrome Web Store dashboard exports or custom spreadsheets. You can select and upload multiple files at once.</p>
 					<hr class="divider" />
 					
 					{#if data.sources.length === 0}
@@ -56,7 +68,7 @@
 						>
 							<div class="form-group">
 								<label for="sourceId">Target Data Source</label>
-								<select id="sourceId" name="sourceId" required disabled={loading}>
+								<select id="sourceId" name="sourceId" bind:value={selectedSourceId} required disabled={loading}>
 									<option value="" disabled selected>Select source...</option>
 									{#each data.sources as src}
 										<option value={src.id}>{src.name} ({src.sourceType})</option>
@@ -64,24 +76,52 @@
 								</select>
 							</div>
 
+							{#if devConsoleUrl}
+								<div class="alert alert-info py-2" style="font-size: 0.8rem; margin-bottom: 1rem; border-color: var(--border-color);">
+									<Icon name="arrow-square-out" /> <strong>Chrome Web Store:</strong> Download CSVs in English here:<br />
+									<a href={devConsoleUrl} target="_blank" rel="noopener noreferrer" style="font-weight: 600; text-decoration: underline; display: inline-block; margin-top: 0.25rem;">
+										Open CWS Stats Dashboard (?hl=en)
+									</a>
+								</div>
+							{/if}
+
 							<div class="form-group">
-								<label for="file">CSV File</label>
+								<label for="file">CSV Files</label>
 								<input 
 									type="file" 
 									id="file" 
 									name="file" 
 									accept=".csv" 
+									multiple
 									required 
 									disabled={loading}
 								/>
 							</div>
 
 							<button type="submit" class="btn btn-primary btn-full" disabled={loading}>
-								{loading ? 'Uploading...' : 'Upload and Preview'}
+								{loading ? 'Processing Files...' : 'Upload and Preview'}
 							</button>
 						</form>
 					{/if}
 				</section>
+
+				{#if data.drafts.length > 0}
+					<section class="card settings-card warning-card" style="margin-top: 1.5rem; border-color: var(--warning-border);">
+						<h2>Pending Drafts ({data.drafts.length})</h2>
+						<p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">The following files require manual column mapping to complete the import.</p>
+						<ul class="drafts-list" style="list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: 0.75rem;">
+							{#each data.drafts as draft}
+								<li class="flex justify-between align-center" style="font-size: 0.85rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
+									<div style="min-width: 0; flex: 1; margin-right: 0.5rem;">
+										<div class="filename" style="font-weight: 600;" title={draft.originalFilename}>{draft.originalFilename}</div>
+										<span class="text-muted" style="font-size: 0.75rem;">{draft.rowCount} rows</span>
+									</div>
+									<a href="/app/projects/{data.project.id}/imports/preview?draftId={draft.id}" class="btn btn-secondary btn-sm" style="flex-shrink: 0;">Map</a>
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
 			{:else}
 				<div class="card settings-card text-center text-muted">
 					<p><Icon name="lock-key" /> You must be an Editor or Owner to upload CSV files.</p>
