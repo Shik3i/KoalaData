@@ -165,6 +165,10 @@
 				{#if data.site.publicDiscoveryEnabled && data.site.publicLeaderboardsEnabled}<span>•</span>{/if}
 				{#if data.site.publicLeaderboardsEnabled}<a href="/leaderboards">Leaderboards</a>{/if}
 				<span>•</span>
+				<a href="/imprint">Imprint</a>
+				<span>•</span>
+				<a href="/privacy">Privacy Policy</a>
+				<span>•</span>
 				<a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">GitHub</a>
 			</div>
 		</div>
@@ -289,6 +293,9 @@
 		font-size: 0.85rem;
 	}
 
+	.footer-links {
+		flex-wrap: wrap;
+	}
 	.footer-links a {
 		color: var(--text-muted);
 	}
@@ -310,6 +317,8 @@
 	@media (max-width: 640px) {
 		.main-content { padding: 1.25rem 0; }
 		.footer-inner { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+		.footer-links span { display: none; }
+		.footer-links { gap: 0.75rem 1rem; }
 		.main-footer p { margin-bottom: 0; }
 	}
 </style>

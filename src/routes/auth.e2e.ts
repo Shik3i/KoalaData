@@ -13,7 +13,11 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		test.setTimeout(180000);
 
 		// Log all page console outputs to node console
-		page.on('console', msg => console.log('E2E PAGE LOG:', msg.text()));
+		page.on('console', msg => {
+			const text = msg.text();
+			if (text.includes('history.pushState') || text.includes('history.replaceState')) return;
+			console.log('E2E PAGE LOG:', text);
+		});
 
 		// Auto-accept all browser confirm/alert dialogs (like rollback confirmation)
 		page.on('dialog', async dialog => {

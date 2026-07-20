@@ -5,6 +5,20 @@
 	function formatNumber(num: number) {
 		return num.toLocaleString();
 	}
+
+	// Interactive sorting state
+	let sortBy = $state<'growth' | 'growthPercent' | 'activeUsers' | 'installs'>('growth');
+
+	// Reactive derived sorted leaderboard list
+	let sortedLeaderboard = $derived(
+		[...data.leaderboard].sort((a, b) => {
+			if (sortBy === 'growth') return b.growth - a.growth;
+			if (sortBy === 'growthPercent') return b.growthPercent - a.growthPercent;
+			if (sortBy === 'activeUsers') return b.activeUsers - a.activeUsers;
+			if (sortBy === 'installs') return b.installs - a.installs;
+			return 0;
+		})
+	);
 </script>
 
 <svelte:head>
@@ -13,10 +27,23 @@
 
 <div class="container leaderboard-page">
 	<h1 class="page-title"><Icon name="trophy" /> Weekly Growth Leaderboard</h1>
-	<p class="text-muted">Ranked by weekly active user growth over the last 30 days. Only approved, public extensions are ranked.</p>
+	
+	<div class="flex justify-between align-center flex-wrap gap-1 filter-bar">
+		<p class="text-muted text-sm">Ranked based on weekly active user growth over the last 30 days. Only approved, public extensions are ranked.</p>
+		
+		<div class="sort-selector flex gap-0.5 align-center flex-wrap">
+			<span class="text-xs text-muted font-semibold uppercase tracking-wider">Sort by:</span>
+			<div class="btn-group">
+				<button class="btn btn-secondary btn-sm {sortBy === 'growth' ? 'active' : ''}" onclick={() => sortBy = 'growth'}>Absolute Growth</button>
+				<button class="btn btn-secondary btn-sm {sortBy === 'growthPercent' ? 'active' : ''}" onclick={() => sortBy = 'growthPercent'}>% Growth</button>
+				<button class="btn btn-secondary btn-sm {sortBy === 'activeUsers' ? 'active' : ''}" onclick={() => sortBy = 'activeUsers'}>Total Users</button>
+				<button class="btn btn-secondary btn-sm {sortBy === 'installs' ? 'active' : ''}" onclick={() => sortBy = 'installs'}>Daily Installs</button>
+			</div>
+		</div>
+	</div>
 
-	<div class="card leaderboard-card" style="margin-top: 1.5rem; padding: 1.5rem;">
-		{#if data.leaderboard.length === 0}
+	<div class="card leaderboard-card">
+		{#if sortedLeaderboard.length === 0}
 			<div class="empty-state text-center py-4">
 				<span class="empty-icon"><Icon name="trophy" /></span>
 				<h2>Leaderboard is empty</h2>
@@ -30,12 +57,13 @@
 							<th>Rank</th>
 							<th>Extension</th>
 							<th>Weekly Active Users</th>
+							<th>Daily Installs</th>
 							<th>30-Day Growth</th>
 							<th>Growth %</th>
 						</tr>
 					</thead>
 					<tbody>
-						{#each data.leaderboard as project, idx}
+						{#each sortedLeaderboard as project, idx}
 							<tr>
 								<td>
 									<span class="rank-badge rank-{idx + 1}">{idx + 1}</span>
@@ -48,13 +76,21 @@
 											<span class="tbl-logo fallback-tbl-logo"><Icon name="paw-print" /></span>
 										{/if}
 										<div>
-											<strong><a href="/p/{project.slug}">{project.name}</a></strong>
+											<div class="flex align-center gap-0.5">
+												<strong><a href="/p/{project.slug}">{project.name}</a></strong>
+												{#if project.growthPercent >= 15 && project.growth > 0}
+													<span class="badge-trending" title="Growing fast! Over 15% growth in the last 30 days."><Icon name="sparkle" /> Trending</span>
+												{/if}
+											</div>
 											<div class="text-muted" style="font-size: 0.75rem;">{project.category}</div>
 										</div>
 									</div>
 								</td>
 								<td>
 									<strong>{formatNumber(project.activeUsers)}</strong>
+								</td>
+								<td>
+									<strong>{formatNumber(project.installs)}</strong>
 								</td>
 								<td>
 									<span class="growth-text {project.growth >= 0 ? 'growth-up' : 'growth-down'}">
@@ -82,6 +118,41 @@
 
 	.page-title {
 		margin-bottom: 0.25rem;
+	}
+
+	.filter-bar {
+		margin-top: 1rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.btn-group {
+		display: inline-flex;
+		border: 1px solid var(--border-color);
+		border-radius: var(--radius-md);
+		overflow: hidden;
+		background: var(--bg-surface);
+	}
+	.btn-group .btn {
+		border: none;
+		border-radius: 0;
+		background: transparent;
+		color: var(--text-muted);
+		font-weight: 500;
+		padding: 0.4rem 0.8rem;
+		font-size: 0.8rem;
+		border-right: 1px solid var(--border-color);
+	}
+	.btn-group .btn:last-child {
+		border-right: none;
+	}
+	.btn-group .btn.active {
+		background: var(--primary-bg);
+		color: var(--primary);
+		font-weight: 600;
+	}
+
+	.leaderboard-card {
+		padding: 1.5rem;
 	}
 
 	.table-wrapper {
@@ -127,6 +198,27 @@
 		justify-content: center;
 		font-size: 1.1rem;
 		border: 1px solid var(--border-color);
+	}
+
+	.badge-trending {
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
+		background-color: #fdf5ea;
+		color: #b37424;
+		border: 1px solid #fbe3c7;
+		padding: 0.1rem 0.35rem;
+		border-radius: var(--radius-sm);
+		font-size: 0.7rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.02em;
+		animation: pulse-border 2s infinite ease-in-out;
+	}
+
+	@keyframes pulse-border {
+		0%, 100% { border-color: #fbe3c7; }
+		50% { border-color: #b37424; }
 	}
 
 	.growth-text {

@@ -3,10 +3,16 @@
 	import type { EChartsType } from 'echarts/core';
 
 	type Observation = { date: string; value: number };
-
-	let { title, observations } = $props<{
-		title: string;
+	type SeriesData = {
+		name: string;
+		color: string;
 		observations: Observation[];
+	};
+
+	let { title, observations, seriesList } = $props<{
+		title: string;
+		observations?: Observation[];
+		seriesList?: SeriesData[];
 	}>();
 
 	let chartDom: HTMLDivElement;
@@ -21,14 +27,65 @@
 
 		if (chart) {
 			chart.dispose();
+			chart = null;
 		}
 
 		chart = echarts.init(chartDom, undefined, { renderer: 'svg' });
 
-		const dates = observations.map((o: Observation) => o.date);
-		const values = observations.map((o: Observation) => o.value);
-
 		const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+
+		let dates: string[] = [];
+		let seriesOptions: any[] = [];
+
+		if (seriesList && seriesList.length > 0) {
+			// Extract dates from the first series
+			dates = seriesList[0].observations.map((o: Observation) => o.date);
+			seriesOptions = seriesList.map((s: SeriesData) => ({
+				name: s.name,
+				data: s.observations.map((o: Observation) => o.value),
+				type: 'line',
+				smooth: true,
+				symbol: 'circle',
+				symbolSize: 6,
+				color: s.color,
+				lineStyle: {
+					width: 3
+				},
+				areaStyle: {
+					color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+						{ offset: 0, color: s.color + '26' }, // ~15% opacity
+						{ offset: 1, color: s.color + '00' }  // 0% opacity
+					])
+				}
+			}));
+		} else if (observations) {
+			dates = observations.map((o: Observation) => o.date);
+			const values = observations.map((o: Observation) => o.value);
+			seriesOptions = [
+				{
+					data: values,
+					type: 'line',
+					smooth: true,
+					symbol: 'circle',
+					symbolSize: 6,
+					color: isDark ? '#78d397' : '#2f6d47',
+					lineStyle: {
+						width: 3
+					},
+					areaStyle: {
+						color: new echarts.graphic.LinearGradient(0, 0, 0, 1, isDark ? [
+							{ offset: 0, color: 'rgba(120, 211, 151, 0.3)' },
+							{ offset: 1, color: 'rgba(120, 211, 151, 0.0)' }
+						] : [
+							{ offset: 0, color: 'rgba(47, 109, 71, 0.3)' },
+							{ offset: 1, color: 'rgba(47, 109, 71, 0.0)' }
+						])
+					}
+				}
+			];
+		}
+
+		const hasZoom = dates.length > 14;
 
 		const option = {
 			title: {
@@ -41,6 +98,15 @@
 					color: isDark ? '#edf5ef' : '#2e3d30'
 				}
 			},
+			legend: (seriesList && seriesList.length > 0) ? {
+				data: seriesList.map((s: SeriesData) => s.name),
+				top: '8%',
+				textStyle: {
+					color: isDark ? '#a5b2a8' : '#64748b',
+					fontFamily: 'Inter, system-ui, sans-serif',
+					fontSize: 11
+				}
+			} : undefined,
 			tooltip: {
 				trigger: 'axis',
 				backgroundColor: isDark ? '#151c17' : 'rgba(255, 255, 255, 0.95)',
@@ -53,8 +119,8 @@
 			grid: {
 				left: '8%',
 				right: '5%',
-				bottom: '12%',
-				top: '18%',
+				bottom: hasZoom ? '20%' : '12%',
+				top: (seriesList && seriesList.length > 0) ? '22%' : '18%',
 			},
 			xAxis: {
 				type: 'category',
@@ -81,36 +147,40 @@
 					}
 				}
 			},
-			series: [
+			dataZoom: hasZoom ? [
 				{
-					data: values,
-					type: 'line',
-					smooth: true,
-					symbol: 'circle',
-					symbolSize: 6,
-					color: isDark ? '#78d397' : '#2f6d47',
-					lineStyle: {
-						width: 3
+					type: 'inside',
+					start: 0,
+					end: 100
+				},
+				{
+					type: 'slider',
+					bottom: '2%',
+					height: 18,
+					borderColor: 'transparent',
+					fillerColor: isDark ? 'rgba(120, 211, 151, 0.15)' : 'rgba(47, 109, 71, 0.12)',
+					handleIcon: 'path://M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
+					handleSize: '120%',
+					handleStyle: {
+						color: isDark ? '#78d397' : '#2f6d47',
+						shadowBlur: 3,
+						shadowColor: 'rgba(0, 0, 0, 0.3)'
 					},
-					areaStyle: {
-						color: new echarts.graphic.LinearGradient(0, 0, 0, 1, isDark ? [
-							{ offset: 0, color: 'rgba(120, 211, 151, 0.3)' },
-							{ offset: 1, color: 'rgba(120, 211, 151, 0.0)' }
-						] : [
-							{ offset: 0, color: 'rgba(47, 109, 71, 0.3)' },
-							{ offset: 1, color: 'rgba(47, 109, 71, 0.0)' }
-						])
+					textStyle: {
+						color: isDark ? '#a5b2a8' : '#64748b',
+						fontSize: 10
 					}
 				}
-			]
+			] : undefined,
+			series: seriesOptions
 		};
 
 		chart.setOption(option);
 	}
 
-	// Update chart when observations list changes reactively
+	// Update chart when observations or seriesList changes reactively
 	$effect(() => {
-		if (observations) {
+		if (observations || seriesList) {
 			void initChart();
 		}
 	});
