@@ -28,6 +28,8 @@
 		const dates = observations.map((o: Observation) => o.date);
 		const values = observations.map((o: Observation) => o.value);
 
+		const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+
 		const option = {
 			title: {
 				text: title,
@@ -36,16 +38,16 @@
 					fontFamily: 'Outfit, Inter, system-ui, sans-serif',
 					fontSize: 15,
 					fontWeight: 600,
-					color: '#2e3d30'
+					color: isDark ? '#edf5ef' : '#2e3d30'
 				}
 			},
 			tooltip: {
 				trigger: 'axis',
-				backgroundColor: 'rgba(255, 255, 255, 0.95)',
+				backgroundColor: isDark ? '#151c17' : 'rgba(255, 255, 255, 0.95)',
 				borderWidth: 1,
-				borderColor: '#e2e8f0',
+				borderColor: isDark ? '#2a382e' : '#e2e8f0',
 				textStyle: {
-					color: '#1e293b'
+					color: isDark ? '#edf5ef' : '#1e293b'
 				}
 			},
 			grid: {
@@ -60,22 +62,22 @@
 				axisLabel: {
 					rotate: 35,
 					fontSize: 10,
-					color: '#64748b'
+					color: isDark ? '#a5b2a8' : '#64748b'
 				},
 				axisLine: {
 					lineStyle: {
-						color: '#e2e8f0'
+						color: isDark ? '#2a382e' : '#e2e8f0'
 					}
 				}
 			},
 			yAxis: {
 				type: 'value',
 				axisLabel: {
-					color: '#64748b'
+					color: isDark ? '#a5b2a8' : '#64748b'
 				},
 				splitLine: {
 					lineStyle: {
-						color: '#f1f5f9'
+						color: isDark ? '#2a382e' : '#f1f5f9'
 					}
 				}
 			},
@@ -86,14 +88,17 @@
 					smooth: true,
 					symbol: 'circle',
 					symbolSize: 6,
-					color: '#556b2f',
+					color: isDark ? '#78d397' : '#2f6d47',
 					lineStyle: {
 						width: 3
 					},
 					areaStyle: {
-						color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-							{ offset: 0, color: 'rgba(85, 107, 47, 0.35)' },
-							{ offset: 1, color: 'rgba(85, 107, 47, 0.0)' }
+						color: new echarts.graphic.LinearGradient(0, 0, 0, 1, isDark ? [
+							{ offset: 0, color: 'rgba(120, 211, 151, 0.3)' },
+							{ offset: 1, color: 'rgba(120, 211, 151, 0.0)' }
+						] : [
+							{ offset: 0, color: 'rgba(47, 109, 71, 0.3)' },
+							{ offset: 1, color: 'rgba(47, 109, 71, 0.0)' }
 						])
 					}
 				}

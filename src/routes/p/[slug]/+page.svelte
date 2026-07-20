@@ -24,6 +24,17 @@
 			};
 		})
 	);
+
+	function getMetricLabel(type: string, fallback: string): string {
+		const labels: Record<string, string> = {
+			active_users: 'Weekly Active Users',
+			installs: 'Installs',
+			uninstalls: 'Uninstalls',
+			store_page_views: 'Store Page Views',
+			store_impressions: 'Store Impressions'
+		};
+		return labels[type] || fallback;
+	}
 </script>
 
 <svelte:head>
@@ -145,7 +156,7 @@
 							No data points in this timeframe.
 						</div>
 					{:else}
-						<MetricChart title={metric.name} observations={metric.observations} />
+						<MetricChart title={getMetricLabel(metric.metricType, metric.name)} observations={metric.observations} />
 					{/if}
 				</div>
 			{/each}
