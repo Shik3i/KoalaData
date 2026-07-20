@@ -1,9 +1,15 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 
 	let { children } = $props();
 	let navOpen = $state(false);
+	let hydrated = $state(false);
+
+	onMount(() => {
+		hydrated = true;
+	});
 
 	const isActive = (path: string, exact = false) => exact ? page.url.pathname === path : page.url.pathname.startsWith(path);
 </script>
@@ -18,7 +24,7 @@
 		<aside class="card admin-sidebar">
 			<div class="admin-sidebar-header">
 				<h2>Admin Panel</h2>
-				<button type="button" class="admin-nav-toggle" aria-controls="admin-navigation" aria-expanded={navOpen} onclick={() => navOpen = !navOpen}>
+				<button type="button" class="admin-nav-toggle" aria-controls="admin-navigation" aria-expanded={navOpen} disabled={!hydrated} onclick={() => navOpen = !navOpen}>
 					<Icon name={navOpen ? 'caret-up' : 'caret-down'} /><span class="sr-only">Toggle admin navigation</span>
 				</button>
 			</div>

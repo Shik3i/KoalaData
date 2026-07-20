@@ -9,7 +9,7 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 	const projectSlug = `e2e-analytics-project-${rand}`;
 
 	test('should run the complete administrative, publisher, metrics, and moderation workflow', async ({ page, context }) => {
-		// Set E2E test timeout to 90s to cover full DB migrations and multiple system setups
+		// Allow enough time for full DB migrations and multiple system setups.
 		test.setTimeout(180000);
 
 		// Log all page console outputs to node console
@@ -33,7 +33,10 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.waitForURL('/app');
 		await page.setViewportSize({ width: 390, height: 900 });
 		await page.goto('/admin');
-		await page.locator('.admin-nav-toggle').click();
+		const adminNavToggle = page.locator('.admin-nav-toggle');
+		await expect(adminNavToggle).toBeEnabled();
+		await adminNavToggle.click();
+		await expect(adminNavToggle).toHaveAttribute('aria-expanded', 'true');
 		await expect(page.locator('#admin-navigation')).toBeVisible();
 		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 		await page.setViewportSize({ width: 1280, height: 900 });
