@@ -121,7 +121,7 @@
 			<p class="text-muted">Metrics data will appear here once the extension developers import observation records.</p>
 		</div>
 	{:else}
-		<div class="grid grid-2 charts-grid">
+		<div class="flex flex-col gap-2 charts-grid">
 			{#each filteredMetrics as metric}
 				<div class="card chart-card">
 					<div class="chart-header flex justify-between align-center">

@@ -105,19 +105,8 @@
 
 	// Update chart when observations list changes reactively
 	$effect(() => {
-		if (chart && observations) {
-			const dates = observations.map((o: Observation) => o.date);
-			const values = observations.map((o: Observation) => o.value);
-			chart.setOption({
-				xAxis: {
-					data: dates
-				},
-				series: [
-					{
-						data: values
-					}
-				]
-			});
+		if (observations) {
+			void initChart();
 		}
 	});
 

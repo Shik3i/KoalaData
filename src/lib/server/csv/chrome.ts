@@ -84,8 +84,8 @@ export function detectChromeCsv(headers: string[]): ChromeDetectionResult {
 	checkAndMap(PAGE_VIEWS_ALIASES, 'store_page_views');
 	checkAndMap(IMPRESSIONS_ALIASES, 'store_impressions');
 
-	// High confidence if we found the date column and at least 2 metrics match.
-	const confidence = dateColumn && matchCount >= 2 ? 'high' : 'low';
+	// High confidence if we found the date column and at least 1 metric matches.
+	const confidence = dateColumn && matchCount >= 1 ? 'high' : 'low';
 
 	return {
 		confidence,
