@@ -92,7 +92,7 @@ export async function assertProjectAccess(
 /**
  * Assert that the user is an active administrator.
  */
-export function assertAdmin(user: any) {
+export function assertAdmin(user: { role: string; status: string } | null | undefined) {
 	if (!user || user.role !== 'admin' || user.status !== 'active') {
 		throw error(403, 'Administrator access required.');
 	}

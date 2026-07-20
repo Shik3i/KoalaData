@@ -1,10 +1,31 @@
-import db from '../db';
-import { rateLimitRecords } from '../db/schema';
-import { eq } from 'drizzle-orm';
+/**
+ * In-memory Token Bucket rate limiter.
+ * Periodically prunes stale entries to prevent memory leaks.
+ */
+
+interface BucketEntry {
+	tokens: number;
+	lastUpdated: number;
+}
+
+const buckets = new Map<string, BucketEntry>();
+
+// Prune stale entries every 5 minutes
+const PRUNE_INTERVAL_MS = 5 * 60 * 1000;
+const ENTRY_TTL_MS = 30 * 60 * 1000;
+
+setInterval(() => {
+	const now = Math.floor(Date.now() / 1000);
+	for (const [key, entry] of buckets) {
+		if (now - entry.lastUpdated > ENTRY_TTL_MS / 1000) {
+			buckets.delete(key);
+		}
+	}
+}, PRUNE_INTERVAL_MS).unref();
 
 /**
- * Check if a request exceeds rate limits using a database-backed Token Bucket algorithm.
- * consumes 1 token per call. Returns true if allowed, false if rate-limited.
+ * Check if a request exceeds rate limits using an in-memory Token Bucket algorithm.
+ * Consumes 1 token per call. Returns true if allowed, false if rate-limited.
  */
 export async function checkRateLimit(
 	key: string,
@@ -13,36 +34,22 @@ export async function checkRateLimit(
 ): Promise<boolean> {
 	try {
 		const now = Math.floor(Date.now() / 1000);
-		const records = await db
-			.select()
-			.from(rateLimitRecords)
-			.where(eq(rateLimitRecords.key, key))
-			.limit(1);
+		const record = buckets.get(key);
 
-		let tokens = maxTokens;
-
-		if (records.length > 0) {
-			const record = records[0];
+		if (record) {
 			const elapsed = now - record.lastUpdated;
-			// Refill tokens based on time elapsed
-			tokens = Math.min(maxTokens, record.tokens + elapsed * refillRatePerSec);
+			const tokens = Math.min(maxTokens, record.tokens + elapsed * refillRatePerSec);
 
 			if (tokens < 1) {
 				return false;
 			}
 
-			// Consume 1 token and update last updated time
-			await db
-				.update(rateLimitRecords)
-				.set({
-					tokens: tokens - 1,
-					lastUpdated: now
-				})
-				.where(eq(rateLimitRecords.key, key));
+			buckets.set(key, {
+				tokens: tokens - 1,
+				lastUpdated: now
+			});
 		} else {
-			// First entry, consume 1 token
-			await db.insert(rateLimitRecords).values({
-				key,
+			buckets.set(key, {
 				tokens: maxTokens - 1,
 				lastUpdated: now
 			});
@@ -50,7 +57,6 @@ export async function checkRateLimit(
 
 		return true;
 	} catch (e) {
-		// Log error but fail open under database errors to prevent complete system lock
 		console.error('[Rate Limit] Error checking rate limit:', e);
 		return true;
 	}

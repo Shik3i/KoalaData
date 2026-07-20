@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import db from './db';
 import { auditLogs } from './db/schema';
 
@@ -18,7 +19,7 @@ export async function logAuditEvent(
 		const cleanMetadata = metadata ? { ...metadata } : {};
 		
 		// Ensure sensitive secrets are never logged in metadata
-		const blacklistedSecrets = ['password', 'token', 'secret', 'cookie', 'session', 'csv'];
+		const blacklistedSecrets = ['password', 'token', 'secret', 'cookie', 'session'];
 		for (const key of Object.keys(cleanMetadata)) {
 			if (blacklistedSecrets.some(secret => key.toLowerCase().includes(secret))) {
 				delete cleanMetadata[key];
