@@ -64,7 +64,9 @@
 	<header class="main-header">
 		<div class="container header-shell">
 			<a href="/" class="brand flex align-center gap-2">
-				<span class="logo-icon"><Icon name="leaf" weight="duotone" /></span>
+				<span class="logo-icon">
+					<img src="/brand/koaladata-icon.png" alt="" aria-hidden="true" />
+				</span>
 				<span class="brand-name">{data.site.siteTitle}</span>
 			</a>
 
@@ -204,8 +206,16 @@
 		text-decoration: none;
 	}
 	.logo-icon {
-		font-size: 1.55rem;
-		color: var(--primary);
+		display: inline-grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		flex: 0 0 2rem;
+	}
+	.logo-icon img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
 	}
 
 	.nav-link {

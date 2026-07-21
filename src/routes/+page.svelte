@@ -14,7 +14,9 @@
 <div class="container homepage-container">
 	<!-- Hero Section -->
 	<section class="hero card text-center">
-		<span class="hero-logo"><Icon name="paw-print" weight="duotone" /></span>
+		<span class="hero-logo">
+			<img src="/brand/koaladata-icon.png" alt="" aria-hidden="true" />
+		</span>
 		<h1>KoalaData Analytics Hub</h1>
 		<p class="hero-subtitle text-muted">
 			Self-hosted open metrics, growth directories, and active ranks for browser extension developers.
@@ -110,8 +112,10 @@
 		box-shadow: var(--shadow-sm);
 	}
 
-	.hero-logo :global(.app-icon) {
-		font-size: 2.35rem;
+	.hero-logo img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
 	}
 
 	.hero h1 {
