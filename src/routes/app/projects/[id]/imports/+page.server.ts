@@ -5,6 +5,7 @@ import { assertProjectAccess } from '$lib/server/permissions';
 import { createImportDraft, confirmImportDraft } from '$lib/server/csv/pipeline';
 import { parseCsv } from '$lib/server/csv/parser';
 import { detectChromeCsv } from '$lib/server/csv/chrome';
+import { classifyChromeReportFilename } from '$lib/dashboard-metrics';
 import { logAuditEvent } from '$lib/server/audit';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -85,9 +86,15 @@ export const actions: Actions = {
 				// Parse CSV to analyze headers
 				const parsed = parseCsv(buffer);
 				const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
+				const report = classifyChromeReportFilename(file.name);
+				const hasStandardMetric = Object.values(autoDetect.mappings).some((mapping) =>
+					mapping.metricType !== 'date' && mapping.metricType !== 'custom'
+				);
+				const hasCustomMetric = Object.values(autoDetect.mappings).some((mapping) => mapping.metricType === 'custom');
 
-				// If confidence is high, we have both date and at least one metric, and not in E2E test mode
-				if (!isTest && (autoDetect.confidence === 'high' || (autoDetect.mappings.date && Object.keys(autoDetect.mappings).length >= 2))) {
+				// Unknown wide numeric reports require manual review. Known CWS breakdowns are
+				// stored as one metric definition with a dimension per CSV column.
+				if (!isTest && autoDetect.mappings.date && (report || (hasStandardMetric && !hasCustomMetric))) {
 					const dateColumn = autoDetect.mappings.date.column;
 					const metrics = [];
 
@@ -100,10 +107,11 @@ export const actions: Actions = {
 							metrics.push({
 								columnName: value.column,
 								metricType: value.metricType,
-								name: value.metricType === 'custom' ? `${fileLabel}: ${value.column}` : value.column,
+								name: value.metricType === 'custom' && report ? fileLabel : value.metricType === 'custom' ? `${fileLabel}: ${value.column}` : value.column,
 								unit: 'count',
-								aggregation: value.metricType === 'active_users' ? 'average' : 'sum',
-								isCumulative: false
+								aggregation: value.metricType === 'active_users' || report?.semantics === 'snapshot' ? 'latest' : 'sum',
+								isCumulative: false,
+								dimensions: value.metricType === 'custom' && report ? { [report.dimensionKey]: value.column } : undefined
 							});
 						}
 					}

@@ -108,22 +108,39 @@
 
 			if (seriesList && seriesList.length > 0) {
 				if (!dates.length) dates = seriesList[0].observations.map((o: Observation) => o.date);
-			seriesOptions = seriesList.map((s: SeriesData) => ({
-				name: s.name,
-				data: s.observations.map((o: Observation) => o.value),
-				type: 'line',
-				smooth: true,
-				symbol: 'circle',
-				symbolSize: 5,
-				color: s.color,
-				lineStyle: { width: 2.5 },
-				areaStyle: {
-					color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-						{ offset: 0, color: s.color + '1A' },
-						{ offset: 1, color: s.color + '00' }
-					])
-				}
-			}));
+				seriesOptions = seriesList.flatMap((s: SeriesData) => {
+					const values = s.observations.map((o: Observation) => o.value);
+					const result: any[] = [{
+						name: s.name,
+						data: values,
+						type: 'line',
+						smooth: true,
+						symbol: 'circle',
+						symbolSize: 5,
+						color: s.color,
+						lineStyle: { width: 2.5 },
+						areaStyle: {
+							color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+								{ offset: 0, color: s.color + '1A' },
+								{ offset: 1, color: s.color + '00' }
+							])
+						}
+					}];
+					if (showMovingAverage && values.length >= 7) {
+						result.push({
+							name: `${s.name} · 7-day average`,
+							data: computeMovingAverage(values),
+							type: 'line',
+							smooth: true,
+							symbol: 'none',
+							symbolSize: 0,
+							color: s.color,
+							lineStyle: { width: 2, type: 'dashed' },
+							areaStyle: undefined
+						});
+					}
+					return result;
+				});
 			} else if (observations) {
 				if (!dates.length) dates = observations.map((o: Observation) => o.date);
 			const values = observations.map((o: Observation) => o.value);

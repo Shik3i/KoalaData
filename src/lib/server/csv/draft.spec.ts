@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import db from '../db';
-import { users, projects, dataSources, importDrafts } from '../db/schema';
+import { users, projects, dataSources, importDrafts, metricDefinitions, metricObservations } from '../db/schema';
 import { createImportDraft, confirmImportDraft, cleanupExpiredDrafts } from './pipeline';
 import { eq } from 'drizzle-orm';
 import fs from 'fs';
@@ -130,5 +130,58 @@ describe('CSV Import Draft Lifecycle & Cleanup', () => {
 
 		// Assert temporary file is deleted from disk
 		expect(fs.existsSync(draftFilePath)).toBe(false);
+	});
+
+	it('stores wide report columns as dimensions on one metric definition', async () => {
+		const draftId = await createImportDraft(
+			testUser.id,
+			testProject.id,
+			testSource.id,
+			'Installs by Region.csv',
+			Buffer.from('date,Germany,France\n2026-07-01,12,8\n2026-07-02,15,9', 'utf-8')
+		);
+
+		await confirmImportDraft(testUser.id, testUser.username, testProject.id, draftId, {
+			dateColumn: 'date',
+			dateFormat: 'YYYY-MM-DD',
+			metrics: [
+				{
+					columnName: 'Germany',
+					metricType: 'custom',
+					name: 'Installs by Region',
+					unit: 'count',
+					aggregation: 'sum',
+					isCumulative: false,
+					dimensions: { region: 'Germany' }
+				},
+				{
+					columnName: 'France',
+					metricType: 'custom',
+					name: 'Installs by Region',
+					unit: 'count',
+					aggregation: 'sum',
+					isCumulative: false,
+					dimensions: { region: 'France' }
+				}
+			]
+		});
+
+		const definitions = await db
+			.select()
+			.from(metricDefinitions)
+			.where(eq(metricDefinitions.sourceId, testSource.id));
+		expect(definitions).toHaveLength(1);
+
+		const observations = await db
+			.select()
+			.from(metricObservations)
+			.where(eq(metricObservations.metricId, definitions[0].id));
+		expect(observations).toHaveLength(4);
+		expect(observations.map((observation) => JSON.parse(observation.dimensions))).toEqual([
+			{ region: 'Germany' },
+			{ region: 'France' },
+			{ region: 'Germany' },
+			{ region: 'France' }
+		]);
 	});
 });

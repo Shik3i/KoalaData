@@ -21,7 +21,11 @@ The system provides a high-confidence mapping configuration if it matches standa
 | **Store Page Views** | `store page views`, `page views`, `pageviews`, `store_views` |
 | **Store Impressions** | `impressions`, `store impressions`, `store_impressions` |
 
-If a date column and at least 2 metric columns match, the importer flags a **High Confidence** rating and pre-populates all inputs for the mapping step.
+Standard metric files with a date column are imported automatically. Recognized Chrome Web Store breakdown reports in German or English are also imported automatically and retain their complete category data.
+
+Wide breakdown reports are stored as one metric definition with a dimension for each category. For example, `Installationen nach Region` becomes an install-flow breakdown with observations such as `{"region":"Deutschland"}` instead of creating a separate chart definition for every country. Snapshot reports such as weekly users, extension versions, ratings, and enabled state use their latest value; install and uninstall breakdowns are summed over the selected period.
+
+Unknown wide numeric files are sent to the manual mapping preview. They are never silently assigned period-sum semantics.
 
 ## 3. Date & Number Normalization
 - **Date Standardizer**: Formats date strings to `YYYY-MM-DD` (ISO 8601). It can parse custom formats (like `MM/DD/YYYY` or `DD/MM/YYYY`) and falls back to JavaScript's standard `Date.parse()` when needed.

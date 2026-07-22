@@ -175,6 +175,7 @@ export async function confirmImportDraft(
 			unit: string;
 			aggregation: string;
 			isCumulative: boolean;
+			dimensions?: Record<string, string>;
 		}>;
 	},
 	actorIp = '127.0.0.1'
@@ -250,7 +251,10 @@ export async function confirmImportDraft(
 	// Prepare metrics map
 	const metricMappings = mappingConfig.metrics.map(m => {
 		const idx = headers.indexOf(m.columnName);
-		return { ...m, columnIndex: idx };
+		const dimensions = JSON.stringify(
+			Object.fromEntries(Object.entries(m.dimensions ?? {}).sort(([a], [b]) => a.localeCompare(b)))
+		);
+		return { ...m, dimensions, columnIndex: idx };
 	}).filter(m => m.columnIndex !== -1);
 
 	if (metricMappings.length === 0) {
@@ -321,7 +325,7 @@ export async function confirmImportDraft(
 
 			for (const chunk of dateChunks) {
 				const overlaps = await db
-					.select({ metricId: metricObservations.metricId, date: metricObservations.date })
+					.select({ metricId: metricObservations.metricId, date: metricObservations.date, dimensions: metricObservations.dimensions })
 					.from(metricObservations)
 					.innerJoin(importBatches, eq(metricObservations.importBatchId, importBatches.id))
 					.where(
@@ -333,7 +337,7 @@ export async function confirmImportDraft(
 						)
 					);
 				for (const o of overlaps) {
-					dbOverlapsSet.add(`${o.metricId}:${o.date}`);
+					dbOverlapsSet.add(`${o.metricId}:${o.date}:${o.dimensions}`);
 				}
 			}
 		}
@@ -401,13 +405,13 @@ export async function confirmImportDraft(
 						const parsedVal = parseNumericValue(rawVal);
 						const metricDef = dbMetricsMap.get(m.columnName)!;
 
-						const logicalKey = `${metricDef.id}:${parsedDate}`;
+						const logicalKey = `${metricDef.id}:${parsedDate}:${m.dimensions}`;
 
 						// Duplicate check in uploaded file
 						if (inMemorySeen.has(logicalKey)) {
 							duplicateCount++;
 							// Override previous in-memory row (take the last value)
-							const existingIdx = observationRows.findIndex(x => x.metricId === metricDef.id && x.date === parsedDate);
+							const existingIdx = observationRows.findIndex(x => x.metricId === metricDef.id && x.date === parsedDate && x.dimensions === m.dimensions);
 							if (existingIdx !== -1) {
 								observationRows[existingIdx].value = parsedVal;
 							}
@@ -428,7 +432,7 @@ export async function confirmImportDraft(
 							metricId: metricDef.id,
 							date: parsedDate,
 							value: parsedVal,
-							dimensions: '{}',
+							dimensions: m.dimensions,
 							createdAt: now
 						});
 					}

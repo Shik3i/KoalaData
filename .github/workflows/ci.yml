@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: 'npm'
@@ -55,8 +55,10 @@ jobs:
       - name: Enforce Lighthouse quality budget
         run: |
           mkdir -p test-results
-          npx --yes lighthouse@13.4.0 http://127.0.0.1:4173/ --quiet --chrome-flags="--headless --no-sandbox" --output=json --output-path=test-results/lighthouse.json
-          node scripts/check-lighthouse.mjs test-results/lighthouse.json
+          for run in 1 2 3; do
+            npx --yes lighthouse@13.4.0 http://127.0.0.1:4173/ --quiet --chrome-flags="--headless --no-sandbox" --output=json --output-path="test-results/lighthouse-${run}.json"
+          done
+          node scripts/check-lighthouse.mjs test-results/lighthouse-*.json
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

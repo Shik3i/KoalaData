@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Trustworthy grouped analytics
+
+- Group Chrome Web Store region, language, operating-system, version, rating, and enabled-state reports into readable breakdown cards instead of rendering one chart per CSV column.
+- Keep every imported category available in complete ranked tables while limiting the overview to top categories plus an aggregated long tail.
+- Treat installs and uninstalls as period flows, and weekly users, versions, ratings, and enabled state as latest snapshots.
+- Store future recognized Chrome Web Store breakdown columns as dimensions and merge them deterministically with legacy metric definitions at read time without deleting historical data.
+- Replace misleading CTR, conversion-funnel, active-user, and churn claims with independently sourced counts and accurately named weekly installed-user metrics.
+- Use calendar-based time windows, chronological weekday bars with visible values, responsive product CTAs, and substantially fewer chart instances.
+
+### Landing page and quality budget
+
+- Replace the oversized stacked landing-page hero with a compact, responsive product message and a visible analytics illustration.
+- Add page-specific search metadata and clearer primary, comparison, and registration actions.
+- Evaluate Lighthouse budgets from the median of three runs to reject real regressions without failing on a single noisy measurement.
+- Print the failing Lighthouse audits in CI and update the checkout and Node setup actions to their Node 24-compatible releases.
+
 ## v1.3.1 - 2026-07-22
 
 ### Import and dashboard fixes

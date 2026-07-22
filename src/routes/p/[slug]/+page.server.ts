@@ -63,6 +63,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 						o.metric_id,
 						o.date,
 						o.value,
+						o.dimensions,
+						o.id AS observation_id,
+						b.completed_at,
 						ROW_NUMBER() OVER (
 							PARTITION BY o.source_id, o.metric_id, o.date, o.dimensions
 							ORDER BY b.completed_at DESC, o.id DESC
@@ -73,7 +76,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 					  AND b.status = 'completed'
 					  AND b.reverted_at IS NULL
 				)
-				SELECT source_id, metric_id, date, value
+				SELECT source_id, metric_id, date, value, dimensions, observation_id, completed_at
 				FROM ranked_observations
 				WHERE rn = 1
 				ORDER BY date ASC
@@ -84,15 +87,31 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				metric_id: string;
 				date: string;
 				value: number;
+				dimensions: string;
+				observation_id: string;
+				completed_at: number | null;
 			}>(query);
 
 			// Group observations by metricId
-			const obsMap = new Map<string, Array<{ date: string; value: number }>>();
+			const obsMap = new Map<string, Array<{ date: string; value: number; dimensions: Record<string, string>; observationId: string; completedAt: number | null }>>();
 			for (const o of observations) {
 				if (!obsMap.has(o.metric_id)) {
 					obsMap.set(o.metric_id, []);
 				}
-				obsMap.get(o.metric_id)!.push({ date: o.date, value: o.value });
+				let dimensions: Record<string, string> = {};
+				try {
+					const parsed = JSON.parse(o.dimensions);
+					if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) dimensions = parsed;
+				} catch {
+					// Preserve malformed legacy rows as unsegmented observations.
+				}
+				obsMap.get(o.metric_id)!.push({
+					date: o.date,
+					value: o.value,
+					dimensions,
+					observationId: o.observation_id,
+					completedAt: o.completed_at
+				});
 			}
 
 			// Map into the SvelteKit expected output format
@@ -100,6 +119,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				const src = sources.find((s) => s.id === def.sourceId)!;
 				const obs = obsMap.get(def.id) || [];
 				metricsWithData.push({
+					sourceId: src.id,
 					sourceName: src.name,
 					metricId: def.id,
 					metricType: def.metricType,
@@ -109,7 +129,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 					isCumulative: def.isCumulative,
 					observations: obs.map((o) => ({
 						date: o.date,
-						value: o.value
+						value: o.value,
+						dimensions: o.dimensions,
+						observationId: o.observationId,
+						completedAt: o.completedAt
 					}))
 				});
 			}
