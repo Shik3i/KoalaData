@@ -6,6 +6,15 @@ import { cleanupExpiredDrafts } from '$lib/server/csv/pipeline';
 import { db } from '$lib/server/db';
 import { rateLimitRecords } from '$lib/server/db/schema';
 import { lte } from 'drizzle-orm';
+import { refreshLeaderboardCache } from '$lib/server/growth';
+import { refreshAllPublicProjectStats } from '$lib/server/public-project-stats';
+
+const PUBLIC_DATA_REFRESH_MS = 60 * 60 * 1000;
+
+async function refreshPublicData() {
+	await refreshLeaderboardCache();
+	await refreshAllPublicProjectStats();
+}
 
 async function cleanupExpiredLimiters() {
 	const oneDayAgo = Math.floor(Date.now() / 1000) - (24 * 60 * 60);
@@ -22,12 +31,21 @@ export async function init() {
 	await cleanupExpiredDrafts();
 	await cleanupExpiredSessions();
 	await cleanupExpiredLimiters();
+	try {
+		await refreshPublicData();
+	} catch (error) {
+		console.error('[Public Data] Initial cache warm failed:', error);
+	}
 	const cleanupTimer = setInterval(() => {
 		cleanupExpiredDrafts().catch((error) => console.error('[Draft Cleanup] Scheduled cleanup failed:', error));
 		cleanupExpiredSessions().catch((error) => console.error('[Session Cleanup] Scheduled cleanup failed:', error));
 		cleanupExpiredLimiters().catch((error) => console.error('[Rate Limit Cleanup] Scheduled cleanup failed:', error));
 	}, 15 * 60 * 1000);
 	cleanupTimer.unref();
+	const publicDataTimer = setInterval(() => {
+		refreshPublicData().catch((error) => console.error('[Public Data] Scheduled refresh failed:', error));
+	}, PUBLIC_DATA_REFRESH_MS);
+	publicDataTimer.unref();
 }
 
 export const handle: Handle = async ({ event, resolve }) => {

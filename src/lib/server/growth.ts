@@ -24,8 +24,7 @@ export interface ProjectLeaderboardItem {
 // Stale data cutoff tolerance: 14 days
 const STALENESS_CUTOFF_DAYS = 14;
 const CACHE_TTL_MS = 30_000;
-const CACHE_STALE_MS = 5 * 60_000;
-let leaderboardCache: { value: ProjectLeaderboardItem[]; expiresAt: number; staleUntil: number } | null = null;
+let leaderboardCache: { value: ProjectLeaderboardItem[]; expiresAt: number } | null = null;
 let leaderboardInFlight: Promise<ProjectLeaderboardItem[]> | null = null;
 
 /**
@@ -36,8 +35,10 @@ let leaderboardInFlight: Promise<ProjectLeaderboardItem[]> | null = null;
 export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 	const now = Date.now();
 	if (leaderboardCache && now < leaderboardCache.expiresAt) return leaderboardCache.value;
-	if (leaderboardCache && now < leaderboardCache.staleUntil) {
-		if (!leaderboardInFlight) void refreshLeaderboard();
+	if (leaderboardCache) {
+		if (!leaderboardInFlight) {
+			void refreshLeaderboard().catch((error) => console.error('[Leaderboard] Background refresh failed:', error));
+		}
 		return leaderboardCache.value;
 	}
 	return refreshLeaderboard();
@@ -48,13 +49,17 @@ function refreshLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 	leaderboardInFlight = computeLeaderboard()
 		.then((value) => {
 			const now = Date.now();
-			leaderboardCache = { value, expiresAt: now + CACHE_TTL_MS, staleUntil: now + CACHE_STALE_MS };
+			leaderboardCache = { value, expiresAt: now + CACHE_TTL_MS };
 			return value;
 		})
 		.finally(() => {
 			leaderboardInFlight = null;
 		});
 	return leaderboardInFlight;
+}
+
+export async function refreshLeaderboardCache(): Promise<void> {
+	await refreshLeaderboard();
 }
 
 async function computeLeaderboard(): Promise<ProjectLeaderboardItem[]> {

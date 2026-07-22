@@ -4,7 +4,8 @@ import {
 	splitLegacyMetricName
 } from '$lib/dashboard-metrics';
 import db from './db';
-import { sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { projects } from './db/schema';
 
 export type PublicProjectStats = {
 	activeUsers: number | null;
@@ -23,8 +24,7 @@ const emptyStats = (): PublicProjectStats => ({
 });
 
 const CACHE_TTL_MS = 30_000;
-const CACHE_STALE_MS = 5 * 60_000;
-const statsCache = new Map<string, { value: Map<string, PublicProjectStats>; expiresAt: number; staleUntil: number }>();
+const statsCache = new Map<string, { value: Map<string, PublicProjectStats>; expiresAt: number }>();
 const statsInFlight = new Map<string, Promise<Map<string, PublicProjectStats>>>();
 
 export function ratingStars(name: string, dimensions: string): number | null {
@@ -49,8 +49,12 @@ export async function getPublicProjectStats(projectIds: string[]): Promise<Map<s
 	const now = Date.now();
 	const cached = statsCache.get(cacheKey);
 	if (cached && now < cached.expiresAt) return cached.value;
-	if (cached && now < cached.staleUntil) {
-		if (!statsInFlight.has(cacheKey)) void refreshPublicProjectStats(cacheKey, uniqueIds);
+	if (cached) {
+		if (!statsInFlight.has(cacheKey)) {
+			void refreshPublicProjectStats(cacheKey, uniqueIds).catch((error) =>
+				console.error('[Public Stats] Background refresh failed:', error)
+			);
+		}
 		return cached.value;
 	}
 	return refreshPublicProjectStats(cacheKey, uniqueIds);
@@ -62,13 +66,28 @@ function refreshPublicProjectStats(cacheKey: string, uniqueIds: string[]): Promi
 	const refresh = computePublicProjectStats(uniqueIds)
 		.then((value) => {
 			const now = Date.now();
-			statsCache.set(cacheKey, { value, expiresAt: now + CACHE_TTL_MS, staleUntil: now + CACHE_STALE_MS });
+			statsCache.set(cacheKey, { value, expiresAt: now + CACHE_TTL_MS });
 			while (statsCache.size > 50) statsCache.delete(statsCache.keys().next().value!);
 			return value;
 		})
 		.finally(() => statsInFlight.delete(cacheKey));
 	statsInFlight.set(cacheKey, refresh);
 	return refresh;
+}
+
+export async function refreshAllPublicProjectStats(): Promise<void> {
+	const rows = await db
+		.select({ id: projects.id })
+		.from(projects)
+		.where(
+			and(
+				eq(projects.visibility, 'public'),
+				isNull(projects.deletedAt),
+				eq(projects.moderationStatus, 'active')
+			)
+		);
+	const ids = rows.map((row) => row.id).sort();
+	await refreshPublicProjectStats(ids.join(','), ids);
 }
 
 async function computePublicProjectStats(uniqueIds: string[]): Promise<Map<string, PublicProjectStats>> {
