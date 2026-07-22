@@ -3,6 +3,12 @@ import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
 	plugins: [sveltekit()],
+	ssr: {
+		external: ['csv-parse']
+	},
+	build: {
+		chunkSizeWarningLimit: 600
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [

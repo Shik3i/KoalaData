@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.0 - 2026-07-22
+
+### Release hardening
+
+- Resolved all npm audit findings with safe overrides for the SvelteKit cookie dependency and Drizzle's nested esbuild loader.
+- Moved `csv-parse` to production dependencies and externalized it from the SSR bundle so the production Docker image resolves it correctly without circular-bundle warnings.
+- Kept ECharts in a dedicated on-demand chunk and calibrated the bundle warning threshold to its measured size.
+- Added final npm audit, bundle-size, Docker build, and runtime health checks to the release verification.
+
 ## v1.2.1 - 2026-07-22
 
 ### Trustworthy analytics and branding

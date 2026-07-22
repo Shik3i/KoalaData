@@ -132,6 +132,9 @@ We enforce a strict pre-release validation flow. Before committing any code, run
 # Svelte and TypeScript static typecheck
 npm run check
 
+# Dependency security audit
+npm audit --audit-level=low
+
 # Vitest Unit Tests
 npm run test:unit -- --run
 
