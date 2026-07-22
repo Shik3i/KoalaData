@@ -16,39 +16,51 @@ export function parseCsv(buffer: Buffer): ParsedCsv {
 		throw new Error('CSV file is empty.');
 	}
 
-	// 1. Check for UTF-16 BOM
-	if (
-		(buffer[0] === 0xfe && buffer[1] === 0xff) || 
-		(buffer[0] === 0xff && buffer[1] === 0xfe)
-	) {
-		throw new Error('UTF-16 BOM encoding is not supported. Please upload a UTF-8 encoded CSV file.');
+	// 1. Decode common spreadsheet encodings with explicit byte-order marks.
+	let content: string;
+	let encoding = 'UTF-8';
+	if (buffer[0] === 0xff && buffer[1] === 0xfe) {
+		content = buffer.subarray(2).toString('utf16le');
+		encoding = 'UTF-16 LE';
+	} else if (buffer[0] === 0xfe && buffer[1] === 0xff) {
+		const body = Buffer.from(buffer.subarray(2));
+		if (body.length % 2 !== 0) throw new Error('CSV contains an incomplete UTF-16 code unit.');
+		body.swap16();
+		content = body.toString('utf16le');
+		encoding = 'UTF-16 BE';
+	} else {
+		const startOffset = buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf ? 3 : 0;
+		content = buffer.toString('utf8', startOffset);
+		if (startOffset === 3) encoding = 'UTF-8 with BOM';
 	}
 
-	// 2. Check for binary content (null bytes)
+	// 2. Check for binary content (null bytes after decoding known UTF-16 files)
 	const sampleLength = Math.min(buffer.length, 1024);
-	for (let i = 0; i < sampleLength; i++) {
-		if (buffer[i] === 0x00) {
+	if (encoding.startsWith('UTF-8')) {
+		for (let i = 0; i < sampleLength; i++) {
+			if (buffer[i] !== 0x00) continue;
 			throw new Error('Binary file content detected. Please upload a valid text CSV file.');
 		}
 	}
 
-	// 3. Check for UTF-8 BOM and decode
-	let startOffset = 0;
-	if (buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
-		startOffset = 3;
-	}
-
-	const content = buffer.toString('utf8', startOffset);
-
-	// 4. Auto-detect delimiter from the first few lines
+	// 3. Auto-detect delimiter from the first few lines, ignoring quoted content.
 	const sampleLines = content.split(/\r?\n/).slice(0, 5).join('\n');
 	let commaCount = 0;
 	let semicolonCount = 0;
 	let tabCount = 0;
 
-	// Simple frequency count of separators outside of quotes (for high-level detection)
+	let quoted = false;
 	for (let i = 0; i < sampleLines.length; i++) {
 		const char = sampleLines[i];
+		if (char === '"') {
+			if (quoted && sampleLines[i + 1] === '"') {
+				i++;
+				continue;
+			}
+			quoted = !quoted;
+			continue;
+		}
+		if (quoted) continue;
 		if (char === ',') commaCount++;
 		else if (char === ';') semicolonCount++;
 		else if (char === '\t') tabCount++;
@@ -61,7 +73,7 @@ export function parseCsv(buffer: Buffer): ParsedCsv {
 		delimiter = '\t';
 	}
 
-	// 5. Parse using csv-parse/sync
+	// 4. Parse using csv-parse/sync
 	try {
 		const records: string[][] = parse(content, {
 			delimiter,
@@ -86,7 +98,7 @@ export function parseCsv(buffer: Buffer): ParsedCsv {
 
 		return {
 			delimiter,
-			encoding: startOffset === 3 ? 'UTF-8 with BOM' : 'UTF-8',
+			encoding,
 			headers,
 			rows
 		};

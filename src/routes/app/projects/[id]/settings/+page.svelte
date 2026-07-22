@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import InfoTip from '$lib/components/InfoTip.svelte';
 	import { enhance } from '$app/forms';
 
 	let { data, form } = $props();
@@ -32,7 +33,7 @@
 		<div class="flex flex-col gap-2">
 			<!-- General Settings Card -->
 			<section class="card settings-card">
-				<h2>General Metadata</h2>
+				<h2>General Metadata <InfoTip id="metadata-help" text="These details appear on the public dashboard after review. Only HTTPS links are accepted." /></h2>
 				<hr class="divider" />
 				<form 
 					action="?/updateSettings" 
@@ -71,6 +72,23 @@
 							<option value="other" selected={data.project.category === 'other'}>Other</option>
 						</select>
 					</div>
+
+					<fieldset class="classification-fieldset">
+						<legend>Business model</legend>
+						<div class="form-group">
+							<label for="pricingModel">Pricing</label>
+							<select id="pricingModel" name="pricingModel" required disabled={loading}>
+								<option value="" disabled selected={data.project.pricingModel === 'unknown'}>Select pricing...</option>
+								<option value="free" selected={data.project.pricingModel === 'free'}>Free</option>
+								<option value="freemium" selected={data.project.pricingModel === 'freemium'}>Freemium</option>
+								<option value="paid" selected={data.project.pricingModel === 'paid'}>Paid</option>
+							</select>
+						</div>
+						<label class="checkbox-option" for="isOpenSource">
+							<input id="isOpenSource" name="isOpenSource" type="checkbox" checked={Boolean(data.project.isOpenSource)} disabled={loading} />
+							<span><strong>Open Source</strong><small>Requires a public repository URL.</small></span>
+						</label>
+					</fieldset>
 
 					<div class="form-group">
 						<label for="shortDescription">Short Description</label>
@@ -128,6 +146,7 @@
 							placeholder="https://chromewebstore.google.com/..."
 							disabled={loading}
 						/>
+						<small class="text-muted">Adding a valid Chrome Web Store URL automatically creates or updates the import source.</small>
 					</div>
 
 					<button type="submit" class="btn btn-primary" disabled={loading}>
@@ -198,8 +217,8 @@
 			<!-- Visibility Settings Card -->
 			{#if isOwnerOrAdmin}
 				<section class="card settings-card">
-					<h2>Project Visibility</h2>
-					<p class="text-muted">Modify access rules for this dashboard.</p>
+					<h2>Project Visibility <InfoTip id="visibility-help" text="Public projects enter a short moderation review. Unlisted projects stay out of discovery. Private projects are members-only." /></h2>
+					<p class="text-muted">Public listing requests are reviewed before anonymous visitors can access the dashboard.</p>
 					<hr class="divider" />
 					<form action="?/updateVisibility" method="POST" use:enhance>
 						<div class="form-group">
@@ -239,7 +258,7 @@
 
 				<!-- Leaderboard opt-in -->
 				<section class="card settings-card">
-					<h2>Leaderboards Participation</h2>
+					<h2>Leaderboards Participation <InfoTip id="leaderboard-help" text="Leaderboard approval is separate from public listing review and can be revoked independently." /></h2>
 					<p class="text-muted">Opt-in to participate in global rankings. Requires public visibility.</p>
 					<hr class="divider" />
 					<form action="?/updateLeaderboardOptIn" method="POST" use:enhance>
@@ -287,6 +306,12 @@
 </div>
 
 <style>
+	.classification-fieldset { margin: 0 0 1rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+	.classification-fieldset legend { padding-inline: 0.35rem; font-weight: 700; }
+	.checkbox-option { display: flex; align-items: center; gap: 0.65rem; padding: 0.65rem 0.8rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; }
+	.checkbox-option input { width: 1.1rem; height: 1.1rem; margin: 0; }
+	.checkbox-option span, .checkbox-option small { display: block; }
+	.checkbox-option small { color: var(--text-muted); font-weight: 400; }
 	.divider {
 		border: 0;
 		border-top: 1px solid var(--border-color);

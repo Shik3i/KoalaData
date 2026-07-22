@@ -1,5 +1,5 @@
 import { initDb } from '$lib/server/db/setup';
-import { validateSession, invalidateSession } from '$lib/server/auth';
+import { cleanupExpiredSessions, validateSession, invalidateSession } from '$lib/server/auth';
 import { checkRateLimit } from '$lib/server/security/limiter';
 import { redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
 import { cleanupExpiredDrafts } from '$lib/server/csv/pipeline';
@@ -20,9 +20,11 @@ async function cleanupExpiredLimiters() {
 export async function init() {
 	await initDb();
 	await cleanupExpiredDrafts();
+	await cleanupExpiredSessions();
 	await cleanupExpiredLimiters();
 	const cleanupTimer = setInterval(() => {
 		cleanupExpiredDrafts().catch((error) => console.error('[Draft Cleanup] Scheduled cleanup failed:', error));
+		cleanupExpiredSessions().catch((error) => console.error('[Session Cleanup] Scheduled cleanup failed:', error));
 		cleanupExpiredLimiters().catch((error) => console.error('[Rate Limit Cleanup] Scheduled cleanup failed:', error));
 	}, 15 * 60 * 1000);
 	cleanupTimer.unref();

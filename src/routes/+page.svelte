@@ -3,6 +3,8 @@
 	import FolderOpenIcon from 'phosphor-svelte/lib/FolderOpenIcon';
 	import SealCheckIcon from 'phosphor-svelte/lib/SealCheckIcon';
 	import TrophyIcon from 'phosphor-svelte/lib/TrophyIcon';
+	import ProjectBadges from '$lib/components/ProjectBadges.svelte';
+	import { page } from '$app/state';
 	let { data } = $props();
 
 	function formatNumber(num: number) {
@@ -16,28 +18,34 @@
 		name="description"
 		content="Publish, explore, and compare verifiable browser extension metrics with an open, self-hosted analytics platform."
 	/>
+	<link rel="canonical" href={page.url.origin + '/'} />
+	<meta property="og:title" content="KoalaData · Shareable Chrome Web Store analytics" />
+	<meta property="og:description" content="Turn aggregate Chrome Web Store CSV exports into a transparent, shareable analytics dashboard—without extension telemetry." />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content={page.url.origin + '/'} />
+	<meta property="og:image" content={page.url.origin + '/og-fallback.png'} />
+	<meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <div class="container homepage-container">
 	<section class="hero card" aria-labelledby="hero-title">
 		<div class="hero-copy">
-			<p class="eyebrow">Open analytics for browser extensions</p>
-			<h1 id="hero-title">See what is driving your extension's growth.</h1>
+			<p class="eyebrow">Chrome Web Store CSV analytics</p>
+			<h1 id="hero-title">Turn store exports into a dashboard worth sharing.</h1>
 			<p class="hero-subtitle">
-				Publish clear Chrome Web Store metrics. Compare installs, users, regions, languages,
-				versions, and ratings without an opaque dashboard.
+				Upload aggregate Chrome Web Store reports, review every mapping, and publish clear
+				install, user, region, language, version and rating trends—without adding tracking to your extension.
 			</p>
 			<div class="hero-actions">
-				<a href="/discover" class="btn btn-primary btn-lg">
-					Explore public metrics <ArrowRightIcon class="app-icon" aria-hidden="true" />
+				<a href="/register" class="btn btn-primary btn-lg">
+					Publish my extension metrics <ArrowRightIcon class="app-icon" aria-hidden="true" />
 				</a>
-				<a href="/leaderboards" class="btn btn-secondary btn-lg">Compare growth</a>
-				<a href="/register" class="hero-register">Register your extension</a>
+				<a href="/discover" class="btn btn-secondary btn-lg">Explore public dashboards</a>
 			</div>
 			<ul class="trust-list" aria-label="Platform benefits">
-				<li><SealCheckIcon class="app-icon" weight="fill" aria-hidden="true" /> Open source</li>
+				<li><SealCheckIcon class="app-icon" weight="fill" aria-hidden="true" /> <a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">Open source on GitHub</a></li>
 				<li><SealCheckIcon class="app-icon" weight="fill" aria-hidden="true" /> Self-hosted</li>
-				<li><SealCheckIcon class="app-icon" weight="fill" aria-hidden="true" /> Verifiable reports</li>
+				<li><SealCheckIcon class="app-icon" weight="fill" aria-hidden="true" /> No extension telemetry</li>
 			</ul>
 		</div>
 
@@ -88,6 +96,18 @@
 		</div>
 	</section>
 
+	<section class="card how-section" aria-labelledby="how-title">
+		<div class="section-heading">
+			<div><p class="card-kicker">From export to evidence</p><h2 id="how-title">Three steps. No tracking SDK.</h2></div>
+			<p>KoalaData processes aggregate reports already provided to publishers by the Chrome Web Store.</p>
+		</div>
+		<ol class="how-grid">
+			<li><span>1</span><div><h3>Export reports</h3><p>Download installs, uninstalls, users, impressions and breakdown CSVs from the CWS statistics dashboard.</p></div></li>
+			<li><span>2</span><div><h3>Review mappings</h3><p>Check report type, dates, aggregation, duplicates and overlaps before committing anything.</p></div></li>
+			<li><span>3</span><div><h3>Share the dashboard</h3><p>Publish a reviewed profile with transparent metrics and normal crawlable links to your store, website, and source repository.</p></div></li>
+		</ol>
+	</section>
+
 	<div class="grid grid-2 info-grid">
 		<div class="card info-card">
 			<div class="card-header flex align-center gap-1">
@@ -115,7 +135,7 @@
 				</div>
 			</div>
 			<p class="text-muted">
-				See weekly active user growth over the last 30 days and compare momentum across the
+				See weekly installed-user growth over the last 30 days and compare momentum across the
 				extension ecosystem with consistent ranking rules.
 			</p>
 			<a href="/leaderboards" class="btn btn-secondary btn-sm mt-1">
@@ -141,6 +161,8 @@
 							<div>
 								<strong><a href="/p/{project.slug}">{project.name}</a></strong>
 								<span class="badge badge-sm">{project.category}</span>
+								<ProjectBadges pricingModel={project.pricingModel} isOpenSource={project.isOpenSource} />
+								{#if project.rating !== null}<span class="metric-caption" aria-label={`${project.rating.toFixed(1)} out of 5 stars`}>★ {project.rating.toFixed(1)}</span>{/if}
 							</div>
 						</div>
 						<div class="text-right">
@@ -152,6 +174,18 @@
 			</div>
 		</section>
 	{/if}
+
+	<section class="card faq-section" aria-labelledby="faq-title">
+		<p class="card-kicker">Before you publish</p>
+		<h2 id="faq-title">Common questions</h2>
+		<div class="faq-grid">
+			<details><summary>Does KoalaData track extension users?</summary><p>No. It imports aggregate publisher CSV reports and does not require code or an SDK inside your extension.</p></details>
+			<details><summary>Which languages are supported?</summary><p>Automatic detection covers English, German, French, Spanish, Portuguese, Italian, Dutch, Polish and Turkish. Unknown formats can be mapped manually.</p></details>
+			<details><summary>What does “verified” mean?</summary><p>An administrator reviewed the listing and supporting evidence. It is not an endorsement and never exposes the uploaded raw CSV publicly.</p></details>
+			<details><summary>Can I prepare a dashboard privately?</summary><p>Yes. Start unlisted or private, review the complete dashboard, and request a public directory listing only when ready.</p></details>
+			<details><summary>Are publisher links crawlable?</summary><p>Yes. Approved public profiles use ordinary links without <code>nofollow</code>. They can help people and search engines discover the official store, website, and source repository, but no ranking effect is guaranteed.</p></details>
+		</div>
+	</section>
 </div>
 
 <style>
@@ -217,13 +251,6 @@
 		gap: 0.75rem;
 	}
 
-	.hero-register {
-		padding: 0.65rem 0.25rem;
-		font-size: 0.9rem;
-		font-weight: 600;
-		text-underline-offset: 0.2em;
-	}
-
 	.trust-list {
 		display: flex;
 		flex-wrap: wrap;
@@ -242,6 +269,7 @@
 	}
 
 	.trust-list :global(svg) { color: var(--primary); }
+	.trust-list a { color: inherit; font-weight: 650; text-decoration: underline; text-underline-offset: 0.18em; }
 
 	.hero-visual {
 		position: relative;
@@ -342,6 +370,18 @@
 	}
 
 	.info-grid { gap: 1.5rem; }
+	.how-section, .faq-section { padding: 1.75rem; }
+	.how-section .section-heading > p { max-width: 35rem; margin: 0; color: var(--text-muted); font-size: 0.88rem; line-height: 1.55; }
+	.how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.25rem 0 0; padding: 0; list-style: none; }
+	.how-grid li { display: flex; gap: 0.8rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-inset); }
+	.how-grid li > span { display: grid; place-items: center; flex: 0 0 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--primary); color: var(--text-inverse); font-weight: 800; }
+	.how-grid h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+	.how-grid p { margin: 0; color: var(--text-muted); font-size: 0.8rem; line-height: 1.5; }
+	.faq-section > h2 { margin: 0 0 1rem; }
+	.faq-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+	.faq-grid details { padding: 0.9rem 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-inset); }
+	.faq-grid summary { cursor: pointer; font-weight: 700; }
+	.faq-grid p { margin: 0.65rem 0 0; color: var(--text-muted); font-size: 0.82rem; line-height: 1.55; }
 
 	.info-card {
 		padding: 1.75rem;
@@ -431,7 +471,6 @@
 		.hero-subtitle { margin: 1rem auto 1.35rem; font-size: 1rem; line-height: 1.55; }
 		.hero-actions { justify-content: center; }
 		.hero-actions .btn { width: 100%; }
-		.hero-register { width: 100%; }
 		.trust-list { justify-content: center; margin-top: 1.25rem; }
 		.hero-visual { min-height: 12rem; margin-top: 0.25rem; }
 		.hero-logo { width: 8rem; }
@@ -440,6 +479,8 @@
 		.visual-card-users { top: 0.75rem; right: 0; transform: scale(0.85); transform-origin: top right; }
 		.visual-card-dimensions { right: 0; bottom: 0.35rem; transform: scale(0.82); transform-origin: bottom right; }
 		.info-grid { gap: 1rem; }
+		.how-grid, .faq-grid { grid-template-columns: 1fr; }
+		.how-section .section-heading { align-items: flex-start; }
 		.info-card, .peek-section { padding: 1.25rem; }
 		.section-heading { align-items: flex-start; flex-direction: column; }
 		.peek-item { align-items: flex-start; gap: 0.75rem; }

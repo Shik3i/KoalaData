@@ -1,161 +1,167 @@
-# 🐨 KoalaData
+# KoalaData
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Svelte](https://img.shields.io/badge/Svelte-5.0-orange.svg)](https://svelte.dev)
-[![Docker](https://img.shields.io/badge/Docker-Compatible-blue.svg)](https://www.docker.com)
+[![CI](https://github.com/Shik3i/KoalaData/actions/workflows/ci.yml/badge.svg)](https://github.com/Shik3i/KoalaData/actions/workflows/ci.yml)
+[![Container](https://img.shields.io/badge/GHCR-koaladata-2496ED?logo=docker&logoColor=white)](https://github.com/Shik3i/KoalaData/pkgs/container/koaladata)
+[![Security policy](https://img.shields.io/badge/security-policy-2d6645)](SECURITY.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**KoalaData** is a modern, self-hosted open-analytics platform built specifically for browser-extension developers. It enables developers to track active users, installations, uninstalls, store page views, and impressions with beautiful, responsive dashboards and dynamic growth leaderboards.
+**Shareable Chrome Web Store analytics without adding tracking code to an extension.**
 
-KoalaData aims to replace complex, bloated analytics tools with a lightweight, secure, and privacy-respecting self-hosted solution.
+[Live site](https://data.koalastuff.net) · [Explore dashboards](https://data.koalastuff.net/discover) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
----
+KoalaData imports aggregate CSV reports already available to Chrome Web Store publishers. Every file is previewed before it is committed, then presented as a responsive public, unlisted, or private dashboard.
 
-## 🌟 Key Features
+![KoalaData social preview](static/og-fallback.png)
 
-* **Chrome Web Store Auto-Import:** Simply download your stats CSVs from the CWS Developer Console and upload them. KoalaData automatically parses, aligns, and merges German or English formats without manual mapping.
-* **Dynamic & Responsive Charts:** Native ECharts integration with dynamic theme switching. Charts adjust layout dynamically (stacked vertical grid) and automatically adapt colors for high-contrast light and dark mode.
-* **Privacy by Design:** Strict Content Security Policy (`img-src 'self' data:`). Features like website favicons are downloaded and cached serverseitig in Node to prevent exposing client IPs or violating CSP.
-* **Growth Leaderboard:** A public leaderboard ranking all approved extensions based on weekly active user growth over the last 30 days. Powered by high-performance SQLite CTE queries.
-* **Role-Based Access Control:** Secure account system supporting `admin` and `publisher` roles, registration approval queue, and forced initial password change flow.
-* **Robust Backup Pipeline:** Built-in automated online database backups without requiring external CLI clients. Older snapshots are automatically pruned.
-* **Production-Ready Docker Setup:** Fully optimized multi-stage `Dockerfile` and `docker-compose.yml` configurations for deployment in seconds.
+## Why KoalaData?
 
----
+- No extension SDK, injected script, fingerprinting, or user-level telemetry.
+- Reviewable imports instead of silent metric guesses.
+- Clear separation between flow metrics such as installs and snapshot metrics such as weekly users.
+- Localized Chrome Web Store report recognition with a manual fallback.
+- Public listing and leaderboard moderation.
+- Self-hosted Node.js and SQLite deployment with Docker support.
 
-## 🚀 Quick Start (Docker Compose)
+## Supported imports
 
-The easiest way to run KoalaData in production is via Docker Compose:
+KoalaData recognizes common report filenames and headers in English, German, French, Spanish, Portuguese, Italian, Dutch, Polish, and Turkish. Additional Japanese, Korean, and Chinese header aliases are supported where the structure is unambiguous.
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/Shik3i/KoalaData.git
-   cd KoalaData
-   ```
+The parser supports:
 
-2. **Launch the stack:**
-   ```bash
-   docker compose up -d --build
-   ```
+- UTF-8, UTF-8 BOM, UTF-16 LE, and UTF-16 BE;
+- comma, semicolon, and tab delimiters outside quoted cells;
+- localized date, decimal, and thousands-separator formats;
+- installs, uninstalls, weekly users, impressions, store views, ratings, versions, regions, languages, operating systems, and enabled-state reports;
+- duplicate and overlap diagnostics before confirmation.
 
-3. **Access the application:**
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
+See [CSV import pipeline](docs/csv-importers.md) for the mapping rules.
 
-4. **Initial Login:**
-   On startup, KoalaData seeds a default administrator account:
-   * **Username:** `admin`
-   * **Password:** `admin_password`
-   
-   > [!IMPORTANT]
-   > Log in immediately and navigate to **Profile Settings -> Security** to change your password. A security warning banner will be displayed until the default password is changed.
+## Privacy and trust model
 
----
+- Registration requires a username and password, not an email address.
+- Passwords are stored only as Argon2id hashes.
+- Login uses one essential HTTP-only session cookie; only its SHA-256 token hash is stored server-side.
+- Persisted network addresses are reduced before storage.
+- Raw CSV files remain private to authorized project members.
+- No third-party analytics, advertising scripts, social embeds, or favicon lookups.
+- Public projects and leaderboard participation require separate moderation decisions.
 
-## ⚙️ Environment Variables Reference
+See the live [privacy policy](https://data.koalastuff.net/privacy), [security overview](https://data.koalastuff.net/security), and repository [security policy](SECURITY.md).
 
-KoalaData can be configured using environment variables in your `docker-compose.yml` or `.env` file:
+## Quick start with Docker Compose
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `ORIGIN` | The public URL of your instance (required for SvelteKit CSRF checks). | `http://localhost:3000` |
-| `PORT` | The port the Node server listens on. | `3000` |
-| `DATA_DIRECTORY` | Path where SQLite DB, uploaded logos, and CSV logs are stored. | `./data` |
-| `DATABASE_URL` | Drizzle SQLite connection string. | `file:./data/data.db` |
-| `ADMIN_DEFAULT_USER` | Username of the automatically seeded first admin. | `admin` |
-| `ADMIN_DEFAULT_PASS` | Password of the automatically seeded first admin. | `admin_password` |
-| `NODE_ENV` | Run environment (development / production). | `production` |
+Requirements: Docker Engine with Compose v2.
 
----
+```bash
+git clone https://github.com/Shik3i/KoalaData.git
+cd KoalaData
+cp .env.example .env
+```
 
-## 🔒 Production HTTPS Deployment (Caddy)
+On PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
 
-To deploy KoalaData behind a Caddy reverse proxy with automated SSL certificate provisioning:
+Set a unique `KOALADATA_ADMIN_PASSWORD` with at least 12 characters in `.env`. Production startup rejects missing passwords and documented placeholders.
 
-1. Ensure the container maps port `3000` on localhost.
-2. Add the following block to your host's `/etc/caddy/Caddyfile`:
-   ```caddyfile
-   koaladata.yourdomain.com {
-       reverse_proxy localhost:3000
-   }
-   ```
-3. Set the `ORIGIN` environment variable in your compose file to match:
-   ```yaml
-   environment:
-     - ORIGIN=https://koaladata.yourdomain.com
-   ```
-4. Reload Caddy to apply changes:
-   ```bash
-   caddy reload --config /etc/caddy/Caddyfile
-   ```
+```bash
+docker compose up -d --build
+docker compose ps
+```
 
----
+Open [http://localhost:3000](http://localhost:3000). The seeded administrator must change the initial password after first login.
 
-## 💾 Backups and Restore
+### Published container
 
-### Create a Database Backup
-Trigger a database snapshot inside the active container:
+Versioned images and `latest` are published to GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/shik3i/koaladata:latest
+```
+
+Use an immutable version tag for production deployments.
+
+## Configuration
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `ORIGIN` | Public application origin used by SvelteKit security checks | `http://localhost:3000` |
+| `PORT` | Node.js listen port | `3000` |
+| `DATA_DIRECTORY` | Private uploads and project assets | `/data` in Compose |
+| `DATABASE_PATH` | SQLite database file | `/data/koaladata.db` in `.env.example` |
+| `KOALADATA_ADMIN_USERNAME` | Initial administrator username | `admin` |
+| `KOALADATA_ADMIN_PASSWORD` | Required initial production password | none |
+| `SESSION_MAX_AGE` | Session lifetime in seconds | `2592000` |
+
+Back up the database, uploaded source files, and project assets together.
+
+## HTTPS deployment
+
+Run KoalaData behind a TLS-terminating reverse proxy and set `ORIGIN` to the exact public HTTPS origin.
+
+```caddyfile
+data.example.com {
+    reverse_proxy localhost:3000
+}
+```
+
+```env
+ORIGIN=https://data.example.com
+```
+
+## Backups
+
+Create a consistent SQLite backup from the running container:
+
 ```bash
 docker compose exec app node scripts/backup.cjs
 ```
-This writes a copy (`backup-[timestamp].db`) to the host `./backups/` directory and removes snapshots older than 7 days.
 
-### Restore a Backup
-1. Stop the container: `docker compose down`
-2. Replace `/data/data.db` with your selected backup file.
-3. Restart the container: `docker compose up -d`
+Backups are written to the configured backup volume and snapshots older than seven days are pruned. To restore, stop the application, replace the configured database file with the selected backup, then restart the service.
 
----
+## Local development
 
-## 🛠️ Local Development Setup
+Requirements: Node.js 22 and npm.
 
-To run and modify KoalaData locally on your system:
-
-### 1. Install Dependencies
 ```bash
-npm install
-```
-
-### 2. Database Migrations
-Initialize your local development database and push the schema:
-```bash
+npm ci
 npx drizzle-kit push
-```
-
-### 3. Run Development Server
-```bash
 npm run dev
 ```
-Open [http://localhost:5173](http://localhost:5173).
 
-### 4. Running Checks and Tests
-We enforce a strict pre-release validation flow. Before committing any code, run:
+The development server is available at [http://localhost:5173](http://localhost:5173).
+
+### Verification
+
 ```bash
-# Svelte and TypeScript static typecheck
 npm run check
-
-# Dependency security audit
-npm audit --audit-level=low
-
-# Vitest Unit Tests
 npm run test:unit -- --run
-
-# Production build
+npm run test:e2e
 npm run build
-
-# Playwright E2E Integration Tests
-npx playwright test
-
-# Docker release image validation
-docker build --tag koaladata:pre-release .
-docker image inspect koaladata:pre-release
-```
-Or execute the automated validation script:
-```bash
-./scripts/pre-release.sh
+npm audit --audit-level=low
+docker build --tag koaladata:local .
 ```
 
----
+The CI workflow additionally checks formatting, accessibility, responsive layouts, Lighthouse budgets, and the Docker build.
 
-## 📄 License
+## Project structure
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-🐨 Hand-crafted with nature-inspired aesthetics.
+```text
+src/routes/             SvelteKit pages and server actions
+src/lib/server/         authentication, database, imports, permissions
+src/lib/components/     dashboard and visualization components
+migrations/             versioned SQLite migrations
+docs/                   architecture, import, changelog, security notes
+.github/workflows/      CI and GHCR publishing
+```
+
+See [architecture](docs/architecture.md) for the data model and request flow.
+
+## Contributing and support
+
+- Bugs and feature ideas: use the repository issue templates.
+- Code changes: read [CONTRIBUTING.md](CONTRIBUTING.md).
+- Security vulnerabilities: do **not** open a public issue; follow [SECURITY.md](SECURITY.md).
+- Usage and operator contact: [KoalaData imprint](https://data.koalastuff.net/imprint).
+
+## License
+
+KoalaData is available under the [MIT License](LICENSE).

@@ -1,13 +1,20 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import InfoTip from '$lib/components/InfoTip.svelte';
+	import ProjectBadges from '$lib/components/ProjectBadges.svelte';
 	let { data } = $props();
 
 	function formatNumber(num: number) {
 		return num.toLocaleString();
 	}
 
+	function formatDataDate(date: string) {
+		return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+			.format(new Date(`${date}T00:00:00Z`));
+	}
+
 	// Interactive sorting state
-	let sortBy = $state<'growth' | 'growthPercent' | 'activeUsers' | 'installs'>('growth');
+	let sortBy = $state<'growth' | 'growthPercent' | 'activeUsers' | 'installs' | 'rating'>('growth');
 
 	// Reactive derived sorted leaderboard list
 	let sortedLeaderboard = $derived(
@@ -16,6 +23,7 @@
 			if (sortBy === 'growthPercent') return b.growthPercent - a.growthPercent;
 			if (sortBy === 'activeUsers') return b.activeUsers - a.activeUsers;
 			if (sortBy === 'installs') return b.installs - a.installs;
+			if (sortBy === 'rating') return (b.rating ?? -1) - (a.rating ?? -1);
 			return 0;
 		})
 	);
@@ -29,7 +37,7 @@
 	<h1 class="page-title"><Icon name="trophy" /> Weekly Growth Leaderboard</h1>
 	
 	<div class="flex justify-between align-center flex-wrap gap-1 filter-bar">
-		<p class="text-muted text-sm">Ranked based on weekly active user growth over the last 30 days. Only approved, public extensions are ranked.</p>
+		<p class="text-muted text-sm">Ranked by the change in Chrome Web Store weekly installed-user snapshots over 30 days. Only approved, public extensions are ranked.</p>
 		
 		<div class="sort-selector flex gap-0.5 align-center flex-wrap">
 			<span class="text-xs text-muted font-semibold uppercase tracking-wider">Sort by:</span>
@@ -38,6 +46,7 @@
 				<button class="btn btn-secondary btn-sm {sortBy === 'growthPercent' ? 'active' : ''}" onclick={() => sortBy = 'growthPercent'}>% Growth</button>
 				<button class="btn btn-secondary btn-sm {sortBy === 'activeUsers' ? 'active' : ''}" onclick={() => sortBy = 'activeUsers'}>Total Users</button>
 				<button class="btn btn-secondary btn-sm {sortBy === 'installs' ? 'active' : ''}" onclick={() => sortBy = 'installs'}>Daily Installs</button>
+				<button class="btn btn-secondary btn-sm {sortBy === 'rating' ? 'active' : ''}" onclick={() => sortBy = 'rating'}>Rating</button>
 			</div>
 		</div>
 	</div>
@@ -56,10 +65,11 @@
 						<tr>
 							<th>Rank</th>
 							<th>Extension</th>
-							<th>Weekly Active Users</th>
+							<th>Weekly Users <InfoTip id="weekly-users-help" text="Chrome calls this the Users report. It represents installed-user snapshots, not activity telemetry collected inside an extension." /></th>
 							<th>Daily Installs</th>
+							<th>Rating</th>
 							<th>30-Day Growth</th>
-							<th>Growth %</th>
+							<th>Growth % <InfoTip id="growth-percent-help" text="Percentage growth is shown only when the starting snapshot contains at least 25 users; smaller baselines display n/a to avoid misleading spikes." /></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -82,16 +92,21 @@
 													<span class="badge-trending" title="Growing fast! Over 15% growth in the last 30 days."><Icon name="sparkle" /> Trending</span>
 												{/if}
 											</div>
-											<div class="text-muted" style="font-size: 0.75rem;">{project.category}</div>
+											<div class="project-meta">
+											<span class="text-muted">{project.category}</span>
+											<ProjectBadges pricingModel={project.pricingModel} isOpenSource={project.isOpenSource} />
+												<span class="freshness-pill" title={`Neuester importierter Messpunkt: ${project.lastDataDate}`}>Stand vom {formatDataDate(project.lastDataDate)}</span>
+											</div>
 										</div>
 									</div>
 								</td>
 								<td>
 									<strong>{formatNumber(project.activeUsers)}</strong>
 								</td>
-								<td>
-									<strong>{formatNumber(project.installs)}</strong>
-								</td>
+							<td>
+								<strong>{formatNumber(project.installs)}</strong>
+							</td>
+							<td><strong aria-label={project.rating === null ? 'No rating data' : `${project.rating.toFixed(1)} out of 5 stars`}>{project.rating === null ? '—' : `★ ${project.rating.toFixed(1)}`}</strong></td>
 								<td>
 									<span class="growth-text {project.growth >= 0 ? 'growth-up' : 'growth-down'}">
 										{project.growth >= 0 ? '+' : ''}{formatNumber(project.growth)}
@@ -99,7 +114,7 @@
 								</td>
 								<td>
 									<span class="growth-badge {project.growthPercent >= 0 ? 'growth-up-bg' : 'growth-down-bg'}">
-										{project.growthPercent >= 0 ? '+' : ''}{project.growthPercent.toFixed(1)}%
+										{project.growthPercent === 0 && project.activeUsers - project.growth < 25 ? 'n/a' : `${project.growthPercent >= 0 ? '+' : ''}${project.growthPercent.toFixed(1)}%`}
 									</span>
 								</td>
 							</tr>
@@ -216,6 +231,9 @@
 		animation: pulse-border 2s infinite ease-in-out;
 	}
 
+	.project-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.2rem; font-size: 0.75rem; }
+	.freshness-pill { display: inline-flex; align-items: center; border: 1px solid var(--border-color); border-radius: 999px; padding: 0.12rem 0.45rem; background: var(--bg-inset); color: var(--text-muted); font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
+
 	@keyframes pulse-border {
 		0%, 100% { border-color: #fbe3c7; }
 		50% { border-color: #b37424; }
@@ -243,5 +261,13 @@
 		font-size: 2.5rem;
 		margin-bottom: 0.5rem;
 		display: block;
+	}
+
+	@media (max-width: 640px) {
+		.sort-selector { width: 100%; min-width: 0; }
+		.btn-group { display: flex; flex-wrap: wrap; width: 100%; overflow: visible; }
+		.btn-group .btn { flex: 1 1 45%; border-bottom: 1px solid var(--border-color); }
+		.btn-group .btn:last-child { border-right: 1px solid var(--border-color); }
+		.leaderboard-card { padding: 1rem; }
 	}
 </style>

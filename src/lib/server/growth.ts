@@ -1,5 +1,6 @@
 import db from './db';
 import { sql } from 'drizzle-orm';
+import { getPublicProjectStats } from './public-project-stats';
 
 export interface ProjectLeaderboardItem {
 	projectId: string;
@@ -9,10 +10,15 @@ export interface ProjectLeaderboardItem {
 	shortDescription: string;
 	logoPath: string | null;
 	websiteUrl: string | null;
+	pricingModel: string;
+	isOpenSource: number;
+	rating: number | null;
+	ratingCount: number;
 	activeUsers: number;
 	installs: number;
 	growth: number;
 	growthPercent: number;
+	lastDataDate: string;
 }
 
 // Stale data cutoff tolerance: 14 days
@@ -36,6 +42,8 @@ export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 				p.short_description AS project_short_description,
 				p.logo_path AS project_logo_path,
 				p.website_url AS project_website_url,
+				p.pricing_model AS project_pricing_model,
+				p.is_open_source AS project_is_open_source,
 				md.metric_type,
 				o.date,
 				o.value,
@@ -65,6 +73,8 @@ export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 			project_short_description,
 			project_logo_path,
 			project_website_url,
+			project_pricing_model,
+			project_is_open_source,
 			metric_type,
 			date,
 			value
@@ -81,6 +91,8 @@ export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 		project_short_description: string;
 		project_logo_path: string | null;
 		project_website_url: string | null;
+		project_pricing_model: string;
+		project_is_open_source: number;
 		metric_type: 'active_users' | 'installs';
 		date: string;
 		value: number;
@@ -94,6 +106,8 @@ export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 		shortDescription: string;
 		logoPath: string | null;
 		websiteUrl: string | null;
+		pricingModel: string;
+		isOpenSource: number;
 		activeUsersObs: Array<{ date: string; value: number }>;
 		installsObs: Array<{ date: string; value: number }>;
 	}>();
@@ -107,6 +121,8 @@ export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 				shortDescription: row.project_short_description,
 				logoPath: row.project_logo_path,
 				websiteUrl: row.project_website_url,
+				pricingModel: row.project_pricing_model,
+				isOpenSource: row.project_is_open_source,
 				activeUsersObs: [],
 				installsObs: []
 			});
@@ -120,6 +136,7 @@ export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 	}
 
 	const items: ProjectLeaderboardItem[] = [];
+	const projectStats = await getPublicProjectStats([...projectGroups.keys()]);
 	const nowTime = Date.now();
 
 	for (const [projectId, group] of projectGroups.entries()) {
@@ -176,6 +193,11 @@ export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 		}
 
 		if (hasValidData) {
+			const stats = projectStats.get(projectId)!;
+			const lastDataDate = [...activeObs, ...instObs]
+				.map((observation) => observation.date)
+				.sort()
+				.at(-1)!;
 			items.push({
 				projectId,
 				name: group.name,
@@ -184,10 +206,15 @@ export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 				shortDescription: group.shortDescription,
 				logoPath: group.logoPath,
 				websiteUrl: group.websiteUrl,
+				pricingModel: group.pricingModel,
+				isOpenSource: group.isOpenSource,
+				rating: stats.rating,
+				ratingCount: stats.ratingCount,
 				activeUsers,
 				installs,
 				growth,
-				growthPercent
+				growthPercent,
+				lastDataDate
 			});
 		}
 	}

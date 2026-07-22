@@ -2,7 +2,8 @@ import { argon2id } from 'hash-wasm';
 import crypto from 'crypto';
 import db from './db';
 import { sessions, systemSettings, users } from './db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, lte } from 'drizzle-orm';
+import { minimizeIpAddress, minimizeUserAgent } from './privacy';
 
 
 // Hashing configuration (OWASP recommended defaults for lightweight setups)
@@ -112,8 +113,8 @@ export async function createSession(
 		expiresAt,
 		createdAt: now,
 		lastUsedAt: now,
-		ipAddress: ipAddress || null,
-		userAgent: userAgent || null
+		ipAddress: minimizeIpAddress(ipAddress),
+		userAgent: minimizeUserAgent(userAgent)
 	});
 
 	return {
@@ -178,4 +179,8 @@ export async function invalidateSession(tokenHash: string) {
  */
 export async function invalidateUserSessions(userId: string) {
 	await db.delete(sessions).where(eq(sessions.userId, userId));
+}
+
+export async function cleanupExpiredSessions() {
+	await db.delete(sessions).where(lte(sessions.expiresAt, Math.floor(Date.now() / 1000)));
 }

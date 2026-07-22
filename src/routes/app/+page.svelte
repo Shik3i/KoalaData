@@ -35,6 +35,41 @@
 		</div>
 	</div>
 
+	{#if !data.onboarding.hasPublicListing}
+		<section class="card onboarding-card" aria-labelledby="onboarding-title">
+			<div class="onboarding-heading">
+				<div>
+					<p class="onboarding-kicker">First dashboard</p>
+					<h2 id="onboarding-title">Publish your first extension report</h2>
+					<p>Follow the safe path from Chrome Web Store export to a reviewed public dashboard.</p>
+				</div>
+				<span class="onboarding-progress">{[data.onboarding.hasProject, data.onboarding.hasStoreConnection, data.onboarding.hasCompletedImport, data.onboarding.hasPublicListing].filter(Boolean).length}/4 complete</span>
+			</div>
+			<ol class="onboarding-steps">
+				<li class:complete={data.onboarding.hasProject}>
+					<span>{data.onboarding.hasProject ? '✓' : '1'}</span>
+					<div><strong>Create the extension</strong><small>Add its name, store URL and visibility.</small></div>
+					{#if !data.onboarding.hasProject}<a class="btn btn-primary btn-sm" href="/app/projects/new">Start</a>{/if}
+				</li>
+				<li class:complete={data.onboarding.hasStoreConnection}>
+					<span>{data.onboarding.hasStoreConnection ? '✓' : '2'}</span>
+					<div><strong>Connect the store listing</strong><small>A valid CWS URL creates the standard data source automatically.</small></div>
+					{#if data.onboarding.hasProject && !data.onboarding.hasStoreConnection}<a class="btn btn-secondary btn-sm" href="/app/projects/{data.onboarding.projectId}/settings">Connect</a>{/if}
+				</li>
+				<li class:complete={data.onboarding.hasCompletedImport}>
+					<span>{data.onboarding.hasCompletedImport ? '✓' : '3'}</span>
+					<div><strong>Review and import CSV reports</strong><small>Mappings are previewed before metrics are committed.</small></div>
+					{#if data.onboarding.hasSource && !data.onboarding.hasCompletedImport}<a class="btn btn-secondary btn-sm" href="/app/projects/{data.onboarding.projectId}/imports">Upload</a>{/if}
+				</li>
+				<li class:complete={data.onboarding.hasPublicListing}>
+					<span>{data.onboarding.hasPublicListing ? '✓' : '4'}</span>
+					<div><strong>Request public listing</strong><small>Preview the dashboard, then submit it for directory review.</small></div>
+					{#if data.onboarding.hasCompletedImport && !data.onboarding.hasPublicListing}<a class="btn btn-secondary btn-sm" href="/app/projects/{data.onboarding.projectId}/settings">Request review</a>{/if}
+				</li>
+			</ol>
+		</section>
+	{/if}
+
 	<!-- Limits & Usage Cards -->
 	<div class="grid grid-2 limits-grid">
 		<!-- Projects Limit -->
@@ -133,6 +168,22 @@
 		flex-direction: column;
 		gap: 2rem;
 	}
+	.onboarding-card { padding: 1.5rem; background: linear-gradient(145deg, var(--bg-surface), var(--primary-bg)); }
+	.onboarding-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+	.onboarding-heading h2 { margin: 0.1rem 0 0.35rem; font-size: 1.35rem; }
+	.onboarding-heading p { margin: 0; color: var(--text-muted); font-size: 0.88rem; }
+	.onboarding-kicker { color: var(--primary) !important; font-size: 0.7rem !important; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+	.onboarding-progress { flex: 0 0 auto; padding: 0.3rem 0.6rem; border-radius: 999px; background: var(--bg-surface); color: var(--primary); font-size: 0.75rem; font-weight: 700; }
+	.onboarding-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin: 1.25rem 0 0; padding: 0; list-style: none; }
+	.onboarding-steps li { display: grid; grid-template-columns: auto 1fr; align-content: start; gap: 0.65rem; min-width: 0; padding: 0.9rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: color-mix(in srgb, var(--bg-surface) 90%, transparent); }
+	.onboarding-steps li > span { display: grid; place-items: center; width: 1.55rem; height: 1.55rem; border-radius: 50%; background: var(--bg-inset); color: var(--text-muted); font-size: 0.75rem; font-weight: 800; }
+	.onboarding-steps li.complete > span { background: var(--success-bg); color: var(--success); }
+	.onboarding-steps strong, .onboarding-steps small { display: block; }
+	.onboarding-steps strong { font-size: 0.83rem; }
+	.onboarding-steps small { margin-top: 0.3rem; color: var(--text-muted); font-size: 0.72rem; line-height: 1.4; }
+	.onboarding-steps .btn { grid-column: 1 / -1; margin-top: 0.25rem; }
+	@media (max-width: 900px) { .onboarding-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+	@media (max-width: 560px) { .onboarding-heading { flex-direction: column; } .onboarding-steps { grid-template-columns: 1fr; } }
 
 	.dashboard-header {
 		border-bottom: 1px solid var(--border-color);

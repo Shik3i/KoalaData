@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
-import { projects, importBatches } from '$lib/server/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { projects, importBatches, dataSources } from '$lib/server/db/schema';
+import { eq, and, isNull, inArray } from 'drizzle-orm';
 import { getUserLimits } from '$lib/server/limits';
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -27,6 +27,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.orderBy(importBatches.createdAt)
 		.limit(5);
 
+	const projectIds = userProjects.map((project) => project.id);
+	const sources = projectIds.length > 0
+		? await db.select().from(dataSources).where(inArray(dataSources.projectId, projectIds))
+		: [];
+	const firstProject = userProjects[0] ?? null;
+	const hasCompletedImport = recentImports.some((batch) => batch.status === 'completed' && !batch.revertedAt);
+	const hasPublicListing = userProjects.some((project) => project.visibility === 'public' && project.moderationStatus === 'active');
+
 	// Fetch storage and limits metrics
 	const { limits, usage } = await getUserLimits(userId);
 
@@ -35,6 +43,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		projects: userProjects,
 		recentImports,
 		limits,
-		usage
+		usage,
+		onboarding: {
+			hasProject: Boolean(firstProject),
+			hasStoreConnection: userProjects.some((project) => Boolean(project.storeUrl)),
+			hasSource: sources.length > 0,
+			hasCompletedImport,
+			hasPublicListing,
+			projectId: firstProject?.id ?? null,
+			projectSlug: firstProject?.slug ?? null
+		}
 	};
 };

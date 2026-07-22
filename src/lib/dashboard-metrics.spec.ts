@@ -14,6 +14,10 @@ describe('dashboard metric semantics', () => {
 		expect(classifyChromeReportFilename('Wöchentliche Nutzer nach Region.csv')).toMatchObject({ id: 'weekly-users-region', semantics: 'snapshot' });
 		expect(classifyChromeReportFilename('Enabled vs Disabled.csv')).toMatchObject({ id: 'enabled-state', semantics: 'snapshot' });
 		expect(classifyChromeReportFilename('Bewertungen im Zeitverlauf.csv')).toMatchObject({ id: 'ratings', semantics: 'flow' });
+		expect(classifyChromeReportFilename('Installations par région.csv')).toMatchObject({ id: 'installs-region', semantics: 'flow' });
+		expect(classifyChromeReportFilename('Instalaciones por idioma.csv')).toMatchObject({ id: 'installs-language', semantics: 'flow' });
+		expect(classifyChromeReportFilename('Instalações por sistema operacional.csv')).toMatchObject({ id: 'installs-os', semantics: 'flow' });
+		expect(classifyChromeReportFilename('Użytkownicy tygodniowi według region.csv')).toMatchObject({ id: 'weekly-users-region', semantics: 'snapshot' });
 	});
 
 	it('groups legacy metric definitions without dropping a series', () => {

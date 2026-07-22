@@ -23,8 +23,6 @@
 				
 				<h2 style="margin-top: 2rem;">Dispute Resolution</h2>
 				<p>
-					The European Commission provides a platform for online dispute resolution (ODR): 
-					<a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer">https://ec.europa.eu/consumers/odr</a>.
 					I am not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board.
 				</p>
 
@@ -43,8 +41,6 @@
 
 				<h2 style="margin-top: 2rem;">Streitschlichtung</h2>
 				<p>
-					Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: 
-					<a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer">https://ec.europa.eu/consumers/odr</a>.<br />
 					Ich bin nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.
 				</p>
 

@@ -56,6 +56,8 @@ export const projects = sqliteTable('projects', {
 	repositoryUrl: text('repository_url'),
 	storeUrl: text('store_url'),
 	category: text('category', { enum: ['productivity', 'entertainment', 'developer-tools', 'accessibility', 'privacy', 'social', 'shopping', 'education', 'other'] }).notNull(),
+	pricingModel: text('pricing_model', { enum: ['unknown', 'free', 'freemium', 'paid'] }).notNull().default('unknown'),
+	isOpenSource: integer('is_open_source').notNull().default(0), // 0=false, 1=true
 	logoPath: text('logo_path'),
 	accentColor: text('accent_color'),
 	visibility: text('visibility', { enum: ['public', 'unlisted', 'private'] }).notNull(),

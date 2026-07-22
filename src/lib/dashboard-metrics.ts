@@ -46,64 +46,12 @@ export type BreakdownRow = {
 	date: string | null;
 };
 
+import { CHROME_REPORT_PATTERNS } from '$lib/chrome-report-catalog';
+
 export type BreakdownTimeline = {
 	dates: string[];
 	series: BreakdownSeries[];
 };
-
-const REPORT_PATTERNS: Array<{
-	patterns: string[];
-	report: ChromeReportClassification;
-}> = [
-	{
-		patterns: ['installationen nach region', 'installs by region', 'installs by country'],
-		report: { id: 'installs-region', title: 'Installs by Region', dimensionKey: 'region', semantics: 'flow', section: 'acquisition', unitLabel: 'installs' }
-	},
-	{
-		patterns: ['installationen nach sprache', 'installs by language'],
-		report: { id: 'installs-language', title: 'Installs by Language', dimensionKey: 'language', semantics: 'flow', section: 'acquisition', unitLabel: 'installs' }
-	},
-	{
-		patterns: ['installationen nach betriebssystem', 'installs by operating system', 'installs by os'],
-		report: { id: 'installs-os', title: 'Installs by Operating System', dimensionKey: 'operating_system', semantics: 'flow', section: 'acquisition', unitLabel: 'installs' }
-	},
-	{
-		patterns: ['deinstallationen nach region', 'uninstalls by region', 'uninstalls by country'],
-		report: { id: 'uninstalls-region', title: 'Uninstalls by Region', dimensionKey: 'region', semantics: 'flow', section: 'retention', unitLabel: 'uninstalls' }
-	},
-	{
-		patterns: ['deinstallationen nach sprache', 'uninstalls by language'],
-		report: { id: 'uninstalls-language', title: 'Uninstalls by Language', dimensionKey: 'language', semantics: 'flow', section: 'retention', unitLabel: 'uninstalls' }
-	},
-	{
-		patterns: ['deinstallationen nach betriebssystem', 'uninstalls by operating system', 'uninstalls by os'],
-		report: { id: 'uninstalls-os', title: 'Uninstalls by Operating System', dimensionKey: 'operating_system', semantics: 'flow', section: 'retention', unitLabel: 'uninstalls' }
-	},
-	{
-		patterns: ['wochentliche nutzer nach region', 'weekly users by region', 'weekly users by country'],
-		report: { id: 'weekly-users-region', title: 'Weekly Users by Region', dimensionKey: 'region', semantics: 'snapshot', section: 'audience', unitLabel: 'users' }
-	},
-	{
-		patterns: ['wochentliche nutzer nach sprache', 'weekly users by language'],
-		report: { id: 'weekly-users-language', title: 'Weekly Users by Language', dimensionKey: 'language', semantics: 'snapshot', section: 'audience', unitLabel: 'users' }
-	},
-	{
-		patterns: ['wochentliche nutzer nach betriebssystem', 'weekly users by operating system', 'weekly users by os'],
-		report: { id: 'weekly-users-os', title: 'Weekly Users by Operating System', dimensionKey: 'operating_system', semantics: 'snapshot', section: 'audience', unitLabel: 'users' }
-	},
-	{
-		patterns: ['tagliche nutzer nach erweiterungsversion', 'daily users by extension version', 'weekly users by item version', 'users by item version'],
-		report: { id: 'users-version', title: 'Users by Extension Version', dimensionKey: 'version', semantics: 'snapshot', section: 'audience', unitLabel: 'users' }
-	},
-	{
-		patterns: ['aktiviert im vergleich zu deaktiviert', 'enabled versus disabled', 'enabled vs disabled'],
-		report: { id: 'enabled-state', title: 'Enabled vs Disabled', dimensionKey: 'state', semantics: 'snapshot', section: 'retention', unitLabel: 'installations' }
-	},
-	{
-		patterns: ['bewertungen im zeitverlauf', 'ratings over time', 'ratings by star'],
-		report: { id: 'ratings', title: 'Rating Distribution', dimensionKey: 'rating', semantics: 'flow', section: 'quality', unitLabel: 'ratings' }
-	}
-];
 
 const DIMENSION_LABELS: Record<string, string> = {
 	aktiviert: 'Enabled', deaktiviert: 'Disabled', sonstiges: 'Other',
@@ -135,7 +83,7 @@ export function normalizeMetricLabel(value: string): string {
 		.replace(/[\u0300-\u036f]/g, '')
 		.toLowerCase()
 		.replace(/[–—]/g, '-')
-		.replace(/[^a-z0-9]+/g, ' ')
+		.replace(/[^\p{L}\p{N}]+/gu, ' ')
 		.trim();
 }
 
@@ -150,8 +98,10 @@ export function splitLegacyMetricName(name: string): { reportLabel: string; seri
 
 export function classifyChromeReportLabel(label: string): ChromeReportClassification | null {
 	const normalized = normalizeMetricLabel(label);
-	for (const candidate of REPORT_PATTERNS) {
-		if (candidate.patterns.some((pattern) => normalized.includes(pattern))) return candidate.report;
+	for (const candidate of CHROME_REPORT_PATTERNS) {
+		if (candidate.patterns.some((pattern) => normalized.includes(normalizeMetricLabel(pattern)))) {
+			return { ...candidate.report } as ChromeReportClassification;
+		}
 	}
 	return null;
 }

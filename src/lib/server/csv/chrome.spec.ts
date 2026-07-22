@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { detectChromeCsv } from './chrome';
 
 describe('Chrome Web Store CSV detection', () => {
+	it('maps localized French, Spanish, and Portuguese headers', () => {
+		for (const headers of [
+			['Date du rapport', 'Installations quotidiennes'],
+			['Fecha', 'Desinstalaciones diarias'],
+			['Data', 'Usuários semanais']
+		]) {
+			const result = detectChromeCsv(headers, [['2026-07-18', '12']]);
+			expect(result.confidence).toBe('high');
+			expect(result.mappings.date.column).toBe(headers[0]);
+		}
+	});
 	it('maps German standard metrics and date columns', () => {
 		const result = detectChromeCsv(
 			['Datum', 'Installationen', 'Deinstallationen', 'Seitenaufrufe', 'Impressionen'],

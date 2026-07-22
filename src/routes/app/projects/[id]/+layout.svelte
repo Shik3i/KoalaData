@@ -36,6 +36,14 @@
 		</div>
 	</div>
 
+	{#if project.moderationStatus === 'hidden'}
+		<div class="alert alert-info review-notice" role="status">
+			<Icon name="clock-counter-clockwise" />
+			<div><strong>Directory listing pending review.</strong> {project.moderationReason || 'The dashboard is visible only to project members and administrators.'}</div>
+			<a class="btn btn-secondary btn-sm" href="/p/{project.slug}">Preview dashboard</a>
+		</div>
+	{/if}
+
 	<!-- Project Tabs -->
 	<div class="project-tabs-card">
 		<nav class="project-tabs" aria-label="Project navigation">
@@ -94,6 +102,9 @@
 		border-bottom: 1px solid var(--border-color);
 		padding-bottom: 1rem;
 	}
+	.review-notice { display: flex; align-items: center; gap: 0.75rem; margin: -0.5rem 0 0; }
+	.review-notice div { flex: 1; }
+	@media (max-width: 640px) { .review-notice { align-items: flex-start; flex-wrap: wrap; } .review-notice .btn { width: 100%; } }
 
 	.breadcrumbs {
 		font-size: 0.85rem;

@@ -1,10 +1,12 @@
 import { db } from '$lib/server/db';
-import { projects, projectSlugRedirects } from '$lib/server/db/schema';
+import { dataSources, projects, projectSlugRedirects } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { isSlugAvailable, slugify } from '$lib/server/slugs';
-import { saveProjectLogo, removeProjectLogo, downloadWebsiteFavicon } from '$lib/server/assets';
+import { saveProjectLogo, removeProjectLogo } from '$lib/server/assets';
+import { normalizeChromeStoreUrl, normalizeOptionalHttpsUrl } from '$lib/server/urls';
 import { logAuditEvent } from '$lib/server/audit';
+import { isPricingModel } from '$lib/project-classification';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -28,10 +30,19 @@ export const actions: Actions = {
 		const name = data.get('name')?.toString().trim() || '';
 		const shortDescription = data.get('shortDescription')?.toString().trim() || '';
 		const fullDescription = data.get('fullDescription')?.toString().trim() || '';
-		const websiteUrl = data.get('websiteUrl')?.toString().trim() || null;
-		const repositoryUrl = data.get('repositoryUrl')?.toString().trim() || null;
-		const storeUrl = data.get('storeUrl')?.toString().trim() || null;
+		let websiteUrl: string | null;
+		let repositoryUrl: string | null;
+		let storeUrl: string | null;
+		try {
+			websiteUrl = normalizeOptionalHttpsUrl(data.get('websiteUrl')?.toString(), 'Website URL');
+			repositoryUrl = normalizeOptionalHttpsUrl(data.get('repositoryUrl')?.toString(), 'Repository URL');
+			storeUrl = normalizeChromeStoreUrl(data.get('storeUrl')?.toString());
+		} catch (error) {
+			return fail(400, { error: error instanceof Error ? error.message : 'Invalid external URL.' });
+		}
 		const category = data.get('category')?.toString() as any;
+		const pricingModel = data.get('pricingModel')?.toString() || '';
+		const isOpenSource = data.get('isOpenSource') === 'on' ? 1 : 0;
 
 		if (!name || name.length < 3 || name.length > 100) {
 			return fail(400, { error: 'Project name must be between 3 and 100 characters.' });
@@ -45,26 +56,27 @@ export const actions: Actions = {
 		if (!validCategories.includes(category)) {
 			return fail(400, { error: 'Invalid category.' });
 		}
+		if (!isPricingModel(pricingModel)) {
+			return fail(400, { error: 'Select whether the extension is free, freemium, or paid.' });
+		}
+		if (isOpenSource && !repositoryUrl) {
+			return fail(400, { error: 'Add a public repository URL before marking the extension as open source.' });
+		}
 
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
-		// Manage favicon download based on websiteUrl changes
+		// Retire legacy Google-fetched favicons when the website changes. New logos
+		// are uploaded explicitly so project metadata is never sent to a third party.
 		let logoPath = project.logoPath;
-		if (websiteUrl && !logoPath) {
-			logoPath = await downloadWebsiteFavicon(projectId, websiteUrl);
-		} else if (websiteUrl && logoPath && logoPath.includes('-favicon-') && project.websiteUrl !== websiteUrl) {
-			removeProjectLogo(logoPath);
-			logoPath = await downloadWebsiteFavicon(projectId, websiteUrl);
-		} else if (!websiteUrl && logoPath && logoPath.includes('-favicon-')) {
-			// If websiteUrl is cleared and the logo was a favicon, remove it
+		if (logoPath?.includes('-favicon-') && project.websiteUrl !== websiteUrl) {
 			removeProjectLogo(logoPath);
 			logoPath = null;
 		}
 
-		await db
-			.update(projects)
-			.set({
+		const now = Math.floor(Date.now() / 1000);
+		await db.transaction(async (tx) => {
+			tx.update(projects).set({
 				name,
 				shortDescription,
 				fullDescription,
@@ -72,10 +84,31 @@ export const actions: Actions = {
 				repositoryUrl,
 				storeUrl,
 				category,
+				pricingModel,
+				isOpenSource,
 				logoPath,
-				updatedAt: Math.floor(Date.now() / 1000)
-			})
-			.where(eq(projects.id, projectId));
+				updatedAt: now
+			}).where(eq(projects.id, projectId)).run();
+
+			if (storeUrl) {
+				const existingChromeSource = tx.select({ id: dataSources.id })
+					.from(dataSources)
+					.where(and(eq(dataSources.projectId, projectId), eq(dataSources.sourceType, 'chrome_web_store')))
+					.limit(1)
+					.get();
+
+				if (existingChromeSource) {
+					tx.update(dataSources).set({ externalUrl: storeUrl, updatedAt: now })
+						.where(eq(dataSources.id, existingChromeSource.id)).run();
+				} else {
+					tx.insert(dataSources).values({
+						id: crypto.randomUUID(), projectId, name: 'Chrome Web Store',
+						sourceType: 'chrome_web_store', externalUrl: storeUrl,
+						granularity: 'daily', createdAt: now, updatedAt: now
+					}).run();
+				}
+			}
+		});
 
 		await logAuditEvent(locals.user.id, locals.user.username, 'update_project_settings', 'project', projectId, {}, ip);
 
@@ -86,7 +119,7 @@ export const actions: Actions = {
 		const projectId = params.id;
 		if (!locals.user) return fail(401);
 
-		await assertProjectAccess(locals.user.id, projectId, 'owner');
+		const { project } = await assertProjectAccess(locals.user.id, projectId, 'owner');
 
 		const data = await request.formData();
 		const visibility = data.get('visibility')?.toString() as any;
@@ -99,17 +132,27 @@ export const actions: Actions = {
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
+		const needsReview = visibility === 'public'
+			&& project.visibility !== 'public'
+			&& project.moderationStatus !== 'banned';
+
 		await db
 			.update(projects)
 			.set({
 				visibility,
+				moderationStatus: needsReview ? 'hidden' : project.moderationStatus,
+				moderationReason: needsReview ? 'Awaiting public listing review.' : project.moderationReason,
 				updatedAt: Math.floor(Date.now() / 1000)
 			})
 			.where(eq(projects.id, projectId));
 
 		await logAuditEvent(locals.user.id, locals.user.username, 'update_project_visibility', 'project', projectId, { visibility }, ip);
 
-		return { success: `Project visibility updated to ${visibility}.` };
+		return {
+			success: needsReview
+				? 'Public visibility requested. The dashboard remains available to project members while its directory listing is reviewed.'
+				: `Project visibility updated to ${visibility}.`
+		};
 	},
 
 	updateSlug: async ({ request, params, locals, getClientAddress }) => {

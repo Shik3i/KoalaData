@@ -42,12 +42,15 @@ describe('CSV Parser', () => {
 		expect(result.headers[0]).toBe('date');
 	});
 
-	it('should reject UTF-16 BOM', () => {
-		const leBom = Buffer.from([0xff, 0xfe, 0x64, 0x00, 0x61, 0x00]);
-		expect(() => parseCsv(leBom)).toThrow('UTF-16 BOM encoding is not supported');
-		
-		const beBom = Buffer.from([0xfe, 0xff, 0x00, 0x64, 0x00, 0x61]);
-		expect(() => parseCsv(beBom)).toThrow('UTF-16 BOM encoding is not supported');
+	it('should parse UTF-16 files with a byte-order mark', () => {
+		const content = 'date;value\r\n2026-07-18;12';
+		const leBom = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(content, 'utf16le')]);
+		expect(parseCsv(leBom)).toMatchObject({ encoding: 'UTF-16 LE', delimiter: ';' });
+
+		const beBody = Buffer.from(content, 'utf16le');
+		beBody.swap16();
+		const beBom = Buffer.concat([Buffer.from([0xfe, 0xff]), beBody]);
+		expect(parseCsv(beBom)).toMatchObject({ encoding: 'UTF-16 BE', delimiter: ';' });
 	});
 
 	it('should reject binary file content containing null bytes', () => {

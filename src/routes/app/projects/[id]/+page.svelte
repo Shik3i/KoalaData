@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import ProjectBadges from '$lib/components/ProjectBadges.svelte';
 	let { data } = $props();
 
 	let project = $derived(data.project);
@@ -19,6 +20,10 @@
 			<div class="info-row">
 				<strong>Category:</strong>
 				<span><code>{project.category}</code></span>
+			</div>
+			<div class="info-row">
+				<strong>Business model:</strong>
+				<ProjectBadges pricingModel={project.pricingModel} isOpenSource={project.isOpenSource} />
 			</div>
 			
 			<div class="info-row">

@@ -30,7 +30,7 @@ export async function assertProjectAccess(
 
 	const project = projectList[0];
 
-	// Banned project safety: Banned projects are not accessible at all
+	// Banned project safety: Banned projects are not accessible at all.
 	if (project.moderationStatus === 'banned') {
 		throw error(404, 'Project not found.');
 	}
@@ -68,6 +68,12 @@ export async function assertProjectAccess(
 			// Throw 404 to avoid leaking project existence
 			throw error(404, 'Project not found.');
 		}
+	}
+
+	// Hidden projects remain previewable to their team and administrators but
+	// cannot be shared publicly before moderation is complete.
+	if (project.moderationStatus === 'hidden' && userRole === 'viewer') {
+		throw error(404, 'Project not found.');
 	}
 
 	// 4. Enforce permission level requested

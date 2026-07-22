@@ -1,6 +1,16 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import InfoTip from '$lib/components/InfoTip.svelte';
+	import ProjectBadges from '$lib/components/ProjectBadges.svelte';
 	let { data } = $props();
+
+	function formatUpdated(timestamp: number): string {
+		return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(timestamp * 1000));
+	}
+
+	function formatNumber(value: number | null): string {
+		return value === null ? '—' : value.toLocaleString();
+	}
 </script>
 
 <svelte:head>
@@ -37,6 +47,15 @@
 				<option value="education">Education</option>
 				<option value="other">Other</option>
 			</select>
+			<label class="sr-only" for="pricing-filter">Filter by pricing</label>
+			<select id="pricing-filter" name="pricing" value={data.pricingFilter}>
+				<option value="">All Pricing</option><option value="free">Free</option><option value="freemium">Freemium</option><option value="paid">Paid</option>
+			</select>
+			<label class="sr-only" for="sort-filter">Sort extensions</label>
+			<select id="sort-filter" name="sort" value={data.sort}>
+				<option value="name">Name</option><option value="rating">Highest Rating</option><option value="users">Most Weekly Users</option><option value="installs">Most Daily Installs</option><option value="updated">Recently Updated</option>
+			</select>
+			<label class="open-source-filter"><input type="checkbox" name="openSource" value="1" checked={data.openSourceFilter} /> Open Source</label>
 			<button type="submit" class="btn btn-primary">Search</button>
 			<a href="/discover" class="btn btn-secondary">Clear</a>
 		</form>
@@ -70,7 +89,17 @@
 								</h2>
 							</div>
 							<span class="badge badge-category">{project.category}</span>
+							<ProjectBadges pricingModel={project.pricingModel} isOpenSource={project.isOpenSource} />
+							{#if project.verificationStatus === 'verified'}
+								<span class="badge badge-verified">Verified <InfoTip id={`verified-${project.id}`} text="The listing and supporting evidence were reviewed by an administrator. This is not an endorsement." /></span>
+							{/if}
 							<p class="desc-text text-muted">{project.shortDescription}</p>
+							<dl class="quick-stats" aria-label={`${project.name} key metrics`}>
+								<div><dt>Rating</dt><dd aria-label={project.rating === null ? 'No rating data' : `${project.rating.toFixed(1)} out of 5 stars`}>{project.rating === null ? '—' : `★ ${project.rating.toFixed(1)}`}</dd></div>
+								<div><dt>Weekly users</dt><dd>{formatNumber(project.activeUsers)}</dd></div>
+								<div><dt>Daily installs</dt><dd>{formatNumber(project.installs)}</dd></div>
+							</dl>
+							<p class="updated text-muted">Listing updated {formatUpdated(project.updatedAt)}</p>
 						</div>
 						
 						<div class="card-footer flex justify-between align-center">
@@ -91,8 +120,10 @@
 		padding-block: 2rem;
 	}
 	.filter-card { margin-top: 1.5rem; }
-	.filter-form { display: grid; grid-template-columns: minmax(0, 1fr) 200px auto auto; align-items: end; gap: 0.5rem; }
+	.filter-form { display: grid; grid-template-columns: minmax(12rem, 1fr) repeat(3, minmax(9rem, auto)) auto auto auto; align-items: center; gap: 0.5rem; }
 	.filter-form input, .filter-form select { margin-bottom: 0; }
+	.open-source-filter { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; font-size: 0.85rem; font-weight: 650; }
+	.open-source-filter input { width: 1rem; height: 1rem; }
 	.explore-content { margin-top: 2rem; }
 
 	.page-title {
@@ -102,6 +133,11 @@
 	.explore-grid {
 		gap: 2rem;
 	}
+	.quick-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.85rem 0 0; }
+	.quick-stats div { min-width: 0; padding: 0.5rem; border-radius: var(--radius-sm); background: var(--bg-inset); }
+	.quick-stats dt { color: var(--text-muted); font-size: 0.68rem; line-height: 1.2; }
+	.quick-stats dd { margin: 0.15rem 0 0; font-size: 0.88rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+	@media (max-width: 1100px) { .filter-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 	.explore-card {
 		min-height: 200px;
@@ -147,6 +183,8 @@
 		background-color: var(--primary-bg);
 		color: var(--primary);
 	}
+	.badge-verified { margin-left: 0.35rem; background: var(--success-bg); color: var(--success); }
+	.updated { font-size: 0.75rem; margin: -0.8rem 0 1.25rem; }
 
 	.desc-text {
 		font-size: 0.85rem;

@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## v1.4.0 - 2026-07-22
+
+### Reddit launch readiness
+
+- Add first-run onboarding, clearer registration and project-submission guidance, contextual tooltips, public-dashboard sharing, reporting, FAQ, legal, security, sitemap, error, and moderation states.
+- Require a review preview for every CSV and support localized report names, headers, numbers, dates, delimiters, UTF-8, and UTF-16 exports.
+- Validate external URLs, require safe production administrator credentials, remove third-party favicon lookups, and default new submissions to a moderation queue.
+- Add automated Chrome Web Store sources from project metadata and document current deployment variables and import behavior.
+- Explain password, session-cookie, account-recovery, and network-data handling at login and in the privacy policy; minimize persisted IP addresses and user agents.
+- Add a public repository link, contributor and security guidance, community templates, dependency updates, and complete package metadata.
+- Add truthful Free, Freemium, Paid, and Open Source project badges plus pricing/open-source filters and sortable rating, weekly-user, and daily-install summaries on public listings.
+- Document crawlable publisher links and open the Chrome Web Store statistics dashboard with `?hl=en` for consistent export names while retaining localized CSV support.
 
 ## v1.3.4 - 2026-07-22
 

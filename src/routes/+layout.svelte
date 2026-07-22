@@ -181,6 +181,10 @@
 				<span>•</span>
 				<a href="/privacy">Privacy Policy</a>
 				<span>•</span>
+				<a href="/terms">Terms</a>
+				<span>•</span>
+				<a href="/security">Security</a>
+				<span>•</span>
 				<a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">GitHub</a>
 			</div>
 		</div>

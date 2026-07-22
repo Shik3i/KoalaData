@@ -2,6 +2,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
+	import { untrack } from 'svelte';
 
 	let { data, form } = $props();
 
@@ -9,7 +10,7 @@
 	let isOwnerOrAdmin = $derived(data.membershipRole === 'owner' || data.membershipRole === 'admin');
 	let isEditorOrAbove = $derived(isOwnerOrAdmin || data.membershipRole === 'editor');
 
-	let selectedSourceId = $state('');
+	let selectedSourceId = $state(untrack(() => data.sources.length === 1 ? data.sources[0].id : ''));
 	const selectedSource = $derived(data.sources.find((s) => s.id === selectedSourceId));
 
 	function getExtensionId(url: string | null | undefined): string | null {
@@ -21,7 +22,7 @@
 	const extensionId = $derived(selectedSource ? getExtensionId(selectedSource.externalUrl) : null);
 	const devConsoleUrl = $derived(
 		extensionId
-			? `https://chrome.google.com/u/1/webstore/devconsole/e2f2b549-b9e3-48c2-b562-d5b16058d995/${extensionId}/analytics/installs`
+			? `https://chrome.google.com/u/1/webstore/devconsole/e2f2b549-b9e3-48c2-b562-d5b16058d995/${extensionId}/analytics/installs?hl=en`
 			: null
 	);
 
@@ -49,7 +50,7 @@
 			{#if isEditorOrAbove}
 				<section class="card settings-card">
 					<h2>Upload CSV Data</h2>
-					<p class="text-muted">Upload metrics data from Chrome Web Store dashboard exports or custom spreadsheets. You can select and upload multiple files at once.</p>
+					<p class="text-muted">Upload Chrome Web Store reports or custom CSV files. Every file is previewed before any data is committed.</p>
 					<hr class="divider" />
 					
 					{#if data.sources.length === 0}
@@ -82,12 +83,15 @@
 
 							{#if devConsoleUrl}
 								<div class="alert alert-info py-2" style="font-size: 0.8rem; margin-bottom: 1rem; border-color: var(--border-color);">
-									<Icon name="arrow-square-out" /> <strong>Chrome Web Store:</strong> Download CSVs in English here:<br />
+									<Icon name="arrow-square-out" /> <strong>Chrome Web Store:</strong> Open the statistics dashboard and export the reports you want to publish.<br />
 									<a href={devConsoleUrl} target="_blank" rel="noopener noreferrer" style="font-weight: 600; text-decoration: underline; display: inline-block; margin-top: 0.25rem;">
-										Open CWS Stats Dashboard (?hl=en)
-									</a>
-								</div>
+									Open CWS Stats Dashboard
+								</a>
+								<p class="locale-dashboard-note"><code>?hl=en</code> requests the English dashboard. This keeps CSV report names and headers consistent when your browser or Google account uses another language; localized exports are still supported.</p>
+							</div>
 							{/if}
+
+							<p class="locale-note">Automatic detection: English, German, French, Spanish, Portuguese, Italian, Dutch, Polish and Turkish. Other files remain available for manual mapping.</p>
 
 							<div class="form-group">
 								<label for="file">CSV Files</label>
@@ -112,7 +116,7 @@
 				{#if data.drafts.length > 0}
 					<section class="card settings-card warning-card" style="margin-top: 1.5rem; border-color: var(--warning-border);">
 						<h2>Pending Drafts ({data.drafts.length})</h2>
-						<p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">The following files require manual column mapping to complete the import.</p>
+						<p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">Review the detected date, metrics and aggregation rules before committing each file. Drafts expire after one hour.</p>
 						<ul class="drafts-list" style="list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: 0.75rem;">
 							{#each data.drafts as draft}
 								<li class="flex justify-between align-center" style="font-size: 0.85rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">
@@ -326,5 +330,12 @@
 	}
 	.btn-danger:hover {
 		background-color: hsl(0, 50%, 35%);
+	}
+
+	.locale-note {
+		margin: -0.25rem 0 1rem;
+		color: var(--text-muted);
+		font-size: 0.78rem;
+		line-height: 1.5;
 	}
 </style>

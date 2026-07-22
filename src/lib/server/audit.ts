@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import db from './db';
 import { auditLogs } from './db/schema';
+import { minimizeIpAddress, minimizeUserAgent } from './privacy';
 
 /**
  * Log a security, moderation, or administrative action to the audit logs database table.
@@ -35,8 +36,8 @@ export async function logAuditEvent(
 			targetId,
 			timestamp: Math.floor(Date.now() / 1000),
 			metadata: Object.keys(cleanMetadata).length > 0 ? JSON.stringify(cleanMetadata) : null,
-			ipAddress: ipAddress || null,
-			userAgent: userAgent || null
+			ipAddress: minimizeIpAddress(ipAddress),
+			userAgent: minimizeUserAgent(userAgent)
 		});
 	} catch (e) {
 		console.error('[Audit Log] Failed to write audit log event:', e);

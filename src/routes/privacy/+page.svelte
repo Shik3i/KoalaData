@@ -21,9 +21,9 @@
 					We take privacy seriously. KoalaData is hosted on server infrastructure provided by Hetzner Online GmbH (Industriestr. 25, 91710 Gunzenhausen, Germany). The servers are located within the EU/EEA.
 				</p>
 				
-				<h2>2. Server Access Logs</h2>
+				<h2>2. Connection & Security Data</h2>
 				<p>
-					When accessing this platform, standard connection data is processed in server access logs (including your anonymized IP address, timestamp, browser type, and request path). This log data is used solely to maintain stability and prevent abuse, and is automatically purged after 7 days.
+					The hosting provider or reverse proxy may process standard connection data required to deliver the site. Inside KoalaData, the current network address is used temporarily in memory for abuse prevention. When a network address is stored with a session or security audit event, IPv4 addresses are reduced to their /24 network and IPv6 addresses to at most the first three groups. A shortened browser user-agent may also be stored for session security.
 				</p>
 				<p><em>Legal basis: Art. 6(1)(f) GDPR (Legitimate interest in secure operations).</em></p>
 
@@ -34,10 +34,24 @@
 
 				<h2>4. Registered Accounts</h2>
 				<p>
-					For registered extension developers, we store your username, display name, and a secure password hash. This data is kept until you request account deletion.
+					For registered extension developers, we store one public username, account status and role, and an Argon2id password hash. KoalaData does not require an email address and never stores the password itself. Account data is kept until deletion is requested or required for account administration.
+				</p>
+				<p>
+					Login uses one essential HTTP-only session cookie. Only a SHA-256 hash of its random token is stored server-side. Sessions expire after the configured lifetime (30 days by default), are invalidated on logout, and expired records are cleaned automatically. No consent banner is shown because this cookie is necessary to provide the requested login.
+				</p>
+				<p><em>Legal basis: Art. 6(1)(b) GDPR (Providing the requested account) and Art. 6(1)(f) GDPR (Account security).</em></p>
+
+				<h2>5. CSV Imports & Project Data</h2>
+				<p>
+					Uploaded CSV files, draft previews, project metadata, and derived observations are processed only to provide your dashboards. Draft files expire automatically; confirmed source files remain private to authorized project members and support import rollback. Project links and logos are never sent to a third-party favicon service.
 				</p>
 
-				<h2>5. Your Rights</h2>
+				<h2>6. External Links</h2>
+				<p>
+					GitHub and other project links are ordinary external links, not embedded trackers. Following one sends the usual connection data to that external provider under its own privacy policy.
+				</p>
+
+				<h2>7. Your Rights</h2>
 				<p>
 					You have the right to request access to, correction of, or deletion of your personal data stored on this platform. Please contact us via the imprint information.
 				</p>
@@ -50,9 +64,9 @@
 					Wir nehmen den Datenschutz ernst. KoalaData wird auf Servern der Hetzner Online GmbH (Industriestr. 25, 91710 Gunzenhausen, Deutschland) gehostet. Die Rechenzentren befinden sich innerhalb der EU/EWR.
 				</p>
 				
-				<h2>2. Server-Protokolldateien</h2>
+				<h2>2. Verbindungs- & Sicherheitsdaten</h2>
 				<p>
-					Beim Zugriff auf diese Plattform werden Standard-Verbindungsdaten in Server-Logs verarbeitet (anonymisierte IP-Adresse, Zeitstempel, Browsertyp und aufgerufene URL). Diese Protokolldaten dienen ausschließlich der Sicherstellung des Betriebs und der Missbrauchserkennung und werden nach 7 Tagen automatisch gelöscht.
+					Der Hosting-Anbieter oder Reverse Proxy kann die für die Auslieferung erforderlichen Standard-Verbindungsdaten verarbeiten. KoalaData verwendet die aktuelle Netzwerkadresse zur Missbrauchsabwehr vorübergehend im Arbeitsspeicher. Wird eine Netzwerkadresse zu einer Sitzung oder einem Sicherheitsereignis gespeichert, wird IPv4 auf das /24-Netz und IPv6 auf höchstens die ersten drei Gruppen gekürzt. Für die Sitzungssicherheit kann außerdem eine gekürzte Browserkennung gespeichert werden.
 				</p>
 				<p><em>Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (Berechtigtes Interesse an einem sicheren Betrieb).</em></p>
 
@@ -63,10 +77,24 @@
 
 				<h2>4. Registrierte Konten</h2>
 				<p>
-					Für registrierte Entwickler speichern wir den Benutzernamen, den Anzeigenamen sowie einen sicheren Passwort-Hash. Diese Daten werden bis zur Löschung des Accounts aufbewahrt.
+					Für registrierte Entwickler speichern wir einen öffentlichen Benutzernamen, Kontostatus und Rolle sowie einen Argon2id-Passwort-Hash. KoalaData benötigt keine E-Mail-Adresse und speichert niemals das Passwort selbst. Kontodaten werden bis zur beantragten Löschung oder soweit für die Kontoverwaltung erforderlich aufbewahrt.
+				</p>
+				<p>
+					Für die Anmeldung wird genau ein technisch notwendiges HTTP-only-Session-Cookie verwendet. Serverseitig wird nur der SHA-256-Hash des zufälligen Tokens gespeichert. Sitzungen verfallen nach der konfigurierten Laufzeit (standardmäßig 30 Tage), werden beim Abmelden ungültig gemacht und abgelaufene Einträge automatisch bereinigt. Da das Cookie für die gewünschte Anmeldung erforderlich ist, wird dafür kein Einwilligungsbanner angezeigt.
+				</p>
+				<p><em>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Bereitstellung des gewünschten Kontos) und Art. 6 Abs. 1 lit. f DSGVO (Kontosicherheit).</em></p>
+
+				<h2>5. CSV-Importe & Projektdaten</h2>
+				<p>
+					Hochgeladene CSV-Dateien, Entwurfsvorschauen, Projektmetadaten und daraus abgeleitete Messwerte werden ausschließlich für die Bereitstellung der Dashboards verarbeitet. Entwürfe verfallen automatisch; bestätigte Quelldateien bleiben für den Import-Rollback privat und sind nur für berechtigte Projektmitglieder zugänglich. Projektlinks und Logos werden nicht an einen externen Favicon-Dienst gesendet.
 				</p>
 
-				<h2>5. Ihre Rechte</h2>
+				<h2>6. Externe Links</h2>
+				<p>
+					GitHub- und sonstige Projektlinks sind normale externe Links und keine eingebetteten Tracker. Beim Aufruf werden die üblichen Verbindungsdaten nach der Datenschutzerklärung des jeweiligen externen Anbieters übertragen.
+				</p>
+
+				<h2>7. Ihre Rechte</h2>
 				<p>
 					Sie haben das Recht auf Auskunft, Berichtigung oder Löschung Ihrer auf dieser Plattform gespeicherten personenbezogenen Daten. Wenden Sie sich hierzu bitte an die im Impressum angegebenen Kontaktwege.
 				</p>

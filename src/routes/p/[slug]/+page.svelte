@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import InfoTip from '$lib/components/InfoTip.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import MetricChart from '$lib/components/MetricChart.svelte';
 	import BreakdownTabs from '$lib/components/BreakdownTabs.svelte';
 	import RatingAnalytics from '$lib/components/RatingAnalytics.svelte';
+	import ProjectBadges from '$lib/components/ProjectBadges.svelte';
 	import {
 		buildBreakdownGroups,
 		classifyChromeReportLabel,
@@ -19,6 +22,7 @@
 	let dateFilter = $state('90');
 	let compareMode = $state(false);
 	let showMovingAverage = $state(false);
+	let copied = $state(false);
 	let activeSection = $state('growth');
 	let days = $derived(dateFilter === 'all' ? null : Number(dateFilter));
 
@@ -31,6 +35,11 @@
 
 	function formatNumber(value: number): string {
 		return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+	}
+
+	function formatDataDate(date: string): string {
+		return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+			.format(new Date(`${date}T00:00:00Z`));
 	}
 
 	function latestDate(metric: DashboardMetric): string {
@@ -185,8 +194,14 @@
 	<meta name="description" content="Verified growth, audience, acquisition and retention metrics for {project.name}." />
 	<meta property="og:title" content="{project.name} Analytics · KoalaData" />
 	<meta property="og:description" content={project.shortDescription} />
-	<meta property="og:image" content="/p/{project.slug}/og.png" />
+	<meta property="og:image" content={page.url.origin + `/p/${project.slug}/og.png`} />
+	<meta property="og:url" content={page.url.origin + `/p/${project.slug}`} />
+	<meta property="og:type" content="website" />
+	<link rel="canonical" href={page.url.origin + `/p/${project.slug}`} />
 	<meta name="twitter:card" content="summary_large_image" />
+	{#if project.visibility !== 'public' || project.moderationStatus !== 'active'}
+		<meta name="robots" content="noindex, nofollow" />
+	{/if}
 </svelte:head>
 
 <div class="container public-dashboard">
@@ -199,7 +214,9 @@
 				<div>
 					<div class="eyebrow-row">
 						<span class="badge">{project.category}</span>
-						{#if project.verificationStatus === 'verified'}<span class="badge verified"><Icon name="seal-check" /> Verified data</span>{/if}
+						<ProjectBadges pricingModel={project.pricingModel} isOpenSource={project.isOpenSource} />
+						{#if project.verificationStatus === 'verified'}<span class="badge verified"><Icon name="seal-check" /> Verified data <InfoTip id="verified-help" text="An administrator reviewed the listing and supporting evidence. Verification is not an endorsement, and raw CSV files remain private." /></span>{/if}
+						{#if lastUpdated}<span class="badge freshness" title={`Neuester importierter Messpunkt: ${lastUpdated}`}>Stand vom {formatDataDate(lastUpdated)}</span>{/if}
 					</div>
 					<h1>{project.name}</h1>
 					<p class="hero-description">{project.shortDescription}</p>
@@ -209,6 +226,8 @@
 				{#if project.storeUrl}<a class="btn btn-primary" href={project.storeUrl} target="_blank" rel="noopener"><Icon name="storefront" /> Add to Chrome</a>{/if}
 				{#if project.websiteUrl}<a class="btn btn-secondary" href={project.websiteUrl} target="_blank" rel="noopener"><Icon name="globe" /> Visit website</a>{/if}
 				{#if project.repositoryUrl}<a class="source-link" href={project.repositoryUrl} target="_blank" rel="noopener"><Icon name="code" /> Source code</a>{/if}
+				<button class="source-link share-button" type="button" onclick={async () => { await navigator.clipboard.writeText(page.url.origin + `/p/${project.slug}`); copied = true; setTimeout(() => copied = false, 1800); }}><Icon name="clipboard-text" /> {copied ? 'Copied' : 'Copy dashboard link'}</button>
+				<a class="source-link" href="mailto:koalasync@koalastuff.net?subject={encodeURIComponent(`KoalaData listing report: ${project.name}`)}"><Icon name="warning" /> Report listing</a>
 			</div>
 		</div>
 		{#if project.fullDescription}
@@ -218,9 +237,9 @@
 
 	<section class="analytics-intro" aria-labelledby="analytics-title">
 		<div>
-			<p class="section-kicker">Verified Chrome Web Store data</p>
+			<p class="section-kicker">{project.verificationStatus === 'verified' ? 'Verified aggregate Chrome Web Store data' : 'Aggregate Chrome Web Store data'}</p>
 			<h2 id="analytics-title">Growth at a glance</h2>
-			<p class="text-muted data-note">Counts are grouped by their real meaning. Period totals are used for flows; current values are used for snapshots. {#if lastUpdated}Updated through {lastUpdated}.{/if}</p>
+			<p class="text-muted data-note">Counts are grouped by their real meaning. Period totals are used for flows; current values are used for snapshots.</p>
 		</div>
 		<div class="filter-panel" aria-label="Analytics timeframe">
 			{#each [['7', '7D'], ['30', '30D'], ['90', '90D'], ['365', '1Y'], ['all', 'All']] as option}
@@ -313,10 +332,12 @@
 	.eyebrow-row { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-bottom: 0.45rem; }
 	.badge { display: inline-flex; align-items: center; gap: 0.25rem; border-radius: 999px; padding: 0.18rem 0.55rem; background: var(--bg-inset); color: var(--text-muted); font-size: 0.7rem; font-weight: 700; text-transform: capitalize; }
 	.badge.verified { color: var(--success); background: var(--success-bg); }
+	.badge.freshness { border: 1px solid var(--border-color); text-transform: none; }
 	h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.5rem); }
 	.hero-description { max-width: 48rem; margin: 0.35rem 0 0; color: var(--text-muted); font-size: 1rem; }
 	.hero-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.65rem; min-width: 14rem; }
 	.source-link { width: 100%; text-align: right; font-size: 0.8rem; font-weight: 600; }
+	.share-button { padding: 0; border: 0; background: transparent; color: var(--primary); cursor: pointer; }
 	.about-details { border-top: 1px solid var(--border-color); margin-top: 1.5rem; padding-top: 1rem; position: relative; z-index: 1; }
 	.about-details summary { cursor: pointer; font-weight: 700; }
 	.about-details p { color: var(--text-muted); margin: 0.75rem 0 0; max-width: 70rem; white-space: pre-wrap; }

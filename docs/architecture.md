@@ -27,7 +27,7 @@ SQLite is configured on start to run in **Write-Ahead Logging (WAL) Mode** and e
 
 ## 4. Leaderboard & Growth Rules
 - **Staleness cutoff**: A project must have observations imported in the last 14 days to be ranked on the leaderboard.
-- **Growth delta**: Weekly active users growth is calculated over a 30-day delta.
+- **Growth delta**: Weekly installed-user growth is calculated over a 30-day delta.
 - **Baseline restriction**: To participate in percentage-growth rankings, the starting baseline user count must be at least 25 to prevent low-user extensions from distorting rankings.
 
 ## 5. Directory Mapping

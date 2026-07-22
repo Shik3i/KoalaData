@@ -35,6 +35,7 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const projectId = data.get('projectId')?.toString() || '';
 		const moderationStatus = data.get('moderationStatus')?.toString() as any;
+		const moderationReason = data.get('moderationReason')?.toString().trim().slice(0, 500) || null;
 
 		const validStatuses = ['active', 'hidden', 'banned'];
 		if (!validStatuses.includes(moderationStatus)) {
@@ -48,6 +49,9 @@ export const actions: Actions = {
 			.update(projects)
 			.set({
 				moderationStatus,
+				moderationReason: moderationStatus === 'active' ? null : moderationReason,
+				moderatedAt: Math.floor(Date.now() / 1000),
+				moderatedBy: locals.user.id,
 				updatedAt: Math.floor(Date.now() / 1000)
 			})
 			.where(eq(projects.id, projectId));
@@ -58,7 +62,7 @@ export const actions: Actions = {
 			'admin_moderate_project',
 			'project',
 			projectId,
-			{ moderationStatus },
+			{ moderationStatus, moderationReason },
 			ip
 		);
 

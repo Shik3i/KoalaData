@@ -1,9 +1,10 @@
 import { db } from '$lib/server/db';
-import { projects } from '$lib/server/db/schema';
+import { dataSources, projects } from '$lib/server/db/schema';
 import { generateUniqueSlug } from '$lib/server/slugs';
 import { getUserLimits } from '$lib/server/limits';
 import { logAuditEvent } from '$lib/server/audit';
-import { downloadWebsiteFavicon } from '$lib/server/assets';
+import { normalizeChromeStoreUrl, normalizeOptionalHttpsUrl } from '$lib/server/urls';
+import { isPricingModel } from '$lib/project-classification';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -37,10 +38,19 @@ export const actions: Actions = {
 		const name = data.get('name')?.toString().trim() || '';
 		const shortDescription = data.get('shortDescription')?.toString().trim() || '';
 		const fullDescription = data.get('fullDescription')?.toString().trim() || '';
-		const websiteUrl = data.get('websiteUrl')?.toString().trim() || null;
-		const repositoryUrl = data.get('repositoryUrl')?.toString().trim() || null;
-		const storeUrl = data.get('storeUrl')?.toString().trim() || null;
+		let websiteUrl: string | null;
+		let repositoryUrl: string | null;
+		let storeUrl: string | null;
+		try {
+			websiteUrl = normalizeOptionalHttpsUrl(data.get('websiteUrl')?.toString(), 'Website URL');
+			repositoryUrl = normalizeOptionalHttpsUrl(data.get('repositoryUrl')?.toString(), 'Repository URL');
+			storeUrl = normalizeChromeStoreUrl(data.get('storeUrl')?.toString());
+		} catch (error) {
+			return fail(400, { error: error instanceof Error ? error.message : 'Invalid external URL.' });
+		}
 		const category = data.get('category')?.toString() as any;
+		const pricingModel = data.get('pricingModel')?.toString() || '';
+		const isOpenSource = data.get('isOpenSource') === 'on' ? 1 : 0;
 		const visibility = data.get('visibility')?.toString() as any;
 
 		// Input Validation
@@ -60,6 +70,12 @@ export const actions: Actions = {
 		if (!validCategories.includes(category)) {
 			return fail(400, { error: 'Invalid project category.' });
 		}
+		if (!isPricingModel(pricingModel)) {
+			return fail(400, { error: 'Select whether the extension is free, freemium, or paid.' });
+		}
+		if (isOpenSource && !repositoryUrl) {
+			return fail(400, { error: 'Add a public repository URL before marking the extension as open source.' });
+		}
 
 		const validVisibilities = ['public', 'unlisted', 'private'];
 		if (!validVisibilities.includes(visibility)) {
@@ -78,30 +94,43 @@ export const actions: Actions = {
 		const projectId = crypto.randomUUID();
 		const now = Math.floor(Date.now() / 1000);
 
-		let logoPath: string | null = null;
-		if (websiteUrl) {
-			logoPath = await downloadWebsiteFavicon(projectId, websiteUrl);
-		}
+		db.transaction((tx) => {
+			tx.insert(projects).values({
+				id: projectId,
+				ownerId: locals.user!.id,
+				name,
+				slug,
+				shortDescription,
+				fullDescription,
+				websiteUrl,
+				repositoryUrl,
+				storeUrl,
+				category,
+				pricingModel,
+				isOpenSource,
+				visibility,
+				logoPath: null,
+				leaderboardOptIn: 0,
+				leaderboardStatus: 'not_requested',
+				verificationStatus: 'unverified',
+				moderationStatus: 'hidden',
+				moderationReason: 'Awaiting initial listing review.',
+				createdAt: now,
+				updatedAt: now
+			}).run();
 
-		await db.insert(projects).values({
-			id: projectId,
-			ownerId: locals.user.id,
-			name,
-			slug,
-			shortDescription,
-			fullDescription,
-			websiteUrl,
-			repositoryUrl,
-			storeUrl,
-			category,
-			visibility,
-			logoPath,
-			leaderboardOptIn: 0,
-			leaderboardStatus: 'not_requested',
-			verificationStatus: 'unverified',
-			moderationStatus: 'active',
-			createdAt: now,
-			updatedAt: now
+			if (storeUrl) {
+				tx.insert(dataSources).values({
+					id: crypto.randomUUID(),
+					projectId,
+					name: 'Chrome Web Store',
+					sourceType: 'chrome_web_store',
+					externalUrl: storeUrl,
+					granularity: 'daily',
+					createdAt: now,
+					updatedAt: now
+				}).run();
+			}
 		});
 
 		// Audit Log

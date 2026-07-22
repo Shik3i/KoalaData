@@ -12,8 +12,8 @@ services:
       - BACKUP_DIRECTORY=/backups
       - PORT=3000
       - ORIGIN=http://localhost:3000
-      - KOALADATA_ADMIN_USERNAME=admin
-      - KOALADATA_ADMIN_PASSWORD=admin_password
+      - KOALADATA_ADMIN_USERNAME=${KOALADATA_ADMIN_USERNAME:-admin}
+      - KOALADATA_ADMIN_PASSWORD=${KOALADATA_ADMIN_PASSWORD:?Set KOALADATA_ADMIN_PASSWORD in .env}
     volumes:
       - koaladata_data:/data
       - koaladata_backups:/backups

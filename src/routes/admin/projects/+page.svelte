@@ -77,8 +77,9 @@
 								</td>
 								<td>
 									<span class="badge badge-status-{project.moderationStatus}">
-										{project.moderationStatus}
+										{project.moderationStatus === 'hidden' && project.moderationReason?.includes('review') ? 'pending review' : project.moderationStatus}
 									</span>
+									{#if project.moderationReason}<div class="moderation-reason">{project.moderationReason}</div>{/if}
 								</td>
 								<td>
 									<span class="badge badge-verified-{project.verificationStatus}">
@@ -96,6 +97,7 @@
 									<!-- Moderation Form -->
 										<form action="?/changeModeration" method="POST" use:enhance class="flex align-center gap-0.5">
 											<input type="hidden" name="projectId" value={project.id} />
+											<input class="reason-input" name="moderationReason" value={project.moderationReason || ''} placeholder="Reason when hidden/banned" aria-label="Moderation reason for {project.name}" />
 											<select name="moderationStatus" onchange={(e) => e.currentTarget.form?.requestSubmit()} style="margin-bottom: 0; padding: 0.25rem 0.5rem; font-size: 0.8rem; height: auto;">
 												<option value="active" selected={project.moderationStatus === 'active'}>Active</option>
 												<option value="hidden" selected={project.moderationStatus === 'hidden'}>Hidden</option>
@@ -183,4 +185,6 @@
 		background-color: var(--bg-inset);
 		color: var(--text-muted);
 	}
+	.moderation-reason { max-width: 18rem; margin-top: 0.25rem; color: var(--text-muted); font-size: 0.72rem; }
+	.reason-input { width: 12rem; margin: 0; padding: 0.3rem 0.45rem; font-size: 0.75rem; }
 </style>

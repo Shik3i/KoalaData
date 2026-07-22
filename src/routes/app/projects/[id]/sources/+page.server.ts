@@ -3,6 +3,7 @@ import { dataSources, importBatches, importDrafts, metricDefinitions } from '$li
 import { eq, and } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { logAuditEvent } from '$lib/server/audit';
+import { normalizeChromeStoreUrl, normalizeOptionalHttpsUrl } from '$lib/server/urls';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -32,7 +33,7 @@ export const actions: Actions = {
 		const name = data.get('name')?.toString().trim() || '';
 		const sourceType = data.get('sourceType')?.toString() as any;
 		const granularity = data.get('granularity')?.toString() as any;
-		const externalUrl = data.get('externalUrl')?.toString().trim() || null;
+		let externalUrl: string | null;
 
 		if (!name || name.length < 3 || name.length > 50) {
 			return fail(400, { error: 'Source name must be between 3 and 50 characters.' });
@@ -41,6 +42,13 @@ export const actions: Actions = {
 		const validTypes = ['chrome_web_store', 'generic_csv'];
 		if (!validTypes.includes(sourceType)) {
 			return fail(400, { error: 'Invalid source type.' });
+		}
+		try {
+			externalUrl = sourceType === 'chrome_web_store'
+				? normalizeChromeStoreUrl(data.get('externalUrl')?.toString())
+				: normalizeOptionalHttpsUrl(data.get('externalUrl')?.toString(), 'External source URL');
+		} catch (error) {
+			return fail(400, { error: error instanceof Error ? error.message : 'Invalid external URL.' });
 		}
 
 		const validGranularities = ['daily', 'weekly', 'monthly', 'irregular'];

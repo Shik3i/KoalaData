@@ -3,59 +3,28 @@ export interface ChromeDetectionResult {
 	mappings: Record<string, { column: string; metricType: string }>;
 }
 
-// Aliases for Chrome Web Store standard exports
-const DATE_ALIASES = ['date', 'time', 'date_utc', 'timestamp', 'day', 'datum'];
-const ACTIVE_USERS_ALIASES = [
-	'weekly active users',
-	'active users',
-	'users',
-	'active_users',
-	'weekly_active_users',
-	'nutzer pro woche',
-	'wöchentlich aktive nutzer',
-	'wöchentliche nutzer insgesamt'
-];
-const INSTALLS_ALIASES = [
-	'daily installs',
-	'installs',
-	'daily_installs',
-	'downloads',
-	'download_count',
-	'installationen',
-	'tägliche installationen'
-];
-const UNINSTALLS_ALIASES = [
-	'daily uninstalls',
-	'uninstalls',
-	'daily_uninstalls',
-	'deinstallationen',
-	'tägliche deinstallationen'
-];
-const PAGE_VIEWS_ALIASES = [
-	'store page views',
-	'page views',
-	'pageviews',
-	'store_views',
-	'store_page_views',
-	'seitenaufrufe',
-	'store-seitenaufrufe'
-];
-const IMPRESSIONS_ALIASES = [
-	'impressions',
-	'store impressions',
-	'store_impressions',
-	'impressionen',
-	'store-impressionen'
-];
+import { CHROME_HEADER_ALIASES } from '$lib/chrome-report-catalog';
 
+// Aliases for Chrome Web Store standard exports
 function normalizeHeader(header: string): string {
-	return header.normalize('NFKC').toLowerCase().trim().replace(/\s+/g, ' ');
+	return header
+		.normalize('NFKD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.toLowerCase()
+		.trim()
+		.replace(/[–—]/g, '-')
+		.replace(/[_-]+/g, ' ')
+		.replace(/\s+/g, ' ');
 }
+
+const normalizedAliases = Object.fromEntries(
+	Object.entries(CHROME_HEADER_ALIASES).map(([key, aliases]) => [key, aliases.map(normalizeHeader)])
+) as Record<keyof typeof CHROME_HEADER_ALIASES, string[]>;
 
 function isNumericCell(value: string): boolean {
 	const trimmed = value.trim();
 	if (trimmed === '') return true;
-	return /^[+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)$/.test(trimmed.replace(/\s/g, ''));
+	return /^[+-]?(?:\d[\d\s\u00a0.,']*|[.,]\d+)$/.test(trimmed);
 }
 
 function isNumericColumn(rows: string[][], columnIndex: number): boolean {
@@ -79,7 +48,7 @@ export function detectChromeCsv(headers: string[], rows: string[][] = []): Chrom
 	// Find date column
 	let dateColumn: string | null = null;
 	for (let i = 0; i < headers.length; i++) {
-		if (DATE_ALIASES.includes(normalizedHeaders[i])) {
+		if (normalizedAliases.date.includes(normalizedHeaders[i])) {
 			dateColumn = headers[i];
 			mappings['date'] = { column: headers[i], metricType: 'date' };
 			break;
@@ -97,11 +66,11 @@ export function detectChromeCsv(headers: string[], rows: string[][] = []): Chrom
 		}
 	};
 
-	checkAndMap(ACTIVE_USERS_ALIASES, 'active_users');
-	checkAndMap(INSTALLS_ALIASES, 'installs');
-	checkAndMap(UNINSTALLS_ALIASES, 'uninstalls');
-	checkAndMap(PAGE_VIEWS_ALIASES, 'store_page_views');
-	checkAndMap(IMPRESSIONS_ALIASES, 'store_impressions');
+	checkAndMap(normalizedAliases.active_users, 'active_users');
+	checkAndMap(normalizedAliases.installs, 'installs');
+	checkAndMap(normalizedAliases.uninstalls, 'uninstalls');
+	checkAndMap(normalizedAliases.store_page_views, 'store_page_views');
+	checkAndMap(normalizedAliases.store_impressions, 'store_impressions');
 
 	// Chrome also exports valid time series with one numeric column per
 	// operating system, language, region, extension version, rating, or state.

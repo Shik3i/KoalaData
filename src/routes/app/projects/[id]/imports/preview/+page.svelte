@@ -6,6 +6,7 @@
 	let { data, form } = $props();
 
 	let loading = $state(false);
+	const expiresAtLabel = $derived(new Date(data.draft.expiresAt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
 	const initialMapping = untrack(() => {
 		let detectedDateColumn = '';
@@ -15,7 +16,7 @@
 			// Check if this header matches an auto-detected metric type
 			let isMapped = false;
 			let metricType = 'custom';
-			let aggregation = 'sum';
+				let aggregation = data.report?.semantics === 'snapshot' ? 'latest' : 'sum';
 			let isCumulative = false;
 
 			// Date auto-detect
@@ -29,7 +30,7 @@
 					isMapped = true;
 					metricType = mapVal.metricType;
 					if (metricType === 'active_users') {
-					aggregation = 'average';
+						aggregation = 'latest';
 						isCumulative = false;
 					}
 					break;
@@ -70,9 +71,33 @@
 		</div>
 	{/if}
 
-	{#if data.autoDetect.confidence === 'high'}
+	<section class="card file-summary" aria-label="Upload summary">
+		<div><span>File</span><strong>{data.originalFilename}</strong></div>
+		<div><span>Rows</span><strong>{data.draft.rowCount}</strong></div>
+		<div><span>Encoding</span><strong>{data.parser.encoding}</strong></div>
+		<div><span>Delimiter</span><strong>{data.parser.delimiter}</strong></div>
+		<div><span>Review expires</span><strong>{expiresAtLabel}</strong></div>
+	</section>
+
+	{#if data.parser.inconsistentRowCount > 0}
+		<div class="alert alert-warning" role="status">
+			<Icon name="warning" /> {data.parser.inconsistentRowCount} rows have a different number of columns and may be skipped.
+		</div>
+	{/if}
+
+	{#if data.autoDetect.confidence === 'high' || data.report}
 		<div class="alert alert-success" role="status">
-			<Icon name="sparkle" /> <strong>Chrome Web Store Format Detected:</strong> We auto-configured the date and metrics columns for this export. Please review and click confirm.
+			<Icon name="sparkle" /> <strong>Chrome Web Store format detected.</strong>
+			{#if data.report}
+				{data.report.title} uses <strong>{data.report.semantics === 'snapshot' ? 'latest-value snapshot' : 'period-total flow'}</strong> semantics.
+			{:else}
+				Date and standard metric columns were preconfigured.
+			{/if}
+			Review the sample and confirm below.
+		</div>
+	{:else}
+		<div class="alert alert-info" role="status">
+			No known report name was detected. Nothing will be imported until you explicitly select and configure metric columns.
 		</div>
 	{/if}
 
@@ -176,7 +201,7 @@
 											bind:value={map.metricType}
 											disabled={loading}
 										>
-											<option value="active_users">Weekly Active Users</option>
+											<option value="active_users">Weekly Users (installed-user snapshot)</option>
 											<option value="installs">Daily Installs</option>
 											<option value="uninstalls">Daily Uninstalls</option>
 											<option value="store_page_views">Store Page Views</option>
@@ -206,10 +231,12 @@
 											disabled={loading}
 										>
 											<option value="sum">Sum (Totals)</option>
+											<option value="latest">Latest value (Snapshot)</option>
 											<option value="average">Average</option>
 											<option value="maximum">Maximum</option>
 											<option value="minimum">Minimum</option>
 										</select>
+										<small>{map.aggregation === 'latest' ? 'Use for installed-user and state snapshots.' : map.aggregation === 'sum' ? 'Use for installs, uninstalls and other daily flows.' : 'Advanced aggregation for custom data.'}</small>
 									</div>
 
 									<div class="form-group inline-group flex align-center gap-0.5 checkbox-field">
@@ -339,5 +366,22 @@
 		margin-top: 2rem;
 		padding: 0.8rem;
 		font-size: 1.05rem;
+	}
+
+	.file-summary {
+		display: grid;
+		grid-template-columns: minmax(12rem, 2fr) repeat(4, minmax(6rem, 1fr));
+		gap: 1rem;
+		margin: 1.25rem 0;
+		padding: 1rem 1.25rem;
+	}
+	.file-summary div { min-width: 0; }
+	.file-summary span { display: block; margin-bottom: 0.2rem; color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+	.file-summary strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.88rem; }
+	.inline-group small { display: block; max-width: 15rem; margin-top: 0.25rem; color: var(--text-muted); font-size: 0.7rem; line-height: 1.35; }
+
+	@media (max-width: 800px) {
+		.file-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		.file-summary div:first-child { grid-column: 1 / -1; }
 	}
 </style>

@@ -1,8 +1,16 @@
 {
 	"name": "koaladata",
 	"private": true,
-	"version": "1.3.4",
+	"version": "1.4.0",
 	"type": "module",
+	"homepage": "https://data.koalastuff.net",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Shik3i/KoalaData.git"
+	},
+	"bugs": {
+		"url": "https://github.com/Shik3i/KoalaData/issues"
+	},
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",

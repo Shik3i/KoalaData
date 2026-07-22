@@ -21,6 +21,12 @@ export async function runSeeding() {
 			const password = env.KOALADATA_ADMIN_PASSWORD;
 
 			const isProd = env.NODE_ENV === 'production';
+			const unsafePasswords = new Set([
+				'admin_password',
+				'change_this_insecure_password_on_first_login',
+				'password',
+				'admin123'
+			]);
 
 			if (!username || !password) {
 				if (isProd) {
@@ -48,6 +54,9 @@ export async function runSeeding() {
 					console.log(`[Seed] Seeded default development administrator: ${defaultUsername}. Change its password immediately.`);
 				}
 			} else {
+				if (isProd && (password.length < 12 || unsafePasswords.has(password.toLowerCase()))) {
+					throw new Error('KOALADATA_ADMIN_PASSWORD must be at least 12 characters and must not use a documented placeholder.');
+				}
 				// Seed using env vars
 				const passHash = await hashPassword(password);
 				await db.insert(users).values({

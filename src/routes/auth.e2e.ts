@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import path from 'path';
 
 test.describe('KoalaData End-to-End System Integration Flow', () => {
@@ -130,13 +131,14 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		
 		await page.fill('input[name="name"]', projectName);
 		await page.selectOption('select[name="category"]', 'developer-tools');
+		await page.selectOption('select[name="pricingModel"]', 'freemium');
 		await page.selectOption('select[name="visibility"]', 'public');
 		await page.fill('input[name="shortDescription"]', 'E2E test description of this browser extension dashboard.');
 		await page.fill('textarea[name="fullDescription"]', 'Detailed long description of metrics and compatibility guidelines.');
 		await page.click('button:has-text("Create Project")');
 
 		// Redirected to project overview
-		await page.waitForURL('/app/projects/*');
+		await page.waitForURL(/\/app\/projects\/(?!new$)[^/?]+$/);
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await expect(page.locator('.project-title')).toContainText(projectName);
 
@@ -223,6 +225,16 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await expect(page.getByRole('button', { name: '7-day average' })).toHaveAttribute('aria-pressed', 'true');
 		await page.getByRole('button', { name: '7-day average' }).click();
 		await expect(page.getByRole('button', { name: '7-day average' })).toHaveAttribute('aria-pressed', 'false');
+
+		for (const theme of ['light', 'dark']) {
+			await page.evaluate((selectedTheme) => {
+				localStorage.setItem('theme', selectedTheme);
+				window.dispatchEvent(new StorageEvent('storage', { key: 'theme', newValue: selectedTheme }));
+			}, theme);
+			await page.reload();
+			const accessibility = await new AxeBuilder({ page }).analyze();
+			expect(accessibility.violations, `public project dashboard has accessibility violations in ${theme} mode`).toEqual([]);
+		}
 
 		// Go back and set to Private
 		await page.goto(`/app`);

@@ -2,11 +2,12 @@
 
 This document describes the CSV parsing mechanics, Chrome Web Store compatibility, custom mapper settings, and diagnostic statistics logged during file uploads.
 
+KoalaData opens the Chrome Web Store statistics dashboard with `?hl=en`. This asks Google for the English interface so report filenames and headers remain predictable even when the browser or account language differs. Localized exports remain supported and can still be detected or mapped.
+
 ## 1. CSV Parser & Content Checking
 Every uploaded file is checked before being committed:
-- **Delimiter Auto-Detection**: Counts occurrence frequencies of commas (`,`), semicolons (`;`), and tabs (`\t`) in the first 1KB of the file to auto-select the parser delimiter.
-- **UTF-8 BOM Check**: Scans for the `EF BB BF` byte sequence at the start of the buffer and strips it.
-- **UTF-16 Rejection**: Rejects UTF-16 BOM signatures (`FE FF` and `FF FE`) to prevent parsing encoding crashes.
+- **Delimiter Auto-Detection**: Compares commas (`,`), semicolons (`;`), and tabs (`\t`) outside quoted cells across the first non-empty rows.
+- **Encoding Detection**: Supports UTF-8 (with or without BOM) and BOM-marked UTF-16 LE/BE exports.
 - **Binary Check**: Inspects the first 1KB of content for null bytes (`0x00`) to block executable or binary file uploads.
 
 ## 2. Chrome Web Store Importer Compatibility
@@ -21,7 +22,7 @@ The system provides a high-confidence mapping configuration if it matches standa
 | **Store Page Views** | `store page views`, `page views`, `pageviews`, `store_views` |
 | **Store Impressions** | `impressions`, `store impressions`, `store_impressions` |
 
-Standard metric files with a date column are imported automatically. Recognized Chrome Web Store breakdown reports in German or English are also imported automatically and retain their complete category data.
+Every uploaded file opens a review preview before any observation is committed. Recognized Chrome Web Store report filenames and common localized headers cover English, German, French, Spanish, Portuguese, Italian, Dutch, Polish, and Turkish. Additional Japanese, Korean, and Chinese header aliases are recognized where the report structure is unambiguous.
 
 Wide breakdown reports are stored as one metric definition with a dimension for each category. For example, `Installationen nach Region` becomes an install-flow breakdown with observations such as `{"region":"Deutschland"}` instead of creating a separate chart definition for every country. Snapshot reports such as weekly users, extension versions, ratings, and enabled state use their latest value; install and uninstall breakdowns are summed over the selected period.
 
@@ -29,7 +30,7 @@ Unknown wide numeric files are sent to the manual mapping preview. They are neve
 
 ## 3. Date & Number Normalization
 - **Date Standardizer**: Formats date strings to `YYYY-MM-DD` (ISO 8601). It can parse custom formats (like `MM/DD/YYYY` or `DD/MM/YYYY`) and falls back to JavaScript's standard `Date.parse()` when needed.
-- **Number Standardizer**: Cleans monetary symbols, commas, and trailing whitespaces before parsing strings to float values.
+- **Number Standardizer**: Handles localized grouping and decimal separators, non-breaking spaces, apostrophes, signs, and surrounding unit text.
 
 ## 4. Diagnostics & Duplicate Handling
 During mapping, the system logs metrics to calculate statistics:

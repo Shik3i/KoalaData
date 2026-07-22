@@ -5,6 +5,7 @@ import { assertProjectAccess } from '$lib/server/permissions';
 import { parseCsv } from '$lib/server/csv/parser';
 import { detectChromeCsv } from '$lib/server/csv/chrome';
 import { confirmImportDraft } from '$lib/server/csv/pipeline';
+import { classifyChromeReportFilename } from '$lib/dashboard-metrics';
 import { fail, redirect } from '@sveltejs/kit';
 import fs from 'fs';
 import path from 'path';
@@ -53,9 +54,12 @@ export const load: PageServerLoad = async ({ url, params, locals }) => {
 
 	const fileBuffer = fs.readFileSync(draftFilePath);
 	const parsed = parseCsv(fileBuffer);
+	const originalFilename = draft.storedFilename.includes(':::') ? draft.storedFilename.split(':::')[0] : draft.storedFilename;
 
 	// Try auto-detection of Chrome Web Store headers
 	const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
+	const report = classifyChromeReportFilename(originalFilename);
+	const inconsistentRowCount = parsed.rows.filter((row) => row.length !== parsed.headers.length).length;
 
 	return {
 		draft: {
@@ -64,9 +68,16 @@ export const load: PageServerLoad = async ({ url, params, locals }) => {
 			rowCount: draft.rowCount,
 			expiresAt: draft.expiresAt
 		},
+		originalFilename,
+		parser: {
+			delimiter: draft.detectedDelimiter === '\t' ? 'tab' : draft.detectedDelimiter,
+			encoding: draft.detectedEncoding,
+			inconsistentRowCount
+		},
 		previewHeaders: parsed.headers,
 		previewRows: parsed.rows.slice(0, 5),
-		autoDetect
+		autoDetect,
+		report
 	};
 };
 
@@ -100,6 +111,9 @@ export const actions: Actions = {
 
 		const draft = draftRecord[0];
 		const headers = JSON.parse(draft.headers) as string[];
+		const originalFilename = draft.storedFilename.includes(':::') ? draft.storedFilename.split(':::')[0] : draft.storedFilename;
+		const report = classifyChromeReportFilename(originalFilename);
+		const fileLabel = originalFilename.replace(/\.[^.]+$/, '').replace(/_[a-z0-9]{32}$/i, '').trim();
 
 		// Loop through headers and pull mappings
 		const metrics = [];
@@ -108,7 +122,10 @@ export const actions: Actions = {
 			if (data.get(`map_col_${i}`) === 'true') {
 				const metricType = data.get(`type_col_${i}`)?.toString() || 'custom';
 				const name = data.get(`name_col_${i}`)?.toString().trim() || colName;
-				const aggregation = data.get(`agg_col_${i}`)?.toString() || 'sum';
+				const requestedAggregation = data.get(`agg_col_${i}`)?.toString() || 'sum';
+				const aggregation = metricType === 'active_users' || report?.semantics === 'snapshot'
+					? 'latest'
+					: requestedAggregation;
 				const isCumulative = data.get(`cum_col_${i}`) === 'true';
 				if (!['latest', 'sum', 'average', 'minimum', 'maximum'].includes(aggregation)) {
 					return fail(400, { error: `Invalid aggregation for column "${colName}".` });
@@ -117,10 +134,11 @@ export const actions: Actions = {
 				metrics.push({
 					columnName: colName,
 					metricType,
-					name,
+					name: metricType === 'custom' && report ? fileLabel : name,
 					unit: 'count', // default count
 					aggregation,
-					isCumulative
+					isCumulative,
+					dimensions: metricType === 'custom' && report ? { [report.dimensionKey]: colName } : undefined
 				});
 			}
 		}

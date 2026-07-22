@@ -1,0 +1,53 @@
+name: Bug report
+description: Report reproducible incorrect behavior in KoalaData
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Do not include passwords, cookies, private CSV data, access logs, or personal information. Security vulnerabilities belong in a private advisory.
+  - type: checkboxes
+    attributes:
+      label: Safety check
+      options:
+        - label: This is not a security vulnerability or private-data disclosure.
+          required: true
+        - label: I searched existing issues for the same problem.
+          required: true
+  - type: input
+    attributes:
+      label: KoalaData version
+      description: Release tag, container tag, or commit SHA
+      placeholder: v1.4.0
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Deployment
+      options:
+        - Docker / Docker Compose
+        - Local Node.js
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction steps
+      description: Use synthetic data and provide the smallest reliable reproduction.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Browser, operating system, sanitized logs, screenshots, or related configuration.

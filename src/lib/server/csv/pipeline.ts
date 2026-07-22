@@ -19,18 +19,37 @@ function parseStoredFilename(storedFilename: string): { originalName: string; fi
 }
 
 /**
- * Normalizes number formats by removing currency signs, commas, and white spaces.
+ * Normalizes localized grouping and decimal separators plus surrounding unit text.
  */
 export function parseNumericValue(val: string): number {
 	if (val === undefined || val === null) {
 		throw new Error('Numeric value is missing or undefined.');
 	}
-	const cleaned = String(val).replace(/[^0-9.-]/g, '');
-	const parsed = parseFloat(cleaned);
+	const raw = String(val).trim();
+	const negative = /^\(.*\)$/.test(raw);
+	let cleaned = raw.replace(/[()\s\u00a0']/g, '').replace(/[^0-9,.-]/g, '');
+	const commaPositions = [...cleaned.matchAll(/,/g)].map((match) => match.index ?? -1);
+	const dotPositions = [...cleaned.matchAll(/\./g)].map((match) => match.index ?? -1);
+
+	if (commaPositions.length && dotPositions.length) {
+		const decimal = commaPositions.at(-1)! > dotPositions.at(-1)! ? ',' : '.';
+		const grouping = decimal === ',' ? /\./g : /,/g;
+		cleaned = cleaned.replace(grouping, '').replace(decimal, '.');
+	} else {
+		const separator = commaPositions.length ? ',' : dotPositions.length ? '.' : null;
+		if (separator) {
+			const occurrences = separator === ',' ? commaPositions : dotPositions;
+			const fractionLength = cleaned.length - occurrences.at(-1)! - 1;
+			if (occurrences.length > 1 || fractionLength === 3) cleaned = cleaned.replaceAll(separator, '');
+			else cleaned = cleaned.replace(separator, '.');
+		}
+	}
+
+	const parsed = Number(cleaned);
 	if (isNaN(parsed)) {
 		throw new Error(`Invalid number: ${val}`);
 	}
-	return parsed;
+	return negative ? -Math.abs(parsed) : parsed;
 }
 
 /**
@@ -42,9 +61,21 @@ export function parseDateString(dateStr: string, format = 'YYYY-MM-DD'): string 
 	}
 	const trimmed = String(dateStr).trim();
 	
-	// YYYY-MM-DD checks
-	if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-		return trimmed;
+	const validDate = (y: string, m: string, d: string): string | null => {
+		const year = Number(y);
+		const month = Number(m);
+		const day = Number(d);
+		const candidate = new Date(Date.UTC(year, month - 1, day));
+		if (candidate.getUTCFullYear() !== year || candidate.getUTCMonth() !== month - 1 || candidate.getUTCDate() !== day) return null;
+		return `${y.padStart(4, '0')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+	};
+
+	// ISO-like formats used by many localized CWS exports.
+	const iso = trimmed.match(/^(\d{4})[.\/-](\d{1,2})[.\/-](\d{1,2})$/);
+	if (iso) {
+		const parsed = validDate(iso[1], iso[2], iso[3]);
+		if (parsed) return parsed;
+		throw new Error(`Unrecognized date format: ${dateStr}`);
 	}
 
 	// German DD.MM.YYYY or DD.MM.YY checks (e.g. 20.04.26)
@@ -57,7 +88,9 @@ export function parseDateString(dateStr: string, format = 'YYYY-MM-DD'): string 
 			const yearNum = parseInt(y, 10);
 			y = yearNum > 70 ? `19${y}` : `20${y}`;
 		}
-		return `${y}-${m}-${d}`;
+		const parsed = validDate(y, m, d);
+		if (parsed) return parsed;
+		throw new Error(`Unrecognized date format: ${dateStr}`);
 	}
 
 	// Try checking MM/DD/YYYY
@@ -67,7 +100,10 @@ export function parseDateString(dateStr: string, format = 'YYYY-MM-DD'): string 
 			const m = parts[0].padStart(2, '0');
 			const d = parts[1].padStart(2, '0');
 			const y = parts[2];
-			if (y.length === 4) return `${y}-${m}-${d}`;
+			if (y.length === 4) {
+				const parsed = validDate(y, m, d);
+				if (parsed) return parsed;
+			}
 		}
 	}
 
@@ -78,7 +114,10 @@ export function parseDateString(dateStr: string, format = 'YYYY-MM-DD'): string 
 			const d = parts[0].padStart(2, '0');
 			const m = parts[1].padStart(2, '0');
 			const y = parts[2];
-			if (y.length === 4) return `${y}-${m}-${d}`;
+			if (y.length === 4) {
+				const parsed = validDate(y, m, d);
+				if (parsed) return parsed;
+			}
 		}
 	}
 
@@ -86,9 +125,9 @@ export function parseDateString(dateStr: string, format = 'YYYY-MM-DD'): string 
 	const ts = Date.parse(trimmed);
 	if (!isNaN(ts)) {
 		const dateObj = new Date(ts);
-		const y = dateObj.getFullYear();
-		const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-		const d = String(dateObj.getDate()).padStart(2, '0');
+		const y = dateObj.getUTCFullYear();
+		const m = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+		const d = String(dateObj.getUTCDate()).padStart(2, '0');
 		return `${y}-${m}-${d}`;
 	}
 

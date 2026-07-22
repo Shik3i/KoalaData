@@ -211,11 +211,13 @@ describe('Growth Leaderboard Rules', () => {
 		expect(lowItem).toBeDefined();
 		expect(lowItem!.growth).toBe(20);
 		expect(lowItem!.growthPercent).toBe(0);
+		expect(lowItem!.lastDataDate).toBe(todayStr);
 
 		// Verification 3: High start project should calculate growthPercent correctly (50%)
 		const highItem = board.find(x => x.projectId === projectHighStart.id);
 		expect(highItem).toBeDefined();
 		expect(highItem!.growth).toBe(50);
 		expect(highItem!.growthPercent).toBe(50); // (150-100)/100 = 50%
+		expect(highItem!.lastDataDate).toBe(todayStr);
 	});
 });

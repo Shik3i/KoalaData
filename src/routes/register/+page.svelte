@@ -5,6 +5,7 @@
 	let { data, form } = $props();
 
 	let loading = $state(false);
+	let showPassword = $state(false);
 </script>
 
 <svelte:head>
@@ -14,6 +15,7 @@
 <div class="container auth-container">
 	<div class="card auth-card">
 		<h1 class="auth-title">Create Account</h1>
+		<p class="auth-intro">Create a publisher account to submit an extension, review imported Chrome Web Store reports and publish a shareable dashboard.</p>
 		
 		{#if data.registrationMode === 'invite_only'}
 			<div class="alert alert-warning" role="status">
@@ -25,7 +27,7 @@
 		{:else}
 			{#if data.registrationMode === 'approval_required'}
 				<div class="registration-notice">
-					<Icon name="user-plus" /> <strong>Note:</strong> Registrations require administrator approval before you can access the platform.
+					<Icon name="user-plus" /> <strong>Approval required.</strong> After registering, return to the login page later to check your status. KoalaData does not collect an email address, so no approval email is sent.
 				</div>
 			{/if}
 
@@ -56,12 +58,14 @@
 						required 
 						disabled={loading}
 					/>
+					<small>Your public publisher name. 3–30 letters, numbers, dots, underscores or hyphens.</small>
 				</div>
 
 				<div class="form-group">
 					<label for="password">Password</label>
+					<div class="password-field">
 					<input 
-						type="password" 
+						type={showPassword ? 'text' : 'password'}
 						id="password" 
 						name="password" 
 						autocomplete="new-password"
@@ -69,7 +73,12 @@
 						required 
 						disabled={loading}
 					/>
+					<button type="button" class="password-toggle" aria-pressed={showPassword} onclick={() => showPassword = !showPassword}>{showPassword ? 'Hide' : 'Show'}</button>
+					</div>
+					<small>At least 8 characters. Use a unique password; passwords are stored only as secure hashes.</small>
 				</div>
+
+				<p class="terms-note">By registering, you agree to the <a href="/terms">Terms of Use</a> and acknowledge the <a href="/privacy">Privacy Policy</a>.</p>
 
 				<button type="submit" class="btn btn-primary btn-full" disabled={loading}>
 					{loading ? 'Creating Account...' : 'Register'}
@@ -99,6 +108,13 @@
 		text-align: center;
 		margin-bottom: 1.5rem;
 	}
+	.auth-intro { margin: -0.75rem 0 1.5rem; color: var(--text-muted); font-size: 0.9rem; line-height: 1.55; text-align: center; }
+	.form-group small { display: block; margin-top: 0.35rem; color: var(--text-muted); font-size: 0.75rem; line-height: 1.4; }
+	.password-field { position: relative; }
+	.password-field input { padding-right: 4.25rem; }
+	.password-toggle { position: absolute; top: 50%; right: 0.5rem; transform: translateY(-50%); border: 0; background: transparent; color: var(--primary); font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+	.terms-note { margin: 0 0 1rem; color: var(--text-muted); font-size: 0.75rem; line-height: 1.45; }
+	.terms-note a { text-decoration: underline; }
 
 	.registration-notice {
 		background-color: var(--primary-bg);

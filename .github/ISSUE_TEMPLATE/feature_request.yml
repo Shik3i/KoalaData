@@ -1,0 +1,35 @@
+name: Feature request
+description: Propose a focused improvement to KoalaData
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: checkboxes
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and the changelog.
+          required: true
+        - label: This proposal does not require collecting individual extension-user telemetry.
+          required: true
+  - type: textarea
+    attributes:
+      label: Problem
+      description: What publisher or dashboard-reader problem should be solved?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed behavior
+      description: Describe the smallest useful outcome rather than only an implementation.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Privacy and trust impact
+      description: What data is processed, stored, exposed, or sent elsewhere?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Alternatives
+      description: Optional workarounds or alternative designs.

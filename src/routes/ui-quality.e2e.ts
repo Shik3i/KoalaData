@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-const publicRoutes = ['/', '/discover', '/leaderboards', '/login'];
+const publicRoutes = ['/', '/discover', '/leaderboards', '/login', '/register', '/privacy', '/imprint', '/terms', '/security'];
 
 for (const width of [320, 390, 768, 1920]) {
 	test(`public layout has no viewport overflow at ${width}px`, async ({ page }) => {
