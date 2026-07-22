@@ -71,5 +71,9 @@ describe('OG Image PNG Endpoint', () => {
 		for (let i = 0; i < 8; i++) {
 			expect(bytes[i]).toBe(expectedSignature[i]);
 		}
+
+		const view = new DataView(arrayBuffer);
+		expect(view.getUint32(16)).toBe(1200);
+		expect(view.getUint32(20)).toBe(630);
 	});
 });

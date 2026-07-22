@@ -10,6 +10,7 @@
 
 <svelte:head>
 	<title>Register - KoalaData</title>
+	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
 <div class="container auth-container">
@@ -58,7 +59,7 @@
 						required 
 						disabled={loading}
 					/>
-					<small>Your public publisher name. 3–30 letters, numbers, dots, underscores or hyphens.</small>
+					<small>Your public publisher name. Use 3 to 30 letters, numbers, dots, underscores, or hyphens.</small>
 				</div>
 
 				<div class="form-group">

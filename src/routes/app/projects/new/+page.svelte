@@ -149,7 +149,7 @@
 						placeholder="https://github.com/..." 
 						disabled={loading || data.limitReached}
 					/>
-					<small>Approved public listings use a normal crawlable link without <code>nofollow</code>. Search engines decide independently how links affect rankings.</small>
+					<small>Approved public listings use standard dofollow links. Search engines decide independently how links affect rankings.</small>
 				</div>
 
 				<div class="form-group">

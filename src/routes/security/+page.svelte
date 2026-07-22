@@ -1,7 +1,12 @@
-<svelte:head>
-	<title>Security - KoalaData</title>
-	<meta name="description" content="KoalaData security model and responsible disclosure contact." />
-</svelte:head>
+<script lang="ts">
+	import Seo from '$lib/components/Seo.svelte';
+</script>
+
+<Seo
+	title="Security and Responsible Disclosure | KoalaData"
+	description="Review KoalaData's account, session, upload, moderation, and private vulnerability-reporting safeguards."
+	canonicalPath="/security"
+/>
 
 <div class="container security-page">
 	<article class="card">

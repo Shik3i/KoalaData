@@ -1,4 +1,8 @@
-# allow crawling everything by default
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /admin/
+Disallow: /app/
+Disallow: /demo/
+Disallow: /login
+Disallow: /register
 Sitemap: https://data.koalastuff.net/sitemap.xml

@@ -1,7 +1,9 @@
-# KoalaData
+<h1><img src="assets/brand/koaladata-icon-source.png" alt="KoalaData mascot" width="48" height="48" /> KoalaData</h1>
 
 [![CI](https://github.com/Shik3i/KoalaData/actions/workflows/ci.yml/badge.svg)](https://github.com/Shik3i/KoalaData/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/Shik3i/KoalaData?display_name=tag&sort=semver)](https://github.com/Shik3i/KoalaData/releases/latest)
 [![Container](https://img.shields.io/badge/GHCR-koaladata-2496ED?logo=docker&logoColor=white)](https://github.com/Shik3i/KoalaData/pkgs/container/koaladata)
+[![Support KoalaData](https://img.shields.io/badge/Ko--fi-Support%20KoalaData-FF5E5B?logo=ko-fi&logoColor=white)](https://support.koalastuff.net)
 [![Security policy](https://img.shields.io/badge/security-policy-2d6645)](SECURITY.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -11,7 +13,10 @@
 
 KoalaData imports aggregate CSV reports already available to Chrome Web Store publishers. Every file is previewed before it is committed, then presented as a responsive public, unlisted, or private dashboard.
 
-![KoalaData social preview](static/og-fallback.png)
+![KoalaData: shareable Chrome Web Store analytics](static/og-koaladata.png)
+
+> [!NOTE]
+> KoalaData currently targets Chrome Web Store publisher exports. It does not scrape store listings, install an analytics SDK, or provide real-time user tracking.
 
 ## Why KoalaData?
 
@@ -20,6 +25,7 @@ KoalaData imports aggregate CSV reports already available to Chrome Web Store pu
 - Clear separation between flow metrics such as installs and snapshot metrics such as weekly users.
 - Localized Chrome Web Store report recognition with a manual fallback.
 - Public listing and leaderboard moderation.
+- Responsive, accessible charts with CSV and PNG exports.
 - Self-hosted Node.js and SQLite deployment with Docker support.
 
 ## Supported imports
@@ -77,7 +83,11 @@ Versioned images and `latest` are published to GitHub Container Registry:
 docker pull ghcr.io/shik3i/koaladata:latest
 ```
 
-Use an immutable version tag for production deployments.
+Use an immutable release tag instead of `latest` for production deployments:
+
+```bash
+docker pull ghcr.io/shik3i/koaladata:vX.Y.Z
+```
 
 ## Configuration
 
@@ -87,6 +97,7 @@ Use an immutable version tag for production deployments.
 | `PORT` | Node.js listen port | `3000` |
 | `DATA_DIRECTORY` | Private uploads and project assets | `/data` in Compose |
 | `DATABASE_PATH` | SQLite database file | `/data/koaladata.db` in `.env.example` |
+| `BACKUP_DIRECTORY` | Destination for managed SQLite backups | `/backups` in Compose |
 | `KOALADATA_ADMIN_USERNAME` | Initial administrator username | `admin` |
 | `KOALADATA_ADMIN_PASSWORD` | Required initial production password | none |
 | `SESSION_MAX_AGE` | Session lifetime in seconds | `2592000` |
@@ -106,6 +117,8 @@ data.example.com {
 ```env
 ORIGIN=https://data.example.com
 ```
+
+Use `GET /api/health` for container or reverse-proxy health checks. It reports service availability without exposing account or project data.
 
 ## Backups
 
@@ -157,7 +170,8 @@ See [architecture](docs/architecture.md) for the data model and request flow.
 
 ## Contributing and support
 
-- Bugs and feature ideas: use the repository issue templates.
+- Bugs: use the [bug report template](https://github.com/Shik3i/KoalaData/issues/new?template=bug_report.yml).
+- Feature ideas: use the [feature request template](https://github.com/Shik3i/KoalaData/issues/new?template=feature_request.yml).
 - Code changes: read [CONTRIBUTING.md](CONTRIBUTING.md).
 - Security vulnerabilities: do **not** open a public issue; follow [SECURITY.md](SECURITY.md).
 - Usage and operator contact: [KoalaData imprint](https://data.koalastuff.net/imprint).

@@ -14,6 +14,7 @@
 
 	// Resolve the active user from data
 	let user = $derived(data.user);
+	let releaseVersion = $derived(/^\d+\.\d+\.\d+$/.test(data.version) ? data.version : null);
 
 	// Theme handling state
 	let currentTheme = $state('auto');
@@ -171,21 +172,21 @@
 
 	<footer class="main-footer">
 		<div class="container footer-inner flex justify-between align-center text-muted">
-			<p>© {new Date().getFullYear()} {data.site.siteTitle}. Nature-crafted extension metrics. v{data.version}</p>
+			<p>© {new Date().getFullYear()} {data.site.siteTitle}. Open-source Chrome Web Store analytics.</p>
 			<div class="footer-links flex gap-2">
-				{#if data.site.publicDiscoveryEnabled}<a href="/discover">Projects Index</a>{/if}
-				{#if data.site.publicDiscoveryEnabled && data.site.publicLeaderboardsEnabled}<span>•</span>{/if}
-				{#if data.site.publicLeaderboardsEnabled}<a href="/leaderboards">Leaderboards</a>{/if}
-				<span>•</span>
 				<a href="/imprint">Imprint</a>
-				<span>•</span>
-				<a href="/privacy">Privacy Policy</a>
 				<span>•</span>
 				<a href="/terms">Terms</a>
 				<span>•</span>
-				<a href="/security">Security</a>
+				<a href="/privacy">Privacy</a>
 				<span>•</span>
-				<a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">GitHub</a>
+				{#if releaseVersion}
+					<a href={`https://github.com/Shik3i/KoalaData/releases/tag/v${releaseVersion}`} target="_blank" rel="noopener noreferrer">GitHub v{releaseVersion}</a>
+				{:else}
+					<a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">GitHub</a>
+				{/if}
+				<span>•</span>
+				<a href="https://support.koalastuff.net" target="_blank" rel="noopener noreferrer" class="support-link"><span aria-hidden="true">♥</span> Support KoalaData</a>
 			</div>
 		</div>
 	</footer>
@@ -328,6 +329,13 @@
 	}
 	.footer-links a:hover {
 		color: var(--primary);
+	}
+	.footer-links .support-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		color: var(--primary);
+		font-weight: 700;
 	}
 
 	@media (max-width: 900px) {

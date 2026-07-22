@@ -2,6 +2,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import InfoTip from '$lib/components/InfoTip.svelte';
 	import ProjectBadges from '$lib/components/ProjectBadges.svelte';
+	import Seo from '$lib/components/Seo.svelte';
 	let { data } = $props();
 
 	function formatNumber(num: number) {
@@ -9,7 +10,7 @@
 	}
 
 	function formatDataDate(date: string) {
-		return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+		return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' })
 			.format(new Date(`${date}T00:00:00Z`));
 	}
 
@@ -29,9 +30,12 @@
 	);
 </script>
 
-<svelte:head>
-	<title>Growth Leaderboard - KoalaData</title>
-</svelte:head>
+<Seo
+	title="Browser Extension Growth Leaderboard | KoalaData"
+	description="Compare approved browser extensions by 30-day changes in Chrome Web Store weekly installed-user snapshots, installs, ratings, and percentage growth."
+	canonicalPath="/leaderboards"
+	noindex={!data.site.publicLeaderboardsEnabled}
+/>
 
 <div class="container leaderboard-page">
 	<h1 class="page-title"><Icon name="trophy" /> Weekly Growth Leaderboard</h1>
@@ -95,7 +99,7 @@
 											<div class="project-meta">
 											<span class="text-muted">{project.category}</span>
 											<ProjectBadges pricingModel={project.pricingModel} isOpenSource={project.isOpenSource} />
-												<span class="freshness-pill" title={`Neuester importierter Messpunkt: ${project.lastDataDate}`}>Stand vom {formatDataDate(project.lastDataDate)}</span>
+											<span class="freshness-pill" title={`Latest imported observation: ${project.lastDataDate}`}>Data through {formatDataDate(project.lastDataDate)}</span>
 											</div>
 										</div>
 									</div>

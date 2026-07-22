@@ -13,6 +13,7 @@
 	},
 	"scripts": {
 		"dev": "vite dev",
+		"start": "node server.mjs",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -47,14 +48,14 @@
 		"@types/node": "^24",
 		"drizzle-kit": "^0.31.10",
 		"drizzle-orm": "^0.45.2",
-		"svelte": "^5.56.1",
+		"echarts": "^6.1.0",
+		"hash-wasm": "^4.12.0",
+		"phosphor-svelte": "^3.1.0",
+		"svelte": "^5.56.7",
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.16",
 		"vitest": "^4.1.8",
-		"echarts": "^6.1.0",
-		"hash-wasm": "^4.12.0",
-		"phosphor-svelte": "^3.1.0",
 		"zod": "^4.4.3"
 	},
 	"dependencies": {

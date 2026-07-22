@@ -87,6 +87,9 @@
 
 	@media (max-width: 520px) {
 		.rating-card { padding: 1rem; }
+		.rating-card header { flex-direction: column; gap: 0.5rem; }
+		.rating-total { text-align: left; }
 		.rating-total strong { font-size: 1.05rem; }
+		.rating-meta { gap: 0.5rem; }
 	}
 </style>

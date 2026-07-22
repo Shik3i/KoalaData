@@ -1,122 +1,58 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import Seo from '$lib/components/Seo.svelte';
 </script>
 
-<svelte:head>
-	<title>Imprint / Legal Notice - KoalaData</title>
-</svelte:head>
+<Seo
+	title="Legal Notice | KoalaData"
+	description="Operator, contact, project, liability, license, copyright, and dispute-resolution information for KoalaData."
+	canonicalPath="/imprint"
+/>
 
 <div class="container legal-page">
-	<div class="card legal-card">
-		<h1 class="page-title"><Icon name="clipboard-text" /> Legal Notice / Impressum</h1>
-		<p class="text-muted text-center subtitle">Contact information and operator details / Anbieterkennzeichnung nach § 5 DDG</p>
-		
-		<hr class="divider" />
+	<article class="card legal-card">
+		<h1 class="page-title"><Icon name="clipboard-text" /> Legal Notice</h1>
+		<p class="subtitle">Operator, contact, and project information</p>
 
-		<div class="grid grid-2 legal-grid">
-			<!-- English Section -->
-			<section class="legal-section">
-				<h2>Operator & Contact</h2>
-				<p><strong>Timo Schmidt</strong></p>
-				<p>E-Mail: <a href="mailto:koalasync@koalastuff.net">koalasync@koalastuff.net</a></p>
-				<p>Mastodon: <a href="https://mastodon.social/@koalastuff" target="_blank" rel="noopener noreferrer">@koalastuff on Mastodon</a></p>
-				
-				<h2 style="margin-top: 2rem;">Dispute Resolution</h2>
-				<p>
-					I am not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board.
-				</p>
+		<section>
+			<h2>Operator and contact</h2>
+			<p><strong>Timo Schmidt</strong></p>
+			<p>Email: <a href="mailto:koalasync@koalastuff.net">koalasync@koalastuff.net</a></p>
+			<p>Private message: <a href="https://mastodon.social/@koalastuff" target="_blank" rel="me noopener noreferrer">@koalastuff on Mastodon</a></p>
+		</section>
 
-				<h2 style="margin-top: 2rem;">Liability for Links</h2>
-				<p>
-					Our site contains links to external third-party websites. We have no influence on the contents of those websites, therefore we cannot guarantee for those contents. Providers or administrators of linked websites are always responsible for their own contents.
-				</p>
-			</section>
+		<section>
+			<h2>Project information</h2>
+			<p>KoalaData is an open-source platform for importing and publishing aggregate Chrome Web Store statistics. The source code is available on <a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">GitHub</a> under the MIT License.</p>
+			<p>Report bugs through <a href="https://github.com/Shik3i/KoalaData/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a>. Report security vulnerabilities privately through the <a href="/security">security page</a>.</p>
+		</section>
 
-			<!-- German Section -->
-			<section class="legal-section border-left">
-				<h2>Angaben gemäß § 5 DDG</h2>
-				<p><strong>Timo Schmidt</strong></p>
-				<p>E-Mail: <a href="mailto:koalasync@koalastuff.net">koalasync@koalastuff.net</a></p>
-				<p>Mastodon: <a href="https://mastodon.social/@koalastuff" target="_blank" rel="noopener noreferrer">@koalastuff on Mastodon</a></p>
+		<section>
+			<h2>Liability for content and links</h2>
+			<p>The contents of this website were prepared with care. I cannot guarantee that all information is always complete, accurate, or current.</p>
+			<p>This website links to third-party services. I do not control their content. The respective provider or operator is responsible for linked pages. Links to unlawful content will be removed when identified.</p>
+		</section>
 
-				<h2 style="margin-top: 2rem;">Streitschlichtung</h2>
-				<p>
-					Ich bin nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.
-				</p>
+		<section>
+			<h2>License and copyright</h2>
+			<p>Unless otherwise stated, the KoalaData source code is licensed under the MIT License. Project names, logos, graphics, website copy, and other non-code assets may be subject to separate rights unless the repository explicitly includes them under that license.</p>
+		</section>
 
-				<h2 style="margin-top: 2rem;">Haftung für Links</h2>
-				<p>
-					Unser Angebot enthält Links zu externen Webseiten Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich.
-				</p>
-			</section>
-		</div>
-	</div>
+		<section>
+			<h2>Dispute resolution</h2>
+			<p>I am not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board.</p>
+		</section>
+	</article>
 </div>
 
 <style>
-	.legal-page {
-		padding-block: 2.5rem;
-		max-width: 900px;
-	}
-	.legal-card {
-		padding: 2.5rem;
-		background-color: var(--bg-surface);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-md);
-	}
-	.page-title {
-		text-align: center;
-		font-size: 2rem;
-		margin-bottom: 0.5rem;
-		color: var(--primary);
-	}
-	.subtitle {
-		margin-bottom: 1.5rem;
-	}
-	.divider {
-		border: 0;
-		border-top: 1px solid var(--border-color);
-		margin-bottom: 2rem;
-	}
-	.legal-grid {
-		gap: 2.5rem;
-	}
-	.legal-section h2 {
-		font-size: 1.25rem;
-		margin-bottom: 1rem;
-		color: var(--text-base);
-		font-weight: 600;
-	}
-	.legal-section p {
-		font-size: 0.95rem;
-		line-height: 1.6;
-		color: var(--text-muted);
-		margin-bottom: 0.75rem;
-	}
-	.legal-section a {
-		color: var(--primary);
-		text-decoration: underline;
-	}
-	.legal-section a:hover {
-		color: var(--primary-hover);
-	}
-	.border-left {
-		border-left: 1px solid var(--border-color);
-		padding-left: 2.5rem;
-	}
-
-	@media (max-width: 768px) {
-		.grid-2 {
-			grid-template-columns: 1fr;
-		}
-		.border-left {
-			border-left: none;
-			padding-left: 0;
-			border-top: 1px solid var(--border-color);
-			padding-top: 2rem;
-		}
-		.legal-card {
-			padding: 1.5rem;
-		}
-	}
+	.legal-page { max-width: 800px; padding-block: 2.5rem; }
+	.legal-card { padding: clamp(1.25rem, 4vw, 2.5rem); }
+	.page-title { display: flex; align-items: center; justify-content: center; gap: 0.55rem; margin: 0; color: var(--primary); text-align: center; }
+	.subtitle { margin: 0.65rem 0 2rem; color: var(--text-muted); text-align: center; }
+	section { margin-top: 1.75rem; }
+	section:first-of-type { margin-top: 0; padding-top: 2rem; border-top: 1px solid var(--border-color); }
+	h2 { margin: 0 0 0.65rem; font-size: 1.2rem; }
+	p { margin: 0.55rem 0; color: var(--text-muted); line-height: 1.65; }
+	a { text-decoration: underline; text-underline-offset: 0.16em; }
 </style>

@@ -56,7 +56,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 		pathname.startsWith('/wp-includes') ||
 		pathname.startsWith('/actuator/') ||
 		pathname.startsWith('/_vti_pvt') ||
-		pathname === '/favicon.ico' ||
 		pathname === '/.npmrc' ||
 		pathname === '/.bash_history' ||
 		pathname === '/.ssh/id_rsa' ||
@@ -155,6 +154,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	if (
+		pathname.startsWith('/app') ||
+		pathname.startsWith('/admin') ||
+		pathname.startsWith('/demo') ||
+		pathname === '/login' ||
+		pathname === '/register'
+	) {
+		response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+	}
 
 	return response;
 };

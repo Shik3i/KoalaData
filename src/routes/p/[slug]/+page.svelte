@@ -7,6 +7,8 @@
 	import BreakdownTabs from '$lib/components/BreakdownTabs.svelte';
 	import RatingAnalytics from '$lib/components/RatingAnalytics.svelte';
 	import ProjectBadges from '$lib/components/ProjectBadges.svelte';
+	import Seo from '$lib/components/Seo.svelte';
+	import { buildProjectSchemas } from '$lib/seo';
 	import {
 		buildBreakdownGroups,
 		classifyChromeReportLabel,
@@ -25,8 +27,12 @@
 	let copied = $state(false);
 	let activeSection = $state('growth');
 	let days = $derived(dateFilter === 'all' ? null : Number(dateFilter));
+	let isIndexable = $derived(project.visibility === 'public' && project.moderationStatus === 'active');
 
 	let metrics = $derived(data.metrics as DashboardMetric[]);
+	let schemas = $derived(isIndexable
+		? buildProjectSchemas(page.url.origin, project, metrics.map((metric) => metricLabel(metric)))
+		: []);
 	let breakdownGroups = $derived(buildBreakdownGroups(metrics));
 	let acquisitionGroups = $derived(breakdownGroups.filter((group) => group.section === 'acquisition'));
 	let audienceGroups = $derived(breakdownGroups.filter((group) => group.section === 'audience'));
@@ -38,7 +44,7 @@
 	}
 
 	function formatDataDate(date: string): string {
-		return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+		return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' })
 			.format(new Date(`${date}T00:00:00Z`));
 	}
 
@@ -189,20 +195,15 @@
 	});
 </script>
 
-<svelte:head>
-	<title>{project.name} Analytics · KoalaData</title>
-	<meta name="description" content="Verified growth, audience, acquisition and retention metrics for {project.name}." />
-	<meta property="og:title" content="{project.name} Analytics · KoalaData" />
-	<meta property="og:description" content={project.shortDescription} />
-	<meta property="og:image" content={page.url.origin + `/p/${project.slug}/og.png`} />
-	<meta property="og:url" content={page.url.origin + `/p/${project.slug}`} />
-	<meta property="og:type" content="website" />
-	<link rel="canonical" href={page.url.origin + `/p/${project.slug}`} />
-	<meta name="twitter:card" content="summary_large_image" />
-	{#if project.visibility !== 'public' || project.moderationStatus !== 'active'}
-		<meta name="robots" content="noindex, nofollow" />
-	{/if}
-</svelte:head>
+<Seo
+	title={`${project.name} Chrome Web Store Analytics | KoalaData`}
+	description={project.shortDescription}
+	canonicalPath={`/p/${project.slug}`}
+	imagePath={`/p/${project.slug}/og.png`}
+	imageAlt={`${project.name} analytics on KoalaData`}
+	noindex={!isIndexable}
+	{schemas}
+/>
 
 <div class="container public-dashboard">
 	<header class="project-hero card">
@@ -216,7 +217,7 @@
 						<span class="badge">{project.category}</span>
 						<ProjectBadges pricingModel={project.pricingModel} isOpenSource={project.isOpenSource} />
 						{#if project.verificationStatus === 'verified'}<span class="badge verified"><Icon name="seal-check" /> Verified data <InfoTip id="verified-help" text="An administrator reviewed the listing and supporting evidence. Verification is not an endorsement, and raw CSV files remain private." /></span>{/if}
-						{#if lastUpdated}<span class="badge freshness" title={`Neuester importierter Messpunkt: ${lastUpdated}`}>Stand vom {formatDataDate(lastUpdated)}</span>{/if}
+						{#if lastUpdated}<span class="badge freshness" title={`Latest imported observation: ${lastUpdated}`}>Data through {formatDataDate(lastUpdated)}</span>{/if}
 					</div>
 					<h1>{project.name}</h1>
 					<p class="hero-description">{project.shortDescription}</p>
@@ -396,13 +397,23 @@
 		.hero-actions .btn { flex: 1 1 100%; }
 		.kpi-grid { grid-template-columns: 1fr 1fr; gap: 0.65rem; }
 		.kpi-card { min-height: 112px; padding: 0.9rem; }
-		.kpi-card strong { font-size: 1.35rem; }
+		.kpi-card strong { max-width: 100%; overflow-wrap: anywhere; font-size: 1.35rem; }
 		.section-nav { justify-self: stretch; overflow-x: auto; justify-content: flex-start; border-radius: var(--radius-md); }
 		.section-nav a { white-space: nowrap; }
 		.filter-panel { width: 100%; overflow-x: auto; }
 		.filter-panel button { flex: 1; }
 		.weekday-card header { flex-direction: column; }
+		.chart-card, .weekday-card { padding: 1rem; }
+		.chart-card header { flex-direction: column; gap: 0.35rem; }
+		.chart-card header strong { white-space: normal; }
 		.weekday-summary { justify-content: flex-start; }
 		.weekday-chart { gap: 0.25rem; height: 160px; }
+		.weekday-value, .weekday-label { font-size: 0.65rem; }
+	}
+	@media (max-width: 360px) {
+		.project-logo { width: 44px; height: 44px; }
+		.kpi-card { min-height: 106px; padding: 0.75rem; }
+		.kpi-card > span, .kpi-card small { font-size: 0.68rem; }
+		.filter-panel button { min-width: 2.8rem; padding-inline: 0.45rem; }
 	}
 </style>

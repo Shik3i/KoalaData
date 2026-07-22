@@ -2,6 +2,8 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import InfoTip from '$lib/components/InfoTip.svelte';
 	import ProjectBadges from '$lib/components/ProjectBadges.svelte';
+	import Seo from '$lib/components/Seo.svelte';
+	import { page } from '$app/state';
 	let { data } = $props();
 
 	function formatUpdated(timestamp: number): string {
@@ -13,13 +15,16 @@
 	}
 </script>
 
-<svelte:head>
-	<title>Explore Extensions - KoalaData</title>
-</svelte:head>
+<Seo
+	title="Explore Browser Extension Analytics | KoalaData"
+	description="Browse approved public browser-extension dashboards with Chrome Web Store ratings, weekly users, installs, audience breakdowns, and growth history."
+	canonicalPath="/discover"
+	noindex={!data.site.publicDiscoveryEnabled || page.url.search.length > 0}
+/>
 
 <div class="container discover-page">
 	<h1 class="page-title"><Icon name="compass" /> Explore Extensions</h1>
-	<p class="text-muted">Browse public browser extension projects registered in the ecosystem.</p>
+	<p class="text-muted">Browse approved public browser-extension dashboards.</p>
 
 	<!-- Search Panel -->
 	<div class="card filter-card">
@@ -72,9 +77,9 @@
 		{:else}
 			<div class="grid grid-3 explore-grid">
 				{#each data.exploreProjects as project}
-					<div class="card explore-card flex flex-col justify-between">
-						<div>
-							<div class="flex align-center gap-1 card-title-row">
+					<article class="card explore-card">
+						<header class="project-card-header">
+							<div class="project-identity">
 								{#if project.logoPath}
 									<div class="mini-logo">
 										<img src="/api/projects/{project.id}/logo" alt={project.name} />
@@ -84,31 +89,35 @@
 										<Icon name="paw-print" />
 									</div>
 								{/if}
-								<h2 style="margin: 0; font-size: 1.15rem;">
-									<a href="/p/{project.slug}">{project.name}</a>
-								</h2>
+								<div class="project-heading">
+									<h2><a href="/p/{project.slug}">{project.name}</a></h2>
+									<p class="updated text-muted">Updated {formatUpdated(project.updatedAt)}</p>
+								</div>
 							</div>
-							<span class="badge badge-category">{project.category}</span>
-							<ProjectBadges pricingModel={project.pricingModel} isOpenSource={project.isOpenSource} />
-							{#if project.verificationStatus === 'verified'}
-								<span class="badge badge-verified">Verified <InfoTip id={`verified-${project.id}`} text="The listing and supporting evidence were reviewed by an administrator. This is not an endorsement." /></span>
-							{/if}
-							<p class="desc-text text-muted">{project.shortDescription}</p>
-							<dl class="quick-stats" aria-label={`${project.name} key metrics`}>
-								<div><dt>Rating</dt><dd aria-label={project.rating === null ? 'No rating data' : `${project.rating.toFixed(1)} out of 5 stars`}>{project.rating === null ? '—' : `★ ${project.rating.toFixed(1)}`}</dd></div>
-								<div><dt>Weekly users</dt><dd>{formatNumber(project.activeUsers)}</dd></div>
-								<div><dt>Daily installs</dt><dd>{formatNumber(project.installs)}</dd></div>
-							</dl>
-							<p class="updated text-muted">Listing updated {formatUpdated(project.updatedAt)}</p>
-						</div>
-						
-						<div class="card-footer flex justify-between align-center">
-							<a href="/p/{project.slug}" class="btn btn-secondary btn-sm">Inspect Charts</a>
+							<div class="project-badge-row">
+								<span class="badge badge-category">{project.category}</span>
+								<ProjectBadges pricingModel={project.pricingModel} isOpenSource={project.isOpenSource} />
+								{#if project.verificationStatus === 'verified'}
+									<span class="badge badge-verified">Verified <InfoTip id={`verified-${project.id}`} text="The listing and supporting evidence were reviewed by an administrator. This is not an endorsement." /></span>
+								{/if}
+							</div>
+						</header>
+
+						<p class="desc-text text-muted">{project.shortDescription}</p>
+
+						<dl class="quick-stats" aria-label={`${project.name} key metrics`}>
+							<div><dt>Rating</dt><dd aria-label={project.rating === null ? 'No rating data' : `${project.rating.toFixed(1)} out of 5 stars`}>{project.rating === null ? '—' : `★ ${project.rating.toFixed(1)}`}</dd></div>
+							<div><dt>Weekly users</dt><dd>{formatNumber(project.activeUsers)}</dd></div>
+							<div><dt>Daily installs</dt><dd>{formatNumber(project.installs)}</dd></div>
+						</dl>
+
+						<footer class="card-footer">
+							<a href="/p/{project.slug}" class="btn btn-secondary btn-sm">Inspect charts</a>
 							{#if project.storeUrl}
 								<a href={project.storeUrl} target="_blank" rel="noopener" class="store-link text-muted">Store <Icon name="arrow-up-right" /></a>
 							{/if}
-						</div>
-					</div>
+						</footer>
+					</article>
 				{/each}
 			</div>
 		{/if}
@@ -131,17 +140,22 @@
 	}
 
 	.explore-grid {
-		gap: 2rem;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+		gap: 1.25rem;
+		align-items: stretch;
 	}
-	.quick-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.85rem 0 0; }
-	.quick-stats div { min-width: 0; padding: 0.5rem; border-radius: var(--radius-sm); background: var(--bg-inset); }
-	.quick-stats dt { color: var(--text-muted); font-size: 0.68rem; line-height: 1.2; }
-	.quick-stats dd { margin: 0.15rem 0 0; font-size: 0.88rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+	.quick-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin: auto 0 0; }
+	.quick-stats div { min-width: 0; padding: 0.7rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-inset); }
+	.quick-stats dt { color: var(--text-muted); font-size: 0.7rem; line-height: 1.25; }
+	.quick-stats dd { margin: 0.2rem 0 0; font-size: 0.95rem; font-weight: 750; font-variant-numeric: tabular-nums; }
 	@media (max-width: 1100px) { .filter-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 	.explore-card {
-		min-height: 200px;
-		padding: 1.5rem;
+		display: flex;
+		min-width: 0;
+		min-height: 19rem;
+		padding: 1.25rem;
+		flex-direction: column;
 		transition: var(--transition-base);
 	}
 	.explore-card:hover {
@@ -150,14 +164,34 @@
 		transform: translateY(-2px);
 	}
 
-	.card-title-row {
-		margin-bottom: 0.5rem;
+	.project-card-header {
+		display: grid;
+		gap: 0.85rem;
+	}
+	.project-identity {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: 0.8rem;
+	}
+	.project-heading {
+		min-width: 0;
+	}
+	.project-heading h2 {
+		margin: 0;
+		font-size: 1.15rem;
+		line-height: 1.25;
+	}
+	.project-heading h2 a {
+		display: block;
+		overflow-wrap: anywhere;
 	}
 
 	.mini-logo {
-		width: 32px;
-		height: 32px;
-		border-radius: 6px;
+		width: 2.75rem;
+		height: 2.75rem;
+		flex: 0 0 2.75rem;
+		border-radius: 0.65rem;
 		overflow: hidden;
 		background-color: var(--bg-inset);
 		display: flex;
@@ -176,26 +210,36 @@
 	}
 
 	.badge-category {
-		font-size: 0.7rem;
-		padding: 0.1rem 0.35rem;
-		border-radius: var(--radius-sm);
-		font-weight: 600;
+		display: inline-flex;
+		align-items: center;
+		min-height: 1.5rem;
+		padding: 0.16rem 0.55rem;
+		border-radius: 999px;
+		font-size: 0.72rem;
+		font-weight: 700;
+		line-height: 1;
+		text-transform: capitalize;
 		background-color: var(--primary-bg);
 		color: var(--primary);
 	}
-	.badge-verified { margin-left: 0.35rem; background: var(--success-bg); color: var(--success); }
-	.updated { font-size: 0.75rem; margin: -0.8rem 0 1.25rem; }
+	.project-badge-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+	.badge-verified { display: inline-flex; align-items: center; min-height: 1.5rem; gap: 0.25rem; padding: 0.16rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; line-height: 1; background: var(--success-bg); color: var(--success); }
+	.updated { margin: 0.2rem 0 0; font-size: 0.72rem; line-height: 1.3; }
 
 	.desc-text {
 		font-size: 0.85rem;
 		line-height: 1.45;
-		margin-top: 0.75rem;
-		margin-bottom: 1.5rem;
+		margin: 1rem 0 1.25rem;
 	}
 
 	.card-footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
 		border-top: 1px solid var(--border-color);
-		padding-top: 0.75rem;
+		padding-top: 1rem;
+		margin-top: 1rem;
 		font-size: 0.8rem;
 	}
 
@@ -217,7 +261,11 @@
 		.filter-form { grid-template-columns: minmax(0, 1fr); }
 		.filter-form .btn { width: 100%; }
 		.explore-grid { gap: 1rem; }
-		.card-footer { flex-wrap: wrap; gap: 0.75rem; }
+		.explore-card { min-height: 0; padding: 1rem; }
+		.card-footer { flex-wrap: wrap; }
 		.empty-state { padding: 2rem 1rem; }
+	}
+	@media (max-width: 380px) {
+		.quick-stats { grid-template-columns: minmax(0, 1fr); }
 	}
 </style>

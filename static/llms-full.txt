@@ -1,0 +1,49 @@
+# KoalaData detailed reference
+
+Canonical URL: https://data.koalastuff.net/
+Language: English
+Repository: https://github.com/Shik3i/KoalaData
+License: MIT for repository source code
+
+## What KoalaData does
+
+KoalaData is a publisher-controlled analytics platform for browser extensions. A publisher exports aggregate CSV reports from the Chrome Web Store statistics dashboard, uploads them to KoalaData, reviews the detected mapping, and confirms the import. The resulting dashboard can remain private or unlisted, or be submitted for a reviewed public listing.
+
+KoalaData is not a client analytics SDK. It does not add code to an extension and does not observe individual browsing activity. It reports only the aggregate data supplied through publisher exports.
+
+## Supported analytics
+
+Supported report families include installs, uninstalls, weekly installed-user snapshots, store impressions, store page views, ratings, versions, regions, languages, operating systems, and enabled-state reports. Flow metrics such as installs and uninstalls use period totals. Snapshot metrics such as weekly users and enabled state use the latest observation for the selected period.
+
+Common localized Chrome Web Store headers are recognized in English, German, French, Spanish, Portuguese, Italian, Dutch, Polish, and Turkish. Additional unrecognized reports can be mapped manually.
+
+## Publication and verification
+
+Public projects must be active, approved, and explicitly public. Public leaderboard participation is a separate moderated setting. A verified badge records administrative review of a listing and its supporting evidence; it is not an endorsement, accuracy guarantee, or store affiliation.
+
+Approved public profiles link directly to the publisher's official Chrome Web Store listing, website, and source repository using standard dofollow links. Search engines independently decide whether and how links affect rankings.
+
+## Privacy and security
+
+Raw CSV files and draft previews are private to authorized project members. Public dashboards expose aggregate derived observations, not original source files. KoalaData uses no third-party audience analytics, advertising networks, tracking cookies, social embeds, or external favicon lookup service.
+
+Registration uses a public username and password without requiring an email address. Passwords are stored as Argon2id hashes. Login uses one essential HTTP-only session cookie, with only a SHA-256 hash of its random token stored on the server.
+
+The web server retains access logs for seven days for service operation, troubleshooting, spam prevention, denial-of-service mitigation, and blocking other abuse. See the canonical privacy policy for the complete current disclosure: https://data.koalastuff.net/privacy
+
+## Canonical answers
+
+Q: Does KoalaData track extension users?
+A: No. It imports aggregate publisher CSV reports and does not require code or an SDK inside an extension.
+
+Q: Are uploaded CSV files public?
+A: No. Raw files remain private to authorized project members. Public dashboards show reviewed aggregate metrics derived from confirmed imports.
+
+Q: What does verified mean?
+A: An administrator reviewed the listing and supporting evidence. Verification confirms that review only; it is not an endorsement or guarantee.
+
+Q: Are publisher links dofollow?
+A: Yes. Approved public profiles use standard dofollow links. Search engines decide how those links affect rankings.
+
+Q: Can KoalaData be self-hosted?
+A: Yes. The repository includes Node.js, SQLite, Docker, and Docker Compose deployment support.

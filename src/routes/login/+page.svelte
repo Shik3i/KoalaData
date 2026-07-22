@@ -11,6 +11,7 @@
 
 <svelte:head>
 	<title>Log In - KoalaData</title>
+	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
 <div class="container auth-container">

@@ -4,28 +4,23 @@
 	import SealCheckIcon from 'phosphor-svelte/lib/SealCheckIcon';
 	import TrophyIcon from 'phosphor-svelte/lib/TrophyIcon';
 	import ProjectBadges from '$lib/components/ProjectBadges.svelte';
+	import Seo from '$lib/components/Seo.svelte';
+	import { buildHomepageSchemas, homepageFaqItems, SITE_DESCRIPTION } from '$lib/seo';
 	import { page } from '$app/state';
 	let { data } = $props();
+	let schemas = $derived(buildHomepageSchemas(page.url.origin, data.version));
 
 	function formatNumber(num: number) {
 		return num.toLocaleString();
 	}
 </script>
 
-<svelte:head>
-	<title>KoalaData - Open Extension Analytics</title>
-	<meta
-		name="description"
-		content="Publish, explore, and compare verifiable browser extension metrics with an open, self-hosted analytics platform."
-	/>
-	<link rel="canonical" href={page.url.origin + '/'} />
-	<meta property="og:title" content="KoalaData · Shareable Chrome Web Store analytics" />
-	<meta property="og:description" content="Turn aggregate Chrome Web Store CSV exports into a transparent, shareable analytics dashboard—without extension telemetry." />
-	<meta property="og:type" content="website" />
-	<meta property="og:url" content={page.url.origin + '/'} />
-	<meta property="og:image" content={page.url.origin + '/og-fallback.png'} />
-	<meta name="twitter:card" content="summary_large_image" />
-</svelte:head>
+<Seo
+	title="Chrome Web Store Analytics for Extension Publishers | KoalaData"
+	description={SITE_DESCRIPTION}
+	canonicalPath="/"
+	{schemas}
+/>
 
 <div class="container homepage-container">
 	<section class="hero card" aria-labelledby="hero-title">
@@ -34,13 +29,23 @@
 			<h1 id="hero-title">Turn store exports into a dashboard worth sharing.</h1>
 			<p class="hero-subtitle">
 				Upload aggregate Chrome Web Store reports, review every mapping, and publish clear
-				install, user, region, language, version and rating trends—without adding tracking to your extension.
+				install, user, region, language, version and rating trends without adding tracking to your extension.
 			</p>
 			<div class="hero-actions">
-				<a href="/register" class="btn btn-primary btn-lg">
-					Publish my extension metrics <ArrowRightIcon class="app-icon" aria-hidden="true" />
-				</a>
-				<a href="/discover" class="btn btn-secondary btn-lg">Explore public dashboards</a>
+				{#if data.site.registrationMode !== 'invite_only'}
+					<a href="/register" class="btn btn-primary btn-lg">
+						Publish my extension metrics <ArrowRightIcon class="app-icon" aria-hidden="true" />
+					</a>
+				{:else}
+					<a href="/login" class="btn btn-primary btn-lg">
+						Open publisher workspace <ArrowRightIcon class="app-icon" aria-hidden="true" />
+					</a>
+				{/if}
+				{#if data.site.publicDiscoveryEnabled}
+					<a href="/discover" class="btn btn-secondary btn-lg">Explore public dashboards</a>
+				{:else}
+					<a href="/security" class="btn btn-secondary btn-lg">Review security</a>
+				{/if}
 			</div>
 			<ul class="trust-list" aria-label="Platform benefits">
 				<li><SealCheckIcon class="app-icon" weight="fill" aria-hidden="true" /> <a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">Open source on GitHub</a></li>
@@ -86,7 +91,7 @@
 			</span>
 			<div class="visual-card visual-card-users">
 				<span>Weekly users</span>
-				<strong>Live</strong>
+				<strong>Reviewed</strong>
 			</div>
 			<div class="visual-card visual-card-dimensions">
 				<span>Regions</span>
@@ -108,7 +113,8 @@
 		</ol>
 	</section>
 
-	<div class="grid grid-2 info-grid">
+	<div class="grid grid-2 info-grid" class:single-card={!data.site.publicDiscoveryEnabled || !data.site.publicLeaderboardsEnabled}>
+		{#if data.site.publicDiscoveryEnabled}
 		<div class="card info-card">
 			<div class="card-header flex align-center gap-1">
 				<span class="info-icon"><FolderOpenIcon class="app-icon" weight="duotone" aria-hidden="true" /></span>
@@ -118,14 +124,16 @@
 				</div>
 			</div>
 			<p class="text-muted">
-				Search the public directory, inspect complete metric histories, and understand which
+				Search the public directory, inspect available metric histories, and understand which
 				markets, versions, and acquisition channels matter.
 			</p>
 			<a href="/discover" class="btn btn-secondary btn-sm mt-1">
 				Search directory <ArrowRightIcon class="app-icon" aria-hidden="true" />
 			</a>
 		</div>
+		{/if}
 
+		{#if data.site.publicLeaderboardsEnabled}
 		<div class="card info-card">
 			<div class="card-header flex align-center gap-1">
 				<span class="info-icon"><TrophyIcon class="app-icon" weight="duotone" aria-hidden="true" /></span>
@@ -142,13 +150,14 @@
 				See rankings <ArrowRightIcon class="app-icon" aria-hidden="true" />
 			</a>
 		</div>
+		{/if}
 	</div>
 
-	{#if data.leaderboard && data.leaderboard.length > 0}
+	{#if data.site.publicLeaderboardsEnabled && data.leaderboard && data.leaderboard.length > 0}
 		<section class="card peek-section">
 			<div class="section-heading">
 				<div>
-					<p class="card-kicker">Updated from public reports</p>
+					<p class="card-kicker">Based on published reports</p>
 					<h2>Trending extensions</h2>
 				</div>
 				<a href="/leaderboards" class="section-link">View full leaderboard <ArrowRightIcon class="app-icon" aria-hidden="true" /></a>
@@ -179,11 +188,9 @@
 		<p class="card-kicker">Before you publish</p>
 		<h2 id="faq-title">Common questions</h2>
 		<div class="faq-grid">
-			<details><summary>Does KoalaData track extension users?</summary><p>No. It imports aggregate publisher CSV reports and does not require code or an SDK inside your extension.</p></details>
-			<details><summary>Which languages are supported?</summary><p>Automatic detection covers English, German, French, Spanish, Portuguese, Italian, Dutch, Polish and Turkish. Unknown formats can be mapped manually.</p></details>
-			<details><summary>What does “verified” mean?</summary><p>An administrator reviewed the listing and supporting evidence. It is not an endorsement and never exposes the uploaded raw CSV publicly.</p></details>
-			<details><summary>Can I prepare a dashboard privately?</summary><p>Yes. Start unlisted or private, review the complete dashboard, and request a public directory listing only when ready.</p></details>
-			<details><summary>Are publisher links crawlable?</summary><p>Yes. Approved public profiles use ordinary links without <code>nofollow</code>. They can help people and search engines discover the official store, website, and source repository, but no ranking effect is guaranteed.</p></details>
+			{#each homepageFaqItems as item}
+				<details><summary>{item.question}</summary><p>{item.answer}</p></details>
+			{/each}
 		</div>
 	</section>
 </div>
@@ -370,6 +377,7 @@
 	}
 
 	.info-grid { gap: 1.5rem; }
+	.info-grid.single-card { grid-template-columns: minmax(0, 1fr); }
 	.how-section, .faq-section { padding: 1.75rem; }
 	.how-section .section-heading > p { max-width: 35rem; margin: 0; color: var(--text-muted); font-size: 0.88rem; line-height: 1.55; }
 	.how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.25rem 0 0; padding: 0; list-style: none; }

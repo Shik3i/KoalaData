@@ -83,6 +83,7 @@
 	let chartDom: HTMLDivElement;
 	let chart: EChartsType | null = null;
 	let destroyed = false;
+	let compactMode: boolean | null = null;
 
 	async function initChart() {
 		const generation = ++initGeneration;
@@ -102,6 +103,8 @@
 			chart = echarts.init(chartDom, undefined, { renderer: 'svg' });
 
 			const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+			const isCompact = chartDom.clientWidth <= 520;
+			compactMode = isCompact;
 
 			let dates: string[] = categoryLabels?.length ? [...categoryLabels] : [];
 			let seriesOptions: any[] = [];
@@ -116,9 +119,9 @@
 						type: 'line',
 						smooth: true,
 						symbol: 'circle',
-						symbolSize: 5,
+						symbolSize: isCompact ? 3 : 5,
 						color: s.color,
-						lineStyle: { width: 2.5 },
+						lineStyle: { width: isCompact ? 2 : 2.5 },
 						areaStyle: {
 							color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
 								{ offset: 0, color: s.color + '1A' },
@@ -153,9 +156,9 @@
 					type: 'line',
 					smooth: true,
 					symbol: 'circle',
-					symbolSize: 5,
+				symbolSize: isCompact ? 3 : 5,
 					color: mainColor,
-					lineStyle: { width: 2.5 },
+				lineStyle: { width: isCompact ? 2 : 2.5 },
 					areaStyle: {
 						color: new echarts.graphic.LinearGradient(0, 0, 0, 1, isDark ? [
 							{ offset: 0, color: 'rgba(120, 211, 151, 0.25)' },
@@ -220,24 +223,33 @@
 		const hasLegend = legendData.length > 1;
 
 		const option = {
+			animation: typeof window === 'undefined' || !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
 			grid: {
-				left: '4%',
-				right: '4%',
-				bottom: hasZoomSlider ? '16%' : '8%',
-				top: hasLegend ? '14%' : '6%',
+				left: isCompact ? 4 : '3%',
+				right: isCompact ? 4 : '3%',
+				bottom: hasZoomSlider ? (isCompact ? 52 : '16%') : (isCompact ? 28 : '8%'),
+				top: hasLegend ? (isCompact ? 44 : '14%') : (isCompact ? 18 : '6%'),
+				outerBoundsMode: 'same',
+				outerBoundsContain: 'axisLabel'
 			},
 			legend: hasLegend ? {
 				data: legendData,
+				type: 'scroll',
 				top: 0,
 				left: 0,
+				right: isCompact ? 76 : 0,
+				pageIconSize: 10,
+				itemWidth: isCompact ? 14 : 25,
+				itemHeight: isCompact ? 8 : 14,
 				textStyle: {
 					color: isDark ? '#a5b2a8' : '#64748b',
 					fontFamily: 'Inter, system-ui, sans-serif',
-					fontSize: 11
+					fontSize: isCompact ? 10 : 11
 				}
 			} : undefined,
 			tooltip: {
 				trigger: 'axis',
+				confine: true,
 				backgroundColor: isDark ? '#151c17' : 'rgba(255, 255, 255, 0.95)',
 				borderWidth: 1,
 				borderColor: isDark ? '#2a382e' : '#e2e8f0',
@@ -250,7 +262,7 @@
 				type: 'category',
 				data: dates,
 				axisLabel: {
-					rotate: 0,
+					rotate: isCompact && dates.length > 8 ? 35 : 0,
 					fontSize: 10,
 					color: isDark ? '#a5b2a8' : '#64748b',
 					margin: 10,
@@ -268,6 +280,7 @@
 			},
 			yAxis: {
 				type: 'value',
+				splitNumber: isCompact ? 4 : 5,
 				axisLabel: {
 					color: isDark ? '#a5b2a8' : '#64748b',
 					fontSize: 10
@@ -325,11 +338,21 @@
 	onMount(() => {
 		void initChart();
 		const handleResize = () => {
+			if (!chartDom) return;
+			const nextCompactMode = chartDom.clientWidth <= 520;
+			if (compactMode !== null && nextCompactMode !== compactMode) {
+				compactMode = nextCompactMode;
+				void initChart();
+				return;
+			}
 			chart?.resize();
 		};
-		window.addEventListener('resize', handleResize);
+		const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(handleResize);
+		resizeObserver?.observe(chartDom);
+		if (!resizeObserver) window.addEventListener('resize', handleResize);
 		return () => {
-			window.removeEventListener('resize', handleResize);
+			resizeObserver?.disconnect();
+			if (!resizeObserver) window.removeEventListener('resize', handleResize);
 		};
 	});
 
@@ -346,7 +369,7 @@
 		<button class="export-btn" onclick={exportPNG} disabled={exporting} title="Download PNG" aria-label="Download chart as PNG">PNG</button>
 		<button class="export-btn" onclick={exportCSV} disabled={exporting} title="Download CSV" aria-label="Download chart data as CSV">CSV</button>
 	</div>
-	<div bind:this={chartDom} class="chart-dom" aria-busy={!chartReady && !chartError}></div>
+	<div bind:this={chartDom} class="chart-dom" role="img" aria-label={title ? `${title.replaceAll('-', ' ')} trend chart` : 'Metric trend chart'} aria-busy={!chartReady && !chartError}></div>
 	{#if !chartReady}
 		<div class="chart-status" role="status">
 			{chartError ? 'Chart could not be rendered.' : 'Loading chart…'}
@@ -357,12 +380,13 @@
 <style>
 	.chart-container-wrapper {
 		width: 100%;
+		min-width: 0;
 		height: clamp(320px, 34vw, 400px);
 		position: relative;
 	}
 
 	@media (max-width: 520px) {
-		.chart-container-wrapper { height: 300px; }
+		.chart-container-wrapper { height: clamp(280px, 88vw, 320px); }
 	}
 
 	.chart-dom {
@@ -385,6 +409,9 @@
 	}
 	.chart-container-wrapper:focus-within .chart-export-buttons {
 		opacity: 1;
+	}
+	@media (hover: none), (pointer: coarse) {
+		.chart-export-buttons { opacity: 1; }
 	}
 	.chart-status {
 		position: absolute;
@@ -416,5 +443,8 @@
 	.export-btn:disabled {
 		opacity: 0.5;
 		cursor: default;
+	}
+	@media (max-width: 520px) {
+		.export-btn { min-width: 2.25rem; min-height: 2rem; background-color: color-mix(in srgb, var(--bg-surface) 92%, transparent); }
 	}
 </style>

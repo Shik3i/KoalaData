@@ -88,7 +88,12 @@
 	th:not(:first-child), td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
 	.empty-breakdown { min-height: 8rem; display: grid; place-items: center; }
 	@media (max-width: 520px) {
-		.breakdown-header { align-items: flex-start; }
+		.breakdown-card { padding: 1rem; }
+		.breakdown-header { align-items: flex-start; flex-direction: column; gap: 0.5rem; }
+		.breakdown-total { text-align: left; }
 		.breakdown-total strong { font-size: 1.05rem; }
+		.bar-meta { gap: 0.5rem; }
+		.bar-label { min-width: 0; }
+		.table-scroll { margin-inline: -1rem; padding-inline: 1rem; -webkit-overflow-scrolling: touch; }
 	}
 </style>

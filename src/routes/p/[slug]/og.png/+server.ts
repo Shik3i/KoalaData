@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	// Load the actual binary PNG fallback card
-	const pngPath = path.resolve('static/og-fallback.png');
+	const pngPath = path.resolve('static/og-koaladata.png');
 
 	if (!fs.existsSync(pngPath)) {
 		throw error(404, 'OG image fallback file missing.');
@@ -32,7 +32,8 @@ export const GET: RequestHandler = async ({ params }) => {
 	return new Response(buffer, {
 		headers: {
 			'Content-Type': 'image/png',
-			'Cache-Control': 'public, max-age=600' // cache for 10 minutes
+			'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+			'Content-Length': String(buffer.byteLength)
 		}
 	});
 };

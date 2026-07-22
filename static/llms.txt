@@ -1,0 +1,24 @@
+# KoalaData
+
+> KoalaData imports aggregate Chrome Web Store CSV reports and turns them into reviewable, shareable analytics dashboards without adding telemetry code to a browser extension.
+
+Canonical site: https://data.koalastuff.net/
+Public extension directory: https://data.koalastuff.net/discover
+Weekly growth leaderboard: https://data.koalastuff.net/leaderboards
+Security model: https://data.koalastuff.net/security
+Privacy policy: https://data.koalastuff.net/privacy
+Terms of use: https://data.koalastuff.net/terms
+Source code: https://github.com/Shik3i/KoalaData
+
+## Core facts
+
+- KoalaData uses aggregate reports exported by extension publishers from the Chrome Web Store statistics dashboard.
+- It does not require an SDK, injected tracking script, fingerprinting, or user-level extension telemetry.
+- Publishers preview report mappings, dates, aggregation, duplicates, and overlaps before confirming an import.
+- Raw CSV files remain private to authorized project members. Public dashboards expose reviewed aggregate metrics.
+- Public directory listings and leaderboard participation require administrative approval.
+- A verified badge means that an administrator reviewed the listing and supporting evidence. It is not an endorsement or guarantee.
+- Approved public profiles use standard dofollow links to the official store page, website, and source repository.
+- The application is open source and can be self-hosted with Node.js, SQLite, and Docker.
+
+Detailed product and data semantics: https://data.koalastuff.net/llms-full.txt

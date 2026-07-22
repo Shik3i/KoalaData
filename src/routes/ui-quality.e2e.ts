@@ -3,6 +3,55 @@ import { expect, test } from '@playwright/test';
 
 const publicRoutes = ['/', '/discover', '/leaderboards', '/login', '/register', '/privacy', '/imprint', '/terms', '/security'];
 
+test('homepage presents a balanced FAQ and a compact versioned footer', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.locator('.faq-grid details')).toHaveCount(6);
+	await expect(page.getByText('Are publisher links dofollow?')).toBeVisible();
+	await expect(page.locator('.main-footer .footer-links a')).toHaveCount(5);
+	await expect(page.getByRole('link', { name: 'Support KoalaData' })).toHaveAttribute(
+		'href',
+		'https://support.koalastuff.net'
+	);
+	const releaseLink = page.locator('.main-footer a', { hasText: /^GitHub v\d+\.\d+\.\d+$/ });
+	await expect(releaseLink).toHaveAttribute('href', /\/releases\/tag\/v\d+\.\d+\.\d+$/);
+	await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /\/og-koaladata\.png$/);
+	await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute('content', '1200');
+	await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute('content', '630');
+	await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+	const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
+	const schemaTypes = schemas.map((schema) => JSON.parse(schema)['@type']);
+	expect(schemaTypes).toEqual(expect.arrayContaining(['WebSite', 'SoftwareApplication', 'FAQPage']));
+});
+
+test('machine-readable discovery files expose canonical public sources', async ({ request }) => {
+	const [robots, llms, manifest, preview] = await Promise.all([
+		request.get('/robots.txt'),
+		request.get('/llms.txt'),
+		request.get('/site.webmanifest'),
+		request.get('/og-koaladata.png')
+	]);
+	expect(robots.ok()).toBe(true);
+	expect(await robots.text()).toContain('Sitemap: https://data.koalastuff.net/sitemap.xml');
+	expect(llms.ok()).toBe(true);
+	expect(await llms.text()).toContain('Detailed product and data semantics: https://data.koalastuff.net/llms-full.txt');
+	expect(manifest.ok()).toBe(true);
+	expect((await manifest.json()).name).toBe('KoalaData');
+	expect(preview.ok()).toBe(true);
+	expect(preview.headers()['content-type']).toBe('image/png');
+});
+
+test('English legal pages disclose account data and seven-day access logs', async ({ page }) => {
+	await page.goto('/privacy');
+	await expect(page.getByRole('heading', { name: 'Privacy Policy' })).toBeVisible();
+	await expect(page.getByText(/access logs for seven days/i)).toBeVisible();
+	await expect(page.getByText(/Account and session records are personal data/i)).toBeVisible();
+	await expect(page.getByText(/Datenschutzerklärung|personenbezogene Daten/i)).toHaveCount(0);
+
+	await page.goto('/terms');
+	await expect(page.getByRole('heading', { name: 'Terms of Use' })).toBeVisible();
+	await expect(page.getByText(/Nutzungsbedingungen/i)).toHaveCount(0);
+});
+
 for (const width of [320, 390, 768, 1920]) {
 	test(`public layout has no viewport overflow at ${width}px`, async ({ page }) => {
 		await page.setViewportSize({ width, height: 900 });

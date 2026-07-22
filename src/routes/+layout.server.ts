@@ -5,10 +5,12 @@ import path from 'path';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	const site = await getPublicSiteSettings();
-	let version = '1.0.4';
+	let version = 'unreleased';
 	try {
 		const pkg = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf-8'));
-		version = pkg.version || '1.0.4';
+		if (typeof pkg.version === 'string' && /^\d+\.\d+\.\d+$/.test(pkg.version)) {
+			version = pkg.version;
+		}
 	} catch (e) {
 		console.error('[Layout Server] Failed to read version from package.json:', e);
 	}
