@@ -23,6 +23,10 @@ export interface ProjectLeaderboardItem {
 
 // Stale data cutoff tolerance: 14 days
 const STALENESS_CUTOFF_DAYS = 14;
+const CACHE_TTL_MS = 30_000;
+const CACHE_STALE_MS = 5 * 60_000;
+let leaderboardCache: { value: ProjectLeaderboardItem[]; expiresAt: number; staleUntil: number } | null = null;
+let leaderboardInFlight: Promise<ProjectLeaderboardItem[]> | null = null;
 
 /**
  * Computes growth metrics and stats for opted-in and approved public projects.
@@ -30,6 +34,30 @@ const STALENESS_CUTOFF_DAYS = 14;
  * Results are returned sorted by absolute growth DESC.
  */
 export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
+	const now = Date.now();
+	if (leaderboardCache && now < leaderboardCache.expiresAt) return leaderboardCache.value;
+	if (leaderboardCache && now < leaderboardCache.staleUntil) {
+		if (!leaderboardInFlight) void refreshLeaderboard();
+		return leaderboardCache.value;
+	}
+	return refreshLeaderboard();
+}
+
+function refreshLeaderboard(): Promise<ProjectLeaderboardItem[]> {
+	if (leaderboardInFlight) return leaderboardInFlight;
+	leaderboardInFlight = computeLeaderboard()
+		.then((value) => {
+			const now = Date.now();
+			leaderboardCache = { value, expiresAt: now + CACHE_TTL_MS, staleUntil: now + CACHE_STALE_MS };
+			return value;
+		})
+		.finally(() => {
+			leaderboardInFlight = null;
+		});
+	return leaderboardInFlight;
+}
+
+async function computeLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 	// Fetch all effective observations for public, approved, active, and opted-in projects
 	// for the active_users and installs metrics in a single database round-trip.
 	const query = sql`

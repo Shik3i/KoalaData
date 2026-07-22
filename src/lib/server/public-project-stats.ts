@@ -22,6 +22,11 @@ const emptyStats = (): PublicProjectStats => ({
 	lastDataDate: null
 });
 
+const CACHE_TTL_MS = 30_000;
+const CACHE_STALE_MS = 5 * 60_000;
+const statsCache = new Map<string, { value: Map<string, PublicProjectStats>; expiresAt: number; staleUntil: number }>();
+const statsInFlight = new Map<string, Promise<Map<string, PublicProjectStats>>>();
+
 export function ratingStars(name: string, dimensions: string): number | null {
 	const { reportLabel, seriesLabel } = splitLegacyMetricName(name);
 	let dimensionLabel: string | null = null;
@@ -39,7 +44,34 @@ export function ratingStars(name: string, dimensions: string): number | null {
 }
 
 export async function getPublicProjectStats(projectIds: string[]): Promise<Map<string, PublicProjectStats>> {
-	const uniqueIds = [...new Set(projectIds)];
+	const uniqueIds = [...new Set(projectIds)].sort();
+	const cacheKey = uniqueIds.join(',');
+	const now = Date.now();
+	const cached = statsCache.get(cacheKey);
+	if (cached && now < cached.expiresAt) return cached.value;
+	if (cached && now < cached.staleUntil) {
+		if (!statsInFlight.has(cacheKey)) void refreshPublicProjectStats(cacheKey, uniqueIds);
+		return cached.value;
+	}
+	return refreshPublicProjectStats(cacheKey, uniqueIds);
+}
+
+function refreshPublicProjectStats(cacheKey: string, uniqueIds: string[]): Promise<Map<string, PublicProjectStats>> {
+	const existing = statsInFlight.get(cacheKey);
+	if (existing) return existing;
+	const refresh = computePublicProjectStats(uniqueIds)
+		.then((value) => {
+			const now = Date.now();
+			statsCache.set(cacheKey, { value, expiresAt: now + CACHE_TTL_MS, staleUntil: now + CACHE_STALE_MS });
+			while (statsCache.size > 50) statsCache.delete(statsCache.keys().next().value!);
+			return value;
+		})
+		.finally(() => statsInFlight.delete(cacheKey));
+	statsInFlight.set(cacheKey, refresh);
+	return refresh;
+}
+
+async function computePublicProjectStats(uniqueIds: string[]): Promise<Map<string, PublicProjectStats>> {
 	const result = new Map(uniqueIds.map((id) => [id, emptyStats()]));
 	if (uniqueIds.length === 0) return result;
 
