@@ -215,6 +215,7 @@
 			}
 
 		const hasZoom = dates.length > 14;
+		const hasZoomSlider = dates.length > 30;
 		const legendData = seriesOptions.map((s: any) => s.name);
 		const hasLegend = legendData.length > 1;
 
@@ -222,7 +223,7 @@
 			grid: {
 				left: '4%',
 				right: '4%',
-				bottom: hasZoom ? '18%' : '8%',
+				bottom: hasZoomSlider ? '16%' : '8%',
 				top: hasLegend ? '14%' : '6%',
 			},
 			legend: hasLegend ? {
@@ -249,10 +250,12 @@
 				type: 'category',
 				data: dates,
 				axisLabel: {
-					rotate: 25,
+					rotate: 0,
 					fontSize: 10,
 					color: isDark ? '#a5b2a8' : '#64748b',
-					marginBottom: 4
+					margin: 10,
+					hideOverlap: true,
+					formatter: (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.slice(5) : value
 				},
 				axisLine: {
 					lineStyle: {
@@ -281,7 +284,7 @@
 					start: 0,
 					end: 100
 				},
-				{
+				...(hasZoomSlider ? [{
 					type: 'slider',
 					bottom: '1%',
 					height: 14,
@@ -295,7 +298,7 @@
 						color: isDark ? '#a5b2a8' : '#64748b',
 						fontSize: 10
 					}
-				}
+				}] : [])
 			] : undefined,
 			series: seriesOptions
 		};
@@ -354,8 +357,12 @@
 <style>
 	.chart-container-wrapper {
 		width: 100%;
-		height: 300px;
+		height: clamp(320px, 34vw, 400px);
 		position: relative;
+	}
+
+	@media (max-width: 520px) {
+		.chart-container-wrapper { height: 300px; }
 	}
 
 	.chart-dom {

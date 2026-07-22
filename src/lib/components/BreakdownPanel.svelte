@@ -31,8 +31,8 @@
 		</div>
 	</header>
 
-	{#if rows.length === 0}
-		<p class="empty-breakdown text-muted">No data in this timeframe.</p>
+	{#if rows.length === 0 || total <= 0}
+		<p class="empty-breakdown text-muted">{rows.length === 0 ? 'No data in this timeframe.' : 'No values recorded yet.'}</p>
 	{:else}
 		<div class="bar-list" role="img" aria-label="{group.title}. {rows.length} categories. Full values are available in the table below.">
 			{#each chartRows as row}

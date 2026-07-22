@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v1.3.3 - 2026-07-22
+
+### Readable analytics layout
+
+- Give every time-series chart the full dashboard width so dates, controls, and trends remain readable on desktop.
+- Replace side-by-side acquisition and audience breakdowns with accessible tabs that show one complete dataset at a time.
+- Improve chart sizing and date-axis density, highlight the active dashboard section, and show a clear empty state for zero-value reports.
+
+## v1.3.2 - 2026-07-22
+
 ### Trustworthy grouped analytics
 
 - Group Chrome Web Store region, language, operating-system, version, rating, and enabled-state reports into readable breakdown cards instead of rendering one chart per CSV column.

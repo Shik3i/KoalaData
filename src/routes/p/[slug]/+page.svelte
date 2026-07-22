@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import MetricChart from '$lib/components/MetricChart.svelte';
-	import BreakdownPanel from '$lib/components/BreakdownPanel.svelte';
+	import BreakdownTabs from '$lib/components/BreakdownTabs.svelte';
 	import {
 		buildBreakdownGroups,
 		classifyChromeReportLabel,
@@ -17,6 +18,7 @@
 	let dateFilter = $state('90');
 	let compareMode = $state(false);
 	let showMovingAverage = $state(false);
+	let activeSection = $state('growth');
 	let days = $derived(dateFilter === 'all' ? null : Number(dateFilter));
 
 	let metrics = $derived(data.metrics as DashboardMetric[]);
@@ -163,6 +165,18 @@
 		};
 		return labels[metric.metricType] ?? metric.name;
 	}
+
+	onMount(() => {
+		const sections = Array.from(document.querySelectorAll<HTMLElement>('.dashboard-section[id]'));
+		const observer = new IntersectionObserver((entries) => {
+			const visible = entries
+				.filter((entry) => entry.isIntersecting)
+				.sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+			if (visible?.target.id) activeSection = visible.target.id;
+		}, { rootMargin: '-18% 0px -65% 0px', threshold: [0, 0.1, 0.35] });
+		sections.forEach((section) => observer.observe(section));
+		return () => observer.disconnect();
+	});
 </script>
 
 <svelte:head>
@@ -224,7 +238,7 @@
 	</section>
 
 	<nav class="section-nav" aria-label="Analytics sections">
-		<a href="#growth">Growth</a><a href="#acquisition">Acquisition</a><a href="#audience">Audience</a><a href="#retention">Retention</a>{#if qualityGroups.length}<a href="#quality">Ratings</a>{/if}
+		<a href="#growth" class:active={activeSection === 'growth'} aria-current={activeSection === 'growth' ? 'location' : undefined}>Growth</a>{#if acquisitionGroups.length}<a href="#acquisition" class:active={activeSection === 'acquisition'} aria-current={activeSection === 'acquisition' ? 'location' : undefined}>Acquisition</a>{/if}{#if audienceGroups.length}<a href="#audience" class:active={activeSection === 'audience'} aria-current={activeSection === 'audience' ? 'location' : undefined}>Audience</a>{/if}{#if retentionGroups.length}<a href="#retention" class:active={activeSection === 'retention'} aria-current={activeSection === 'retention' ? 'location' : undefined}>Retention</a>{/if}{#if qualityGroups.length}<a href="#quality" class:active={activeSection === 'quality'} aria-current={activeSection === 'quality' ? 'location' : undefined}>Ratings</a>{/if}
 	</nav>
 
 	<section id="growth" class="dashboard-section">
@@ -267,19 +281,19 @@
 	</section>
 
 	{#if acquisitionGroups.length}
-		<section id="acquisition" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Acquisition</p><h2>Where installs come from</h2><p class="text-muted">Top categories at a glance. Every imported category remains available in the complete table.</p></div></div><div class="breakdown-grid">{#each acquisitionGroups as group}<BreakdownPanel {group} {days} />{/each}</div></section>
+		<section id="acquisition" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Acquisition</p><h2>Where installs come from</h2><p class="text-muted">Choose one breakdown at a time. Every imported category remains available in the complete table.</p></div></div><BreakdownTabs groups={acquisitionGroups} {days} /></section>
 	{/if}
 
 	{#if audienceGroups.length}
-		<section id="audience" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Audience</p><h2>Installed-user distribution</h2><p class="text-muted">Latest snapshots by region, language, operating system and extension version.</p></div></div><div class="breakdown-grid">{#each audienceGroups as group}<BreakdownPanel {group} {days} />{/each}</div></section>
+		<section id="audience" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Audience</p><h2>Installed-user distribution</h2><p class="text-muted">Explore the latest snapshot by version, language, operating system or region.</p></div></div><BreakdownTabs groups={audienceGroups} {days} /></section>
 	{/if}
 
 	{#if retentionGroups.length}
-		<section id="retention" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Retention signals</p><h2>Uninstalls and enabled state</h2><p class="text-muted">Uninstall flows use period totals. Enabled and disabled installations use only the latest snapshot.</p></div></div><div class="breakdown-grid">{#each retentionGroups as group}<BreakdownPanel {group} {days} />{/each}</div></section>
+		<section id="retention" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Retention signals</p><h2>Uninstalls and enabled state</h2><p class="text-muted">Uninstall flows use period totals. Enabled and disabled installations use only the latest snapshot.</p></div></div><BreakdownTabs groups={retentionGroups} {days} /></section>
 	{/if}
 
 	{#if qualityGroups.length}
-		<section id="quality" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Quality</p><h2>Rating distribution</h2><p class="text-muted">Current rating counts combined into one readable distribution.</p></div></div><div class="breakdown-grid">{#each qualityGroups as group}<BreakdownPanel {group} {days} />{/each}</div></section>
+		<section id="quality" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Quality</p><h2>Rating distribution</h2><p class="text-muted">Current rating counts combined into one readable distribution.</p></div></div><BreakdownTabs groups={qualityGroups} {days} /></section>
 	{/if}
 
 	{#if additionalMetrics.length}
@@ -322,11 +336,12 @@
 	.section-nav { position: sticky; top: 0.75rem; z-index: 20; justify-self: center; display: flex; gap: 0.25rem; padding: 0.3rem; border: 1px solid var(--border-color); border-radius: 999px; background: color-mix(in srgb, var(--bg-surface) 92%, transparent); box-shadow: var(--shadow-sm); backdrop-filter: blur(12px); }
 	.section-nav a { padding: 0.4rem 0.75rem; border-radius: 999px; color: var(--text-muted); font-size: 0.78rem; font-weight: 700; }
 	.section-nav a:hover { background: var(--bg-inset); color: var(--text-base); text-decoration: none; }
+	.section-nav a.active { background: var(--primary); color: var(--text-inverse); text-decoration: none; }
 	.dashboard-section { display: grid; gap: 1.25rem; scroll-margin-top: 5rem; }
 	.analysis-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
 	.analysis-controls .active { background: var(--primary); color: var(--text-inverse); border-color: var(--primary); }
 	.analysis-controls button:disabled { opacity: 0.45; cursor: not-allowed; }
-	.trend-grid, .breakdown-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }
+	.trend-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-items: start; }
 	.chart-card { padding: 1.25rem; min-width: 0; }
 	.chart-card.wide { grid-column: 1 / -1; }
 	.chart-card header, .weekday-card header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
@@ -349,7 +364,6 @@
 		.hero-actions { width: 100%; justify-content: flex-start; }
 		.source-link { width: auto; text-align: left; align-self: center; }
 		.kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-		.trend-grid, .breakdown-grid { grid-template-columns: 1fr; }
 		.chart-card.wide { grid-column: auto; }
 		.analysis-controls { justify-content: flex-start; }
 	}

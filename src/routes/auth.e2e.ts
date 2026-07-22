@@ -212,6 +212,12 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.goto(`/p/${projectSlug}`);
 		await expect(page.getByRole('heading', { level: 1 })).toContainText(projectName);
 		await expect(page.locator('.chart-dom').first()).toBeVisible(); // Charts are loaded
+		const trendCardPositions = await page.locator('.trend-grid > .chart-card').evaluateAll((cards) => cards.map((card) => {
+			const rect = card.getBoundingClientRect();
+			return { top: Math.round(rect.top), width: Math.round(rect.width) };
+		}));
+		expect(new Set(trendCardPositions.map((card) => card.top)).size).toBe(trendCardPositions.length);
+		expect(trendCardPositions.every((card) => card.width > 0)).toBe(true);
 		await expect(page.getByRole('button', { name: '7-day average' })).toBeVisible();
 		await page.getByRole('button', { name: '7-day average' }).click();
 		await expect(page.getByRole('button', { name: '7-day average' })).toHaveAttribute('aria-pressed', 'true');
