@@ -168,6 +168,10 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.check('input[name="isOpenSource"]');
 		await page.locator('form[action="?/updateSettings"] button[type="submit"]').click();
 		await expect(page.locator('.alert-success')).toContainText('General settings updated.');
+		await expect(page.locator('input[name="name"]')).toHaveValue(projectName);
+		await expect(page.locator('input[name="shortDescription"]')).toHaveValue('E2E test description of this browser extension dashboard.');
+		await expect(page.locator('textarea[name="fullDescription"]')).toHaveValue('Detailed long description of metrics and compatibility guidelines.');
+		await expect(page.locator('input[name="repositoryUrl"]')).toHaveValue('https://github.com/example/e2e-extension');
 		await expect(page.locator('select[name="pricingModel"]')).toHaveValue('free');
 		await expect(page.locator('input[name="isOpenSource"]')).toBeChecked();
 
