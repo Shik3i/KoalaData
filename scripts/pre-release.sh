@@ -17,9 +17,18 @@ npm run check
 echo -e "\n${BLUE}2. Running unit tests (Vitest)...${NC}"
 npm run test:unit -- --run
 
-# 3. E2E Integration tests
-echo -e "\n${BLUE}3. Running E2E integration tests (Playwright)...${NC}"
-# Playwright will automatically build the project and spin up the webServer on port 4173
+# 3. Production build
+echo -e "\n${BLUE}3. Building production bundle...${NC}"
+npm run build
+
+# 4. E2E Integration tests
+echo -e "\n${BLUE}4. Running E2E integration tests (Playwright)...${NC}"
+# Playwright spins up the production bundle on port 4173.
 npx playwright test
+
+# 5. Docker release image
+echo -e "\n${BLUE}5. Building Docker release image...${NC}"
+docker build --tag koaladata:pre-release .
+docker image inspect koaladata:pre-release >/dev/null
 
 echo -e "\n${GREEN}✓ All checks passed successfully! It is safe to tag and push.${NC}"

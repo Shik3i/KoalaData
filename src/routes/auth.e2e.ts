@@ -212,6 +212,12 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.goto(`/p/${projectSlug}`);
 		await expect(page.locator('.project-title')).toContainText(projectName);
 		await expect(page.locator('.chart-dom').first()).toBeVisible(); // Charts are loaded
+		await expect(page.getByRole('button', { name: 'Forecast Off' })).toBeVisible();
+		await expect(page.getByRole('button', { name: '7-Day Avg Off' })).toBeVisible();
+		await page.getByRole('button', { name: 'Forecast Off' }).click();
+		await expect(page.getByRole('button', { name: 'Forecast On' })).toHaveAttribute('aria-pressed', 'true');
+		await page.getByRole('button', { name: 'Forecast On' }).click();
+		await expect(page.getByRole('button', { name: 'Forecast Off' })).toHaveAttribute('aria-pressed', 'false');
 
 		// Go back and set to Private
 		await page.goto(`/app`);

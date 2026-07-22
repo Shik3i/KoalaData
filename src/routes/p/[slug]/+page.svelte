@@ -8,6 +8,8 @@
 
 	// Date filter state
 	let dateFilter = $state('90');
+	let showMovingAverage = $state(false);
+	let showForecast = $state(false);
 
 	// Filter observations on the client side dynamically
 	let filteredMetrics = $derived(
@@ -105,14 +107,17 @@
 		for (let i = 1; i < obs.length; i++) {
 			totalDelta += obs[i].value - obs[i - 1].value;
 		}
-		const avgDailyGrowth = totalDelta / (obs.length - 1);
+		const firstDate = new Date(obs[0].date).getTime();
+		const lastObservationDate = new Date(obs.at(-1)!.date);
+		const elapsedDays = Math.max((lastObservationDate.getTime() - firstDate) / 86_400_000, 1);
+		const avgDailyGrowth = totalDelta / elapsedDays;
 		if (avgDailyGrowth <= 0) return null;
 
 		const daysToTarget = Math.ceil(milestoneInfo.remaining / avgDailyGrowth);
-		const estimatedDate = new Date();
+		const estimatedDate = new Date(lastObservationDate);
 		estimatedDate.setDate(estimatedDate.getDate() + daysToTarget);
 
-		return { avgDailyGrowth, daysToTarget, estimatedDate };
+		return { avgDailyGrowth, daysToTarget, estimatedDate, observationCount: obs.length };
 	});
 
 	// All-Time High Installs (ATH)
@@ -166,10 +171,17 @@
 	function getCompareSeries(observations: Array<{ date: string; value: number }>) {
 		if (!compareMode || !observations || observations.length < 4) return null;
 		const mid = Math.floor(observations.length / 2);
+		const periodLength = Math.min(mid, observations.length - mid);
 		return [
-			{ name: 'Previous Period', color: '#94a3b8', observations: observations.slice(0, mid) },
-			{ name: 'Current Period', color: '#2f6d47', observations: observations.slice(mid) }
+			{ name: 'Previous Period', color: '#94a3b8', observations: observations.slice(0, periodLength) },
+			{ name: 'Current Period', color: '#2f6d47', observations: observations.slice(-periodLength) }
 		];
+	}
+
+	function getCompareCategoryLabels(observations: Array<{ date: string; value: number }>) {
+		const mid = Math.floor(observations.length / 2);
+		const periodLength = Math.min(mid, observations.length - mid);
+		return Array.from({ length: periodLength }, (_, index) => `Day ${index + 1}`);
 	}
 
 	// Combined installs & uninstalls chart logic
@@ -321,6 +333,24 @@
 			<button class="btn btn-sm {compareMode ? 'btn-primary' : 'btn-secondary'}" onclick={() => compareMode = !compareMode}>
 				<Icon name="clock-counter-clockwise" /> {compareMode ? 'Comparing' : 'Compare'}
 			</button>
+			<button
+				type="button"
+				class="btn btn-sm {showMovingAverage ? 'btn-primary' : 'btn-secondary'}"
+				aria-pressed={showMovingAverage}
+				title="Show or hide the derived 7-day moving average"
+				onclick={() => showMovingAverage = !showMovingAverage}
+			>
+				<Icon name="chart-line" /> 7-Day Avg {showMovingAverage ? 'On' : 'Off'}
+			</button>
+			<button
+				type="button"
+				class="btn btn-sm {showForecast ? 'btn-primary' : 'btn-secondary'}"
+				aria-pressed={showForecast}
+				title="Show or hide the 30-day linear estimate"
+				onclick={() => showForecast = !showForecast}
+			>
+				<Icon name="chart-line-up" /> Forecast {showForecast ? 'On' : 'Off'}
+			</button>
 		</div>
 	</div>
 
@@ -460,7 +490,8 @@
 					</div>
 					{#if milestonePrediction}
 						<div class="milestone-prediction">
-							<Icon name="chart-line-up" /> ~{milestonePrediction.daysToTarget} days ({new Date(milestonePrediction.estimatedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })})
+							<Icon name="chart-line-up" /> Estimate: ~{milestonePrediction.daysToTarget} days ({new Date(milestonePrediction.estimatedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })})
+							<span class="prediction-note">Based on {milestonePrediction.observationCount} observations; actual results may differ.</span>
 						</div>
 					{/if}
 				</div>
@@ -528,7 +559,12 @@
 							</div>
 						</div>
 					</div>
-					<MetricChart seriesList={combinedSeriesList} />
+					<MetricChart
+						seriesList={combinedSeriesList}
+						categoryLabels={compareMode ? getCompareCategoryLabels(installsMetric!.observations) : undefined}
+						showMovingAverage={showMovingAverage}
+						showForecast={showForecast}
+					/>
 				</div>
 			{/if}
 
@@ -559,9 +595,18 @@
 					{:else}
 						{@const compareSeries = getCompareSeries(metric.observations)}
 						{#if compareSeries}
-							<MetricChart seriesList={compareSeries} />
+							<MetricChart
+								seriesList={compareSeries}
+								categoryLabels={getCompareCategoryLabels(metric.observations)}
+								showMovingAverage={showMovingAverage}
+								showForecast={showForecast}
+							/>
 						{:else}
-							<MetricChart observations={metric.observations} />
+							<MetricChart
+								observations={metric.observations}
+								showMovingAverage={showMovingAverage}
+								showForecast={showForecast}
+							/>
 						{/if}
 					{/if}
 				</div>
@@ -839,6 +884,12 @@
 	}
 	.milestone-prediction :global(.app-icon) {
 		color: var(--primary);
+	}
+	.prediction-note {
+		flex-basis: 100%;
+		font-size: 0.7rem;
+		margin-left: 1.35rem;
+		margin-top: 0.1rem;
 	}
 
 	/* Metric source label */

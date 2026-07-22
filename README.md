@@ -133,11 +133,17 @@ We enforce a strict pre-release validation flow. Before committing any code, run
 npm run check
 
 # Vitest Unit Tests
-npm run test:unit
+npm run test:unit -- --run
 
-# Playwright E2E Integration Tests (Requires local build)
+# Production build
 npm run build
+
+# Playwright E2E Integration Tests
 npx playwright test
+
+# Docker release image validation
+docker build --tag koaladata:pre-release .
+docker image inspect koaladata:pre-release
 ```
 Or execute the automated validation script:
 ```bash

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { EChartsType } from 'echarts/core';
+	import { computeLinearForecast, computeMovingAverage } from '$lib/chart-utils';
 
 	type Observation = { date: string; value: number };
 	type SeriesData = {
@@ -9,15 +10,24 @@
 		observations: Observation[];
 	};
 
-	let { title, observations, seriesList, showMovingAverage = true, showForecast = true } = $props<{
+	let { title, observations, seriesList, categoryLabels, showMovingAverage = false, showForecast = false } = $props<{
 		title?: string;
 		observations?: Observation[];
 		seriesList?: SeriesData[];
+		categoryLabels?: string[];
 		showMovingAverage?: boolean;
 		showForecast?: boolean;
 	}>();
 
 	let exporting = $state(false);
+	let chartReady = $state(false);
+	let chartError = $state(false);
+	let initGeneration = 0;
+
+	function csvCell(value: string | number): string {
+		const text = String(value);
+		return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+	}
 
 	function exportPNG() {
 		if (!chart) return;
@@ -41,17 +51,17 @@
 			let csv = '';
 			if (seriesList && seriesList.length > 0) {
 				const headers = ['Date', ...seriesList.map((s: SeriesData) => s.name)];
-				csv = headers.join(',') + '\n';
+				csv = headers.map(csvCell).join(',') + '\n';
 				const maxLen = Math.max(...seriesList.map((s: SeriesData) => s.observations.length));
 				for (let i = 0; i < maxLen; i++) {
 					const date = seriesList[0].observations[i]?.date ?? '';
 					const row = [date, ...seriesList.map((s: SeriesData) => s.observations[i]?.value ?? '')];
-					csv += row.join(',') + '\n';
+					csv += row.map(csvCell).join(',') + '\n';
 				}
 			} else if (observations) {
 				csv = 'Date,Value\n';
 				for (const o of observations) {
-					csv += `${o.date},${o.value}\n`;
+					csv += `${csvCell(o.date)},${csvCell(o.value)}\n`;
 				}
 			} else {
 				return;
@@ -74,62 +84,30 @@
 	let chart: EChartsType | null = null;
 	let destroyed = false;
 
-	function computeSMA(data: number[]): (number | null)[] {
-		const result: (number | null)[] = [];
-		for (let i = 0; i < data.length; i++) {
-			if (i < 6) {
-				result.push(null);
-			} else {
-				let sum = 0;
-				for (let j = i - 6; j <= i; j++) sum += data[j];
-				result.push(sum / 7);
-			}
-		}
-		return result;
-	}
-
-	function computeForecast(data: number[], steps: number): { values: number[] } | null {
-		const n = data.length;
-		if (n < 3) return null;
-		const idx = Array.from({ length: n }, (_, i) => i);
-		const xMean = (n - 1) / 2;
-		const yMean = data.reduce((a, b) => a + b, 0) / n;
-		let num = 0, den = 0;
-		for (let i = 0; i < n; i++) {
-			num += (i - xMean) * (data[i] - yMean);
-			den += (i - xMean) * (i - xMean);
-		}
-		const slope = den !== 0 ? num / den : 0;
-		const intercept = yMean - slope * xMean;
-		const values: number[] = [];
-		for (let i = 0; i < steps; i++) {
-			values.push(Math.max(0, slope * (n + i) + intercept));
-		}
-		return { values };
-	}
-
 	async function initChart() {
+		const generation = ++initGeneration;
+		chartReady = false;
+		chartError = false;
 		if (!chartDom) return;
 
-		const { echarts } = await import('$lib/chart-runtime');
-		if (destroyed || !chartDom.isConnected) return;
+		try {
+			const { echarts } = await import('$lib/chart-runtime');
+			if (destroyed || generation !== initGeneration || !chartDom.isConnected) return;
 
-		if (chart) {
-			chart.dispose();
-			chart = null;
-		}
+			if (chart) {
+				chart.dispose();
+				chart = null;
+			}
 
-		chart = echarts.init(chartDom, undefined, { renderer: 'svg' });
+			chart = echarts.init(chartDom, undefined, { renderer: 'svg' });
 
-		const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+			const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
-		let dates: string[] = [];
-		let seriesOptions: any[] = [];
-		let hasMultipleSeries = false;
+			let dates: string[] = categoryLabels?.length ? [...categoryLabels] : [];
+			let seriesOptions: any[] = [];
 
-		if (seriesList && seriesList.length > 0) {
-			hasMultipleSeries = true;
-			dates = seriesList[0].observations.map((o: Observation) => o.date);
+			if (seriesList && seriesList.length > 0) {
+				if (!dates.length) dates = seriesList[0].observations.map((o: Observation) => o.date);
 			seriesOptions = seriesList.map((s: SeriesData) => ({
 				name: s.name,
 				data: s.observations.map((o: Observation) => o.value),
@@ -146,8 +124,8 @@
 					])
 				}
 			}));
-		} else if (observations) {
-			dates = observations.map((o: Observation) => o.date);
+			} else if (observations) {
+				if (!dates.length) dates = observations.map((o: Observation) => o.date);
 			const values = observations.map((o: Observation) => o.value);
 			const mainColor = isDark ? '#78d397' : '#2f6d47';
 
@@ -174,7 +152,7 @@
 			];
 
 			if (showMovingAverage && values.length >= 7) {
-				const sma = computeSMA(values);
+				const sma = computeMovingAverage(values);
 				seriesOptions.push({
 					name: '7-Day Avg',
 					data: sma,
@@ -187,7 +165,7 @@
 			}
 
 			if (showForecast && values.length >= 5) {
-				const forecast = computeForecast(values, 30);
+				const forecast = computeLinearForecast(values, 30);
 				if (forecast) {
 					const lastDate = new Date(dates[dates.length - 1]);
 					const forecastDates: string[] = [];
@@ -204,10 +182,10 @@
 
 					const forecastData = new Array(values.length - 1).fill(null);
 					forecastData.push(values[values.length - 1]);
-					forecastData.push(...forecast.values);
+					forecastData.push(...forecast);
 
 					seriesOptions.push({
-						name: '30-Day Forecast',
+						name: '30-Day Forecast (estimate)',
 						data: forecastData,
 						type: 'line',
 						smooth: true,
@@ -217,7 +195,7 @@
 					});
 				}
 			}
-		}
+			}
 
 		const hasZoom = dates.length > 14;
 		const legendData = seriesOptions.map((s: any) => s.name);
@@ -305,11 +283,21 @@
 			series: seriesOptions
 		};
 
-		chart.setOption(option);
+			chart.setOption(option);
+			if (generation === initGeneration) chartReady = true;
+		} catch (error) {
+			if (generation === initGeneration && !destroyed) {
+				chartError = true;
+				console.error('[MetricChart] Failed to render chart:', error);
+			}
+		}
 	}
 
 	$effect(() => {
 		if (observations || seriesList) {
+			void categoryLabels;
+			void showMovingAverage;
+			void showForecast;
 			void initChart();
 		}
 	});
@@ -334,11 +322,16 @@
 </script>
 
 <div class="chart-container-wrapper">
-	<div class="chart-export-buttons">
-		<button class="export-btn" onclick={exportPNG} disabled={exporting} title="Download PNG">PNG</button>
-		<button class="export-btn" onclick={exportCSV} disabled={exporting} title="Download CSV">CSV</button>
+	<div class="chart-export-buttons" aria-label="Chart exports">
+		<button class="export-btn" onclick={exportPNG} disabled={exporting} title="Download PNG" aria-label="Download chart as PNG">PNG</button>
+		<button class="export-btn" onclick={exportCSV} disabled={exporting} title="Download CSV" aria-label="Download chart data as CSV">CSV</button>
 	</div>
-	<div bind:this={chartDom} class="chart-dom"></div>
+	<div bind:this={chartDom} class="chart-dom" aria-busy={!chartReady && !chartError}></div>
+	{#if !chartReady}
+		<div class="chart-status" role="status">
+			{chartError ? 'Chart could not be rendered.' : 'Loading chart…'}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -365,6 +358,19 @@
 	}
 	.chart-container-wrapper:hover .chart-export-buttons {
 		opacity: 1;
+	}
+	.chart-container-wrapper:focus-within .chart-export-buttons {
+		opacity: 1;
+	}
+	.chart-status {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		padding: 1rem;
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		pointer-events: none;
 	}
 	.export-btn {
 		font-size: 0.6rem;

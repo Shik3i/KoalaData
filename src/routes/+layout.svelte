@@ -65,7 +65,17 @@
 		<div class="container header-shell">
 			<a href="/" class="brand flex align-center gap-2">
 				<span class="logo-icon">
-					<img src="/brand/koaladata-icon.png" alt="" aria-hidden="true" />
+					<picture>
+						<source
+							type="image/avif"
+							srcset="/brand/koaladata-icon-32.avif 1x, /brand/koaladata-icon-64.avif 2x"
+						/>
+						<source
+							type="image/webp"
+							srcset="/brand/koaladata-icon-32.webp 1x, /brand/koaladata-icon-64.webp 2x"
+						/>
+						<img src="/brand/koaladata-icon-32.png" width="32" height="32" alt="" aria-hidden="true" />
+					</picture>
 				</span>
 				<span class="brand-name">{data.site.siteTitle}</span>
 			</a>
@@ -216,6 +226,9 @@
 		width: 100%;
 		height: 100%;
 		object-fit: contain;
+	}
+	.logo-icon picture {
+		display: contents;
 	}
 
 	.nav-link {

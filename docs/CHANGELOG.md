@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.2.0 - 2026-07-22
+
+### Trustworthy analytics and branding
+
+- Added responsive KoalaData brand assets with AVIF, WebP, PNG, ICO, and Apple touch icon variants.
+- Disabled chart forecasts and moving averages by default; added accessible per-page toggles.
+- Labeled forecast and milestone projections as estimates and based milestone dates on the latest observation.
+- Aligned compare-mode series by relative day instead of mixing previous and current calendar dates.
+- Added chart loading/error feedback, keyboard-visible export controls, and CSV escaping.
+- Added chart-derived-data unit coverage and expanded pre-release validation to include the production build and Docker image.
+
 ## v1.0.3 - 2026-07-20
 
 ### Release hardening

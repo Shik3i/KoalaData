@@ -15,7 +15,17 @@
 	<!-- Hero Section -->
 	<section class="hero card text-center">
 		<span class="hero-logo">
-			<img src="/brand/koaladata-icon.png" alt="" aria-hidden="true" />
+			<picture>
+				<source
+					type="image/avif"
+					srcset="/brand/koaladata-icon-72.avif 1x, /brand/koaladata-icon-144.avif 2x"
+				/>
+				<source
+					type="image/webp"
+					srcset="/brand/koaladata-icon-72.webp 1x, /brand/koaladata-icon-144.webp 2x"
+				/>
+				<img src="/brand/koaladata-icon-72.png" width="72" height="72" alt="" aria-hidden="true" />
+			</picture>
 		</span>
 		<h1>KoalaData Analytics Hub</h1>
 		<p class="hero-subtitle text-muted">
@@ -116,6 +126,9 @@
 		width: 100%;
 		height: 100%;
 		object-fit: contain;
+	}
+	.hero-logo picture {
+		display: contents;
 	}
 
 	.hero h1 {
