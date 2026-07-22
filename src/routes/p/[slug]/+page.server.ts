@@ -105,6 +105,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 					metricType: def.metricType,
 					name: def.name,
 					unit: def.unit,
+					aggregation: def.aggregation,
 					isCumulative: def.isCumulative,
 					observations: obs.map((o) => ({
 						date: o.date,

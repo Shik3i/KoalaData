@@ -472,14 +472,6 @@ export async function confirmImportDraft(
 			}
 		});
 
-		// Recalculate and invalidate growth leaderboard cache
-		try {
-			const { invalidateLeaderboardCache } = await import('../growth');
-			invalidateLeaderboardCache();
-		} catch (cacheErr) {
-			// Ignored if file loading order causes import issue in tests
-		}
-
 		await logAuditEvent(
 			userId,
 			username,

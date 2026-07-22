@@ -18,23 +18,12 @@ export interface ProjectLeaderboardItem {
 // Stale data cutoff tolerance: 14 days
 const STALENESS_CUTOFF_DAYS = 14;
 
-// In-memory cache for the leaderboard
-let cachedLeaderboard: ProjectLeaderboardItem[] | null = null;
-
-export function invalidateLeaderboardCache() {
-	cachedLeaderboard = null;
-}
-
 /**
  * Computes growth metrics and stats for opted-in and approved public projects.
  * Calculates WAUs and growth values over the last 30 days.
  * Results are returned sorted by absolute growth DESC.
  */
 export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
-	if (cachedLeaderboard !== null) {
-		return cachedLeaderboard;
-	}
-
 	// Fetch all effective observations for public, approved, active, and opted-in projects
 	// for the active_users and installs metrics in a single database round-trip.
 	const query = sql`
@@ -204,6 +193,5 @@ export async function getLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 	}
 
 	// Sort by absolute growth descending
-	cachedLeaderboard = items.sort((a, b) => b.growth - a.growth);
-	return cachedLeaderboard;
+	return items.sort((a, b) => b.growth - a.growth);
 }

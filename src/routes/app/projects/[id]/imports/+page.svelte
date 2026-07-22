@@ -19,7 +19,11 @@
 	}
 
 	const extensionId = $derived(selectedSource ? getExtensionId(selectedSource.externalUrl) : null);
-	const devConsoleUrl = $derived(extensionId ? `https://chrome.google.com/webstore/devconsole/${extensionId}/analytics?hl=en` : null);
+	const devConsoleUrl = $derived(
+		extensionId
+			? `https://chrome.google.com/u/1/webstore/devconsole/e2f2b549-b9e3-48c2-b562-d5b16058d995/${extensionId}/analytics/installs`
+			: null
+	);
 
 	function formatDate(timestamp: number) {
 		return new Date(timestamp * 1000).toLocaleString();

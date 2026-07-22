@@ -55,7 +55,7 @@ export const load: PageServerLoad = async ({ url, params, locals }) => {
 	const parsed = parseCsv(fileBuffer);
 
 	// Try auto-detection of Chrome Web Store headers
-	const autoDetect = detectChromeCsv(parsed.headers);
+	const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
 
 	return {
 		draft: {

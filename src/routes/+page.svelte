@@ -18,13 +18,13 @@
 			<picture>
 				<source
 					type="image/avif"
-					srcset="/brand/koaladata-icon-72.avif 1x, /brand/koaladata-icon-144.avif 2x"
+					srcset="/brand/koaladata-icon-180.avif 1x, /brand/koaladata-icon-360.avif 2x"
 				/>
 				<source
 					type="image/webp"
-					srcset="/brand/koaladata-icon-72.webp 1x, /brand/koaladata-icon-144.webp 2x"
+					srcset="/brand/koaladata-icon-180.webp 1x, /brand/koaladata-icon-360.webp 2x"
 				/>
-				<img src="/brand/koaladata-icon-72.png" width="72" height="72" alt="" aria-hidden="true" />
+				<img src="/brand/koaladata-icon-180.png" width="180" height="180" alt="" aria-hidden="true" />
 			</picture>
 		</span>
 		<h1>KoalaData Analytics Hub</h1>
@@ -110,8 +110,8 @@
 	}
 
 	.hero-logo {
-		width: 4.5rem;
-		height: 4.5rem;
+		width: 10rem;
+		height: 10rem;
 		display: inline-grid;
 		place-items: center;
 		margin-bottom: 1.25rem;
@@ -232,7 +232,7 @@
 	@media (max-width: 640px) {
 		.homepage-container { gap: 1rem; padding-block: 0.5rem 1.5rem; }
 		.hero { padding: 2.5rem 1rem; }
-		.hero-logo { font-size: 3rem; }
+		.hero-logo { width: 8rem; height: 8rem; }
 		.hero-subtitle { font-size: 1.05rem; margin-bottom: 1.5rem; }
 		.hero .btn { width: 100%; }
 		.info-grid { gap: 1rem; }

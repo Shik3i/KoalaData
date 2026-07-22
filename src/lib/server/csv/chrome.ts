@@ -48,12 +48,31 @@ const IMPRESSIONS_ALIASES = [
 	'store-impressionen'
 ];
 
+function normalizeHeader(header: string): string {
+	return header.normalize('NFKC').toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+function isNumericCell(value: string): boolean {
+	const trimmed = value.trim();
+	if (trimmed === '') return true;
+	return /^[+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)$/.test(trimmed.replace(/\s/g, ''));
+}
+
+function isNumericColumn(rows: string[][], columnIndex: number): boolean {
+	const sample = rows
+		.slice(0, 25)
+		.map((row) => row[columnIndex] ?? '')
+		.filter((value) => value.trim() !== '');
+
+	return sample.length > 0 && sample.every(isNumericCell);
+}
+
 /**
  * Scan headers for standard Chrome Web Store export columns.
  * Returns the mapped columns and a confidence rating.
  */
-export function detectChromeCsv(headers: string[]): ChromeDetectionResult {
-	const normalizedHeaders = headers.map((h) => h.toLowerCase().trim());
+export function detectChromeCsv(headers: string[], rows: string[][] = []): ChromeDetectionResult {
+	const normalizedHeaders = headers.map(normalizeHeader);
 	const mappings: Record<string, { column: string; metricType: string }> = {};
 	let matchCount = 0;
 
@@ -83,6 +102,20 @@ export function detectChromeCsv(headers: string[]): ChromeDetectionResult {
 	checkAndMap(UNINSTALLS_ALIASES, 'uninstalls');
 	checkAndMap(PAGE_VIEWS_ALIASES, 'store_page_views');
 	checkAndMap(IMPRESSIONS_ALIASES, 'store_impressions');
+
+	// Chrome also exports valid time series with one numeric column per
+	// operating system, language, region, extension version, rating, or state.
+	// These are custom metrics, but they should not require manual mapping.
+	if (dateColumn) {
+		const dateIndex = headers.indexOf(dateColumn);
+		for (let i = 0; i < headers.length; i++) {
+			if (i === dateIndex || Object.values(mappings).some((mapping) => mapping.column === headers[i])) continue;
+			if (!isNumericColumn(rows, i)) continue;
+
+			mappings[`custom:${i}`] = { column: headers[i], metricType: 'custom' };
+			matchCount++;
+		}
+	}
 
 	// High confidence if we found the date column and at least 1 metric matches.
 	const confidence = dateColumn && matchCount >= 1 ? 'high' : 'low';

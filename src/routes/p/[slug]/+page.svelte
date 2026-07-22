@@ -18,12 +18,14 @@
 			if (dateFilter !== 'all') obs = obs.slice(-Number(dateFilter));
 			const latest = obs.at(-1)?.value ?? null;
 			const previous = obs.at(-2)?.value ?? null;
+			const total = obs.reduce((sum: number, observation: { value: number }) => sum + observation.value, 0);
+			const displaysTotal = metric.aggregation === 'sum' || ['installs', 'uninstalls', 'store_page_views', 'store_impressions'].includes(metric.metricType);
 			return {
 				...metric,
 				observations: obs,
 				latest,
 				delta: latest !== null && previous !== null ? latest - previous : null,
-				displayValue: latest
+				displayValue: displaysTotal ? total : latest
 			};
 		})
 	);
@@ -148,7 +150,8 @@
 		return {
 			best: dayAvgs[0],
 			worst: dayAvgs[dayAvgs.length - 1],
-			all: dayAvgs
+			all: dayAvgs,
+			maxAvg: Math.max(...dayAvgs.map((day) => day.avg), 0)
 		};
 	});
 
@@ -529,7 +532,7 @@
 			<div class="day-bars">
 				{#each dayAnalysis.all as d}
 					<div class="day-bar-col" title="{d.name}: {d.avg.toFixed(1)}">
-						<div class="day-bar-fill" style="height: {Math.max((d.avg / dayAnalysis.best.avg) * 100, 10)}%"></div>
+						<div class="day-bar-fill" style="height: {dayAnalysis.maxAvg > 0 && d.avg > 0 ? Math.max((d.avg / dayAnalysis.maxAvg) * 100, 4) : 0}%"></div>
 						<div class="day-bar-label text-xs text-muted">{d.name.slice(0, 2)}</div>
 					</div>
 				{/each}

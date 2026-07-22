@@ -84,7 +84,7 @@ export const actions: Actions = {
 
 				// Parse CSV to analyze headers
 				const parsed = parseCsv(buffer);
-				const autoDetect = detectChromeCsv(parsed.headers);
+				const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
 
 				// If confidence is high, we have both date and at least one metric, and not in E2E test mode
 				if (!isTest && (autoDetect.confidence === 'high' || (autoDetect.mappings.date && Object.keys(autoDetect.mappings).length >= 2))) {
@@ -93,10 +93,14 @@ export const actions: Actions = {
 
 					for (const [key, value] of Object.entries(autoDetect.mappings)) {
 						if (key !== 'date') {
+							const fileLabel = file.name
+								.replace(/\.[^.]+$/, '')
+								.replace(/_[a-z0-9]{32}$/i, '')
+								.trim();
 							metrics.push({
 								columnName: value.column,
 								metricType: value.metricType,
-								name: value.column,
+								name: value.metricType === 'custom' ? `${fileLabel}: ${value.column}` : value.column,
 								unit: 'count',
 								aggregation: value.metricType === 'active_users' ? 'average' : 'sum',
 								isCumulative: false
@@ -221,14 +225,6 @@ export const actions: Actions = {
 						.where(eq(importBatches.id, batchId))
 						.run();
 				});
-			}
-
-			// Invalidate growth leaderboard cache
-			try {
-				const { invalidateLeaderboardCache } = await import('$lib/server/growth');
-				invalidateLeaderboardCache();
-			} catch (cacheErr) {
-				// Ignored
 			}
 
 			await logAuditEvent(
