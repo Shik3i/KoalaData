@@ -12,6 +12,9 @@ const config = {
 
 	kit: {
 		adapter: adapter(),
+		// Inline the small global and route stylesheets to remove both render-blocking
+		// requests from the first paint. Larger future bundles remain cacheable files.
+		inlineStyleThreshold: 13_000,
 		csp: {
 			mode: 'nonce',
 			directives: {

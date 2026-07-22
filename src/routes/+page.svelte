@@ -1,5 +1,8 @@
 <script lang="ts">
-	import Icon from '$lib/components/Icon.svelte';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
+	import FolderOpenIcon from 'phosphor-svelte/lib/FolderOpenIcon';
+	import SealCheckIcon from 'phosphor-svelte/lib/SealCheckIcon';
+	import TrophyIcon from 'phosphor-svelte/lib/TrophyIcon';
 	let { data } = $props();
 
 	function formatNumber(num: number) {
@@ -26,15 +29,15 @@
 			</p>
 			<div class="hero-actions">
 				<a href="/discover" class="btn btn-primary btn-lg">
-					Explore public metrics <Icon name="arrow-right" />
+					Explore public metrics <ArrowRightIcon class="app-icon" aria-hidden="true" />
 				</a>
 				<a href="/leaderboards" class="btn btn-secondary btn-lg">Compare growth</a>
 				<a href="/register" class="hero-register">Register your extension</a>
 			</div>
 			<ul class="trust-list" aria-label="Platform benefits">
-				<li><Icon name="seal-check" weight="fill" /> Open source</li>
-				<li><Icon name="seal-check" weight="fill" /> Self-hosted</li>
-				<li><Icon name="seal-check" weight="fill" /> Verifiable reports</li>
+				<li><SealCheckIcon class="app-icon" weight="fill" aria-hidden="true" /> Open source</li>
+				<li><SealCheckIcon class="app-icon" weight="fill" aria-hidden="true" /> Self-hosted</li>
+				<li><SealCheckIcon class="app-icon" weight="fill" aria-hidden="true" /> Verifiable reports</li>
 			</ul>
 		</div>
 
@@ -47,8 +50,18 @@
 			<span class="hero-logo">
 				<picture>
 					<source
+						media="(max-width: 700px)"
+						type="image/avif"
+						srcset="/brand/koaladata-icon-180.avif"
+					/>
+					<source
 						type="image/avif"
 						srcset="/brand/koaladata-icon-180.avif 1x, /brand/koaladata-icon-360.avif 2x"
+					/>
+					<source
+						media="(max-width: 700px)"
+						type="image/webp"
+						srcset="/brand/koaladata-icon-180.webp"
 					/>
 					<source
 						type="image/webp"
@@ -59,7 +72,7 @@
 						width="180"
 						height="180"
 						alt=""
-						fetchpriority="high"
+						fetchpriority="low"
 					/>
 				</picture>
 			</span>
@@ -78,7 +91,7 @@
 	<div class="grid grid-2 info-grid">
 		<div class="card info-card">
 			<div class="card-header flex align-center gap-1">
-				<span class="info-icon"><Icon name="folder-open" weight="duotone" /></span>
+				<span class="info-icon"><FolderOpenIcon class="app-icon" weight="duotone" aria-hidden="true" /></span>
 				<div>
 					<p class="card-kicker">Find the signal</p>
 					<h2>Explore extensions</h2>
@@ -89,13 +102,13 @@
 				markets, versions, and acquisition channels matter.
 			</p>
 			<a href="/discover" class="btn btn-secondary btn-sm mt-1">
-				Search directory <Icon name="arrow-right" />
+				Search directory <ArrowRightIcon class="app-icon" aria-hidden="true" />
 			</a>
 		</div>
 
 		<div class="card info-card">
 			<div class="card-header flex align-center gap-1">
-				<span class="info-icon"><Icon name="trophy" weight="duotone" /></span>
+				<span class="info-icon"><TrophyIcon class="app-icon" weight="duotone" aria-hidden="true" /></span>
 				<div>
 					<p class="card-kicker">Add context</p>
 					<h2>Compare growth</h2>
@@ -106,7 +119,7 @@
 				extension ecosystem with consistent ranking rules.
 			</p>
 			<a href="/leaderboards" class="btn btn-secondary btn-sm mt-1">
-				See rankings <Icon name="arrow-right" />
+				See rankings <ArrowRightIcon class="app-icon" aria-hidden="true" />
 			</a>
 		</div>
 	</div>
@@ -118,7 +131,7 @@
 					<p class="card-kicker">Updated from public reports</p>
 					<h2>Trending extensions</h2>
 				</div>
-				<a href="/leaderboards" class="section-link">View full leaderboard <Icon name="arrow-right" /></a>
+				<a href="/leaderboards" class="section-link">View full leaderboard <ArrowRightIcon class="app-icon" aria-hidden="true" /></a>
 			</div>
 			<div class="peek-list">
 				{#each data.leaderboard.slice(0, 3) as project, idx}

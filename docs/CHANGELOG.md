@@ -15,6 +15,7 @@
 
 - Replace the oversized stacked landing-page hero with a compact, responsive product message and a visible analytics illustration.
 - Add page-specific search metadata and clearer primary, comparison, and registration actions.
+- Inline small critical styles, remove six webfont requests, tree-shake landing-page icons, and serve a lower-priority mobile hero image to shorten the first render.
 - Evaluate Lighthouse budgets from the median of three runs to reject real regressions without failing on a single noisy measurement.
 - Print the failing Lighthouse audits in CI and update the checkout and Node setup actions to their Node 24-compatible releases.
 

@@ -31,8 +31,6 @@
 		"@axe-core/playwright": "^4.12.1",
 		"@emnapi/core": "^1.11.2",
 		"@emnapi/runtime": "^1.11.2",
-		"@fontsource/inter": "^5.2.8",
-		"@fontsource/space-grotesk": "^5.2.8",
 		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/kit": "^2.70.1",

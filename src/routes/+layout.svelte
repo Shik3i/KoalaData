@@ -1,12 +1,12 @@
 <script lang="ts">
 	import '../app.css';
-	import Icon from '$lib/components/Icon.svelte';
-	import '@fontsource/inter/latin-400.css';
-	import '@fontsource/inter/latin-500.css';
-	import '@fontsource/inter/latin-600.css';
-	import '@fontsource/inter/latin-700.css';
-	import '@fontsource/space-grotesk/latin-600.css';
-	import '@fontsource/space-grotesk/latin-700.css';
+	import DesktopIcon from 'phosphor-svelte/lib/DesktopIcon';
+	import ListIcon from 'phosphor-svelte/lib/ListIcon';
+	import MoonIcon from 'phosphor-svelte/lib/MoonIcon';
+	import SunIcon from 'phosphor-svelte/lib/SunIcon';
+	import UserCircleIcon from 'phosphor-svelte/lib/UserCircleIcon';
+	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 
@@ -88,7 +88,7 @@
 				aria-expanded={mobileMenuOpen}
 				onclick={() => mobileMenuOpen = !mobileMenuOpen}
 			>
-				<Icon name={mobileMenuOpen ? 'x' : 'list'} />
+				{#if mobileMenuOpen}<XIcon class="app-icon" aria-hidden="true" />{:else}<ListIcon class="app-icon" aria-hidden="true" />{/if}
 			</button>
 
 			<div id="header-menu" class:open={mobileMenuOpen} class="header-menu">
@@ -116,7 +116,7 @@
 							aria-label="Light Mode"
 							title="Light Mode"
 						>
-							<Icon name="sun" />
+							<SunIcon class="app-icon" aria-hidden="true" />
 						</button>
 						<button 
 							type="button"
@@ -125,7 +125,7 @@
 							aria-label="Dark Mode"
 							title="Dark Mode"
 						>
-							<Icon name="moon" />
+							<MoonIcon class="app-icon" aria-hidden="true" />
 						</button>
 						<button 
 							type="button"
@@ -134,13 +134,13 @@
 							aria-label="System Theme"
 							title="System Theme"
 						>
-							<Icon name="desktop" />
+							<DesktopIcon class="app-icon" aria-hidden="true" />
 						</button>
 					</div>
 
 					{#if user}
 						<div class="user-menu flex align-center gap-2">
-							<a href="/app/account" onclick={closeMobileMenu} class="username-btn"><Icon name="user-circle" /> {user.username}</a>
+							<a href="/app/account" onclick={closeMobileMenu} class="username-btn"><UserCircleIcon class="app-icon" aria-hidden="true" /> {user.username}</a>
 							<form action="/login?/logout" method="POST" class="inline-form">
 								<button type="submit" class="btn btn-secondary btn-sm">Log out</button>
 							</form>
@@ -159,7 +159,7 @@
 	{#if user && user.forcePasswordChange && page.url.pathname !== '/app/account/security'}
 		<div class="container warning-banner">
 			<div class="alert alert-warning flex justify-between align-center flex-mobile-column" role="alert">
-				<span><Icon name="warning" /> For security reasons, you are required to change your password immediately.</span>
+				<span><WarningIcon class="app-icon" aria-hidden="true" /> For security reasons, you are required to change your password immediately.</span>
 				<a href="/app/account/security" class="btn btn-primary btn-sm">Change Password</a>
 			</div>
 		</div>
