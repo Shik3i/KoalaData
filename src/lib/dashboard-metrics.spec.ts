@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	buildBreakdownGroups,
 	calculateBreakdownRows,
+	calculateBreakdownTimeline,
 	classifyChromeReportFilename,
 	filterObservationsByCalendarDays,
 	type DashboardMetric
@@ -12,6 +13,7 @@ describe('dashboard metric semantics', () => {
 		expect(classifyChromeReportFilename('Installationen nach Region.csv')).toMatchObject({ id: 'installs-region', semantics: 'flow' });
 		expect(classifyChromeReportFilename('Wöchentliche Nutzer nach Region.csv')).toMatchObject({ id: 'weekly-users-region', semantics: 'snapshot' });
 		expect(classifyChromeReportFilename('Enabled vs Disabled.csv')).toMatchObject({ id: 'enabled-state', semantics: 'snapshot' });
+		expect(classifyChromeReportFilename('Bewertungen im Zeitverlauf.csv')).toMatchObject({ id: 'ratings', semantics: 'flow' });
 	});
 
 	it('groups legacy metric definitions without dropping a series', () => {
@@ -42,6 +44,40 @@ describe('dashboard metric semantics', () => {
 			observations: [{ date: '2026-07-01', value: 500 }, { date: '2026-07-02', value: 520 }]
 		}])[0];
 		expect(calculateBreakdownRows(group, 90)[0].value).toBe(520);
+	});
+
+	it('sums daily ratings and preserves zero days in the timeline', () => {
+		const group = buildBreakdownGroups([
+			{
+				sourceId: 'source', sourceName: 'CWS', metricId: 'five-stars', metricType: 'custom',
+				name: 'Bewertungen im Zeitverlauf: Fünf Sterne', aggregation: 'sum',
+				observations: [
+					{ date: '2026-06-08', value: 1 },
+					{ date: '2026-06-09', value: 2 },
+					{ date: '2026-06-10', value: 0 }
+				]
+			},
+			{
+				sourceId: 'source', sourceName: 'CWS', metricId: 'one-star', metricType: 'custom',
+				name: 'Bewertungen im Zeitverlauf: Ein Stern', aggregation: 'sum',
+				observations: [
+					{ date: '2026-06-08', value: 0 },
+					{ date: '2026-06-09', value: 1 },
+					{ date: '2026-06-10', value: 0 }
+				]
+			}
+		])[0];
+
+		expect(calculateBreakdownRows(group, 90).map((row) => [row.name, row.value])).toEqual([
+			['5 stars', 3], ['1 star', 1]
+		]);
+		expect(calculateBreakdownTimeline(group, 90)).toMatchObject({
+			dates: ['2026-06-08', '2026-06-09', '2026-06-10'],
+			series: [
+				{ name: '5 stars', observations: [{ value: 1 }, { value: 2 }, { value: 0 }] },
+				{ name: '1 star', observations: [{ value: 0 }, { value: 1 }, { value: 0 }] }
+			]
+		});
 	});
 
 	it('merges legacy and dimensional observations without double counting overlaps', () => {

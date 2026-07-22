@@ -46,6 +46,11 @@ export type BreakdownRow = {
 	date: string | null;
 };
 
+export type BreakdownTimeline = {
+	dates: string[];
+	series: BreakdownSeries[];
+};
+
 const REPORT_PATTERNS: Array<{
 	patterns: string[];
 	report: ChromeReportClassification;
@@ -96,7 +101,7 @@ const REPORT_PATTERNS: Array<{
 	},
 	{
 		patterns: ['bewertungen im zeitverlauf', 'ratings over time', 'ratings by star'],
-		report: { id: 'ratings', title: 'Rating Distribution', dimensionKey: 'rating', semantics: 'snapshot', section: 'quality', unitLabel: 'ratings' }
+		report: { id: 'ratings', title: 'Rating Distribution', dimensionKey: 'rating', semantics: 'flow', section: 'quality', unitLabel: 'ratings' }
 	}
 ];
 
@@ -251,6 +256,31 @@ export function calculateBreakdownRows(group: BreakdownGroup, days: number | nul
 	return rows
 		.map((row) => ({ ...row, share: total > 0 ? row.value / total : 0 }))
 		.sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, undefined, { numeric: true }));
+}
+
+export function calculateBreakdownTimeline(group: BreakdownGroup, days: number | null): BreakdownTimeline {
+	const groupEndDate = group.series.flatMap((series) => series.observations).reduce<string | null>(
+		(latest, observation) => latest === null || observation.date > latest ? observation.date : latest,
+		null
+	);
+	if (!groupEndDate) return { dates: [], series: [] };
+	const startDate = days === null ? null : rangeStart(groupEndDate, days);
+	const dates = [...new Set(group.series
+		.flatMap((series) => series.observations)
+		.filter((observation) => observation.date <= groupEndDate && (!startDate || observation.date >= startDate))
+		.map((observation) => observation.date))]
+		.sort();
+
+	return {
+		dates,
+		series: group.series.map((series) => {
+			const valuesByDate = new Map(series.observations.map((observation) => [observation.date, observation.value]));
+			return {
+				name: series.name,
+				observations: dates.map((date) => ({ date, value: valuesByDate.get(date) ?? 0 }))
+			};
+		})
+	};
 }
 
 export function metricDisplayValue(metric: DashboardMetric, days: number | null): number | null {

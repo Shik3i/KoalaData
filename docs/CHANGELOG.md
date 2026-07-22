@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v1.3.4 - 2026-07-22
+
+### Rating analytics
+
+- Treat Chrome Web Store rating exports as daily rating flows instead of incorrectly displaying only the latest day's value.
+- Add separate full-width views for the selected-period star distribution and the daily star-by-star timeline.
+- Give each star level a consistent color and preserve zero-rating days in the timeline.
+
 ## v1.3.3 - 2026-07-22
 
 ### Readable analytics layout

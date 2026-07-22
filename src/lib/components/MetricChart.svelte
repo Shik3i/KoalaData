@@ -229,7 +229,7 @@
 			legend: hasLegend ? {
 				data: legendData,
 				top: 0,
-				right: 0,
+				left: 0,
 				textStyle: {
 					color: isDark ? '#a5b2a8' : '#64748b',
 					fontFamily: 'Inter, system-ui, sans-serif',

@@ -3,6 +3,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import MetricChart from '$lib/components/MetricChart.svelte';
 	import BreakdownTabs from '$lib/components/BreakdownTabs.svelte';
+	import RatingAnalytics from '$lib/components/RatingAnalytics.svelte';
 	import {
 		buildBreakdownGroups,
 		classifyChromeReportLabel,
@@ -293,7 +294,7 @@
 	{/if}
 
 	{#if qualityGroups.length}
-		<section id="quality" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Quality</p><h2>Rating distribution</h2><p class="text-muted">Current rating counts combined into one readable distribution.</p></div></div><BreakdownTabs groups={qualityGroups} {days} /></section>
+		<section id="quality" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Quality</p><h2>Rating activity</h2><p class="text-muted">Daily rating events shown as a period total and as a star-by-star timeline.</p></div></div>{#each qualityGroups as group}<RatingAnalytics {group} {days} />{/each}</section>
 	{/if}
 
 	{#if additionalMetrics.length}
