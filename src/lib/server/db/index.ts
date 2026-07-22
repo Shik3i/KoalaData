@@ -17,10 +17,10 @@ const client = new Database(dbPath);
 // Enable WAL mode and enforce foreign keys on startup
 client.pragma('journal_mode = WAL');
 client.pragma('foreign_keys = ON');
+client.pragma('busy_timeout = 5000');
 
 export const db = drizzle(client, { schema });
 export default db;
 export { client };
-
 
 

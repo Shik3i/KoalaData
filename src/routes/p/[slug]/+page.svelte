@@ -228,7 +228,7 @@
 				{#if project.websiteUrl}<a class="btn btn-secondary" href={project.websiteUrl} target="_blank" rel="noopener"><Icon name="globe" /> Visit website</a>{/if}
 				{#if project.repositoryUrl}<a class="source-link" href={project.repositoryUrl} target="_blank" rel="noopener"><Icon name="code" /> Source code</a>{/if}
 				<button class="source-link share-button" type="button" onclick={async () => { await navigator.clipboard.writeText(page.url.origin + `/p/${project.slug}`); copied = true; setTimeout(() => copied = false, 1800); }}><Icon name="clipboard-text" /> {copied ? 'Copied' : 'Copy dashboard link'}</button>
-				<a class="source-link" href="mailto:koalasync@koalastuff.net?subject={encodeURIComponent(`KoalaData listing report: ${project.name}`)}"><Icon name="warning" /> Report listing</a>
+				<a class="source-link" href="mailto:koaladata@koalastuff.net?subject={encodeURIComponent(`KoalaData listing report: ${project.name}`)}"><Icon name="warning" /> Report listing</a>
 			</div>
 		</div>
 		{#if project.fullDescription}

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import db from '../db';
 import { users, projects, dataSources, importDrafts, metricDefinitions, metricObservations } from '../db/schema';
-import { createImportDraft, confirmImportDraft, cleanupExpiredDrafts } from './pipeline';
+import { createImportDraft, confirmImportDraft, cleanupExpiredDrafts, getDraftFilePath, parseStoredFilename } from './pipeline';
 import { eq } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
@@ -69,6 +69,14 @@ describe('CSV Import Draft Lifecycle & Cleanup', () => {
 		if (testUser) {
 			await db.delete(users).where(eq(users.id, testUser.id));
 		}
+	});
+
+	it('parses filenames containing the metadata delimiter and rejects unsafe draft paths', () => {
+		expect(parseStoredFilename('report:::final.csv:::123e4567-e89b-12d3-a456-426614174000.tmp')).toEqual({
+			originalName: 'report:::final.csv',
+			fileId: '123e4567-e89b-12d3-a456-426614174000.tmp'
+		});
+		expect(() => getDraftFilePath('/tmp/data', '../secret.tmp')).toThrow('Import draft filename is invalid.');
 	});
 
 	it('should create draft on disk, throw error when expired, and delete files on cleanup', async () => {

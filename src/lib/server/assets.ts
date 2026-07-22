@@ -45,12 +45,6 @@ export async function saveProjectLogo(projectId: string, file: File): Promise<st
 	const randomName = `${projectId}-${crypto.randomUUID()}${ext}`;
 	const destPath = path.resolve(assetsDir, randomName);
 
-	// Guard against path traversal
-	const resolvedAssetsDir = path.resolve(assetsDir);
-	if (!destPath.startsWith(resolvedAssetsDir)) {
-		throw new Error('Path traversal violation blocked.');
-	}
-
 	// Write to filesystem
 	fs.writeFileSync(destPath, buffer);
 	return randomName;
@@ -61,11 +55,12 @@ export async function saveProjectLogo(projectId: string, file: File): Promise<st
  */
 export function removeProjectLogo(filename: string) {
 	try {
+		if (path.basename(filename) !== filename) return;
 		const dataDir = process.env.DATA_DIRECTORY || './data';
 		const assetsDir = path.join(dataDir, 'project-assets');
 		const filePath = path.resolve(assetsDir, filename);
 
-		if (filePath.startsWith(path.resolve(assetsDir)) && fs.existsSync(filePath)) {
+		if (fs.existsSync(filePath)) {
 			fs.unlinkSync(filePath);
 		}
 	} catch (e) {

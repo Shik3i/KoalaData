@@ -112,7 +112,7 @@ export const CHROME_REPORT_PATTERNS = [
 	{ patterns: [...byDimension('users', 'os'), 'weekly users by os'], report: { id: 'weekly-users-os', title: 'Weekly Users by Operating System', dimensionKey: 'operating_system', semantics: 'snapshot', section: 'audience', unitLabel: 'users' } },
 	{ patterns: [...Object.values(locales).map((locale) => `${locale.users} ${locale.by} ${locale.version}`), 'daily users by extension version', 'users by item version'], report: { id: 'users-version', title: 'Users by Extension Version', dimensionKey: 'version', semantics: 'snapshot', section: 'audience', unitLabel: 'users' } },
 	{ patterns: [...Object.values(locales).map((locale) => locale.enabled), 'enabled vs disabled'], report: { id: 'enabled-state', title: 'Enabled vs Disabled', dimensionKey: 'state', semantics: 'snapshot', section: 'retention', unitLabel: 'installations' } },
-	{ patterns: [...Object.values(locales).map((locale) => locale.ratings), 'ratings by star'], report: { id: 'ratings', title: 'Rating Distribution', dimensionKey: 'rating', semantics: 'flow', section: 'quality', unitLabel: 'ratings' } }
+	{ patterns: [...Object.values(locales).map((locale) => locale.ratings), 'ratings by star', 'rating distribution'], report: { id: 'ratings', title: 'Rating Distribution', dimensionKey: 'rating', semantics: 'flow', section: 'quality', unitLabel: 'ratings' } }
 ] as const;
 
 export const SUPPORTED_CHROME_LOCALES = [

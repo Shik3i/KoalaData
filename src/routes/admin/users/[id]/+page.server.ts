@@ -196,10 +196,25 @@ export const actions: Actions = {
 	saveLimits: async ({ params, request, locals, getClientAddress }) => {
 		if (!locals.user || locals.user.role !== 'admin') return fail(403);
 		const data = await request.formData();
-		const maxProjects = data.get('maxProjects') ? parseInt(data.get('maxProjects')!.toString(), 10) : null;
-		const maxStorageBytes = data.get('maxStorageBytes') ? parseInt(data.get('maxStorageBytes')!.toString(), 10) : null;
-		const maxCsvSizeBytes = data.get('maxCsvSizeBytes') ? parseInt(data.get('maxCsvSizeBytes')!.toString(), 10) : null;
-		const maxCsvRows = data.get('maxCsvRows') ? parseInt(data.get('maxCsvRows')!.toString(), 10) : null;
+		const optionalPositiveInteger = (key: string): number | null => {
+			const raw = data.get(key)?.toString().trim() || '';
+			if (!raw) return null;
+			const value = Number(raw);
+			if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${key} must be a positive integer.`);
+			return value;
+		};
+		let maxProjects: number | null;
+		let maxStorageBytes: number | null;
+		let maxCsvSizeBytes: number | null;
+		let maxCsvRows: number | null;
+		try {
+			maxProjects = optionalPositiveInteger('maxProjects');
+			maxStorageBytes = optionalPositiveInteger('maxStorageBytes');
+			maxCsvSizeBytes = optionalPositiveInteger('maxCsvSizeBytes');
+			maxCsvRows = optionalPositiveInteger('maxCsvRows');
+		} catch (error) {
+			return fail(400, { error: error instanceof Error ? error.message : 'Invalid limit override.' });
+		}
 
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}

@@ -25,6 +25,10 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 			console.log('E2E DIALOG:', dialog.type(), dialog.message());
 			await dialog.accept();
 		});
+		const serverErrors: string[] = [];
+		page.on('response', (response) => {
+			if (response.status() >= 500) serverErrors.push(`${response.status()} ${response.url()}`);
+		});
 
 		// 1. SEEDED ADMIN LOGIN & SETTINGS ENFORCEMENT
 		await page.goto('/login');
@@ -142,6 +146,31 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await expect(page.locator('.project-title')).toContainText(projectName);
 
+		// Save the public classification after creation. This exercises the
+		// better-sqlite3 transaction used by the project settings action.
+		await page.click('a.tab-link[href$="/settings"]');
+		await page.waitForURL('/app/projects/*/settings');
+		const infoTrigger = page.getByRole('button', { name: 'More information' }).first();
+		await infoTrigger.hover();
+		const tooltip = page.getByRole('tooltip');
+		await expect(tooltip).toBeVisible();
+		const tooltipBox = await tooltip.boundingBox();
+		expect(tooltipBox).not.toBeNull();
+		if (tooltipBox) {
+			const viewport = page.viewportSize()!;
+			expect(tooltipBox.x).toBeGreaterThanOrEqual(0);
+			expect(tooltipBox.y).toBeGreaterThanOrEqual(0);
+			expect(tooltipBox.x + tooltipBox.width).toBeLessThanOrEqual(viewport.width);
+			expect(tooltipBox.y + tooltipBox.height).toBeLessThanOrEqual(viewport.height);
+		}
+		await page.selectOption('select[name="pricingModel"]', 'free');
+		await page.fill('input[name="repositoryUrl"]', 'https://github.com/example/e2e-extension');
+		await page.check('input[name="isOpenSource"]');
+		await page.locator('form[action="?/updateSettings"] button[type="submit"]').click();
+		await expect(page.locator('.alert-success')).toContainText('General settings updated.');
+		await expect(page.locator('select[name="pricingModel"]')).toHaveValue('free');
+		await expect(page.locator('input[name="isOpenSource"]')).toBeChecked();
+
 		// 6. DATA SOURCE CREATION
 		console.log('--- ALL LINKS ON PROJECT OVERVIEW ---');
 		const projLinks = await page.locator('a').all();
@@ -213,6 +242,8 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		// 10. PUBLIC DASHBOARD VERIFICATION & VISIBILITY CONTROLS
 		await page.goto(`/p/${projectSlug}`);
 		await expect(page.getByRole('heading', { level: 1 })).toContainText(projectName);
+		await expect(page.getByText('Free', { exact: true })).toBeVisible();
+		await expect(page.getByText('Open Source', { exact: true })).toBeVisible();
 		await expect(page.locator('.chart-dom').first()).toBeVisible(); // Charts are loaded
 		const trendCardPositions = await page.locator('.trend-grid > .chart-card').evaluateAll((cards) => cards.map((card) => {
 			const rect = card.getBoundingClientRect();
@@ -265,6 +296,10 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await page.click('a.tab-link[href$="/settings"]');
 		
+		await page.check('input[name="leaderboardOptIn"]');
+		await page.locator('button', { hasText: 'Save Leaderboard Choice' }).click();
+		await expect(page.locator('.alert-danger')).toContainText('Only public projects can participate in leaderboards.');
+
 		// Set back to public first (leaderboards require public visibility)
 		await page.selectOption('select[name="visibility"]', 'public');
 		await page.locator('button', { hasText: 'Save Visibility' }).click();
@@ -364,5 +399,6 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		// Direct visit to /app redirects to login
 		await userPage.goto('/app');
 		await expect(userPage).toHaveURL(/\/login/);
+		expect(serverErrors).toEqual([]);
 	});
 });

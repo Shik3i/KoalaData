@@ -10,12 +10,22 @@ import { getUserLimits } from '../limits';
 
 const DRAFTS_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-function parseStoredFilename(storedFilename: string): { originalName: string; fileId: string } {
-	const parts = storedFilename.split(':::');
-	if (parts.length > 1) {
-		return { originalName: parts[0], fileId: parts[1] };
+export function parseStoredFilename(storedFilename: string): { originalName: string; fileId: string } {
+	const separatorIndex = storedFilename.lastIndexOf(':::');
+	if (separatorIndex !== -1) {
+		return {
+			originalName: storedFilename.slice(0, separatorIndex),
+			fileId: storedFilename.slice(separatorIndex + 3)
+		};
 	}
 	return { originalName: storedFilename, fileId: storedFilename };
+}
+
+export function getDraftFilePath(dataDir: string, fileId: string): string {
+	if (path.basename(fileId) !== fileId || !/^[0-9a-f-]{36}\.tmp$/i.test(fileId)) {
+		throw new Error('Import draft filename is invalid.');
+	}
+	return path.join(dataDir, 'uploads', 'drafts', fileId);
 }
 
 /**
@@ -144,6 +154,13 @@ export async function createImportDraft(
 	originalFilename: string,
 	buffer: Buffer
 ): Promise<string> {
+	const source = await db
+		.select({ id: dataSources.id })
+		.from(dataSources)
+		.where(and(eq(dataSources.id, sourceId), eq(dataSources.projectId, projectId)))
+		.limit(1);
+	if (source.length === 0) throw new Error('The selected data source does not belong to this project.');
+
 	// Fetch limits
 	const { limits } = await getUserLimits(userId);
 
@@ -179,19 +196,24 @@ export async function createImportDraft(
 	const now = Math.floor(Date.now() / 1000);
 	const expiresAt = now + Math.floor(DRAFTS_TTL_MS / 1000);
 
-	await db.insert(importDrafts).values({
-		id: draftId,
-		userId,
-		projectId,
-		sourceId,
-		storedFilename,
-		detectedDelimiter: parsed.delimiter,
-		detectedEncoding: parsed.encoding,
-		headers: JSON.stringify(parsed.headers),
-		rowCount: parsed.rows.length,
-		createdAt: now,
-		expiresAt
-	});
+	try {
+		await db.insert(importDrafts).values({
+			id: draftId,
+			userId,
+			projectId,
+			sourceId,
+			storedFilename,
+			detectedDelimiter: parsed.delimiter,
+			detectedEncoding: parsed.encoding,
+			headers: JSON.stringify(parsed.headers),
+			rowCount: parsed.rows.length,
+			createdAt: now,
+			expiresAt
+		});
+	} catch (error) {
+		if (fs.existsSync(draftFilePath)) fs.unlinkSync(draftFilePath);
+		throw error;
+	}
 
 	return draftId;
 }
@@ -223,7 +245,13 @@ export async function confirmImportDraft(
 	const draftRecord = await db
 		.select()
 		.from(importDrafts)
-		.where(eq(importDrafts.id, draftId))
+		.where(
+			and(
+				eq(importDrafts.id, draftId),
+				eq(importDrafts.projectId, projectId),
+				eq(importDrafts.userId, userId)
+			)
+		)
 		.limit(1);
 
 	if (draftRecord.length === 0) {
@@ -238,17 +266,18 @@ export async function confirmImportDraft(
 		throw new Error('Import draft has expired. Please re-upload your file.');
 	}
 
-	// Claim/lock the draft atomically by deleting it. If another request did it, changes will be 0.
-	const deleteResult = await db.delete(importDrafts).where(eq(importDrafts.id, draftId)).run();
-	if (deleteResult.changes === 0) {
-		throw new Error('Import draft has already been processed or is invalid.');
-	}
+	const source = await db
+		.select({ id: dataSources.id })
+		.from(dataSources)
+		.where(and(eq(dataSources.id, draft.sourceId), eq(dataSources.projectId, projectId)))
+		.limit(1);
+	if (source.length === 0) throw new Error('The import draft references an invalid data source.');
 
 	// Verify user limits (storage bounds)
 	const { limits, usage } = await getUserLimits(userId);
 	const dataDir = process.env.DATA_DIRECTORY || './data';
 	const { originalName, fileId } = parseStoredFilename(draft.storedFilename);
-	const draftFilePath = path.join(dataDir, 'uploads', 'drafts', fileId);
+	const draftFilePath = getDraftFilePath(dataDir, fileId);
 	
 	if (!fs.existsSync(draftFilePath)) {
 		throw new Error('Temporary draft file is missing.');
@@ -257,6 +286,25 @@ export async function confirmImportDraft(
 	const draftStat = fs.statSync(draftFilePath);
 	if (usage.storageBytes + draftStat.size > limits.maxStorageBytes) {
 		throw new Error(`CSV import size violates your storage quota of ${limits.maxStorageBytes / (1024 * 1024)}MB.`);
+	}
+
+	// Validate the file and mapping before claiming the draft or moving its file.
+	const fileBuffer = fs.readFileSync(draftFilePath);
+	const parsed = parseCsv(fileBuffer);
+	const headers = parsed.headers;
+	const dateColIdx = headers.indexOf(mappingConfig.dateColumn);
+	if (dateColIdx === -1) throw new Error(`Date column "${mappingConfig.dateColumn}" not found in CSV.`);
+
+	const metricMappings = mappingConfig.metrics
+		.map((metric) => {
+			const dimensions = JSON.stringify(
+				Object.fromEntries(Object.entries(metric.dimensions ?? {}).sort(([a], [b]) => a.localeCompare(b)))
+			);
+			return { ...metric, dimensions, columnIndex: headers.indexOf(metric.columnName) };
+		})
+		.filter((metric) => metric.columnIndex !== -1);
+	if (metricMappings.length === 0) {
+		throw new Error('At least one valid numeric metric column must be mapped.');
 	}
 
 	// 2. Setup final storage file path
@@ -269,36 +317,27 @@ export async function confirmImportDraft(
 	const finalFilename = `${batchId}.csv`;
 	const finalFilePath = path.join(uploadsDir, finalFilename);
 
+	// Claim only after all recoverable validation has passed.
+	const deleteResult = await db
+		.delete(importDrafts)
+		.where(
+			and(
+				eq(importDrafts.id, draftId),
+				eq(importDrafts.projectId, projectId),
+				eq(importDrafts.userId, userId)
+			)
+		)
+		.run();
+	if (deleteResult.changes === 0) {
+		throw new Error('Import draft has already been processed or is invalid.');
+	}
+
 	// 3. Move draft file to final private path FIRST (Filesystem-first ordering constraint)
 	try {
 		fs.renameSync(draftFilePath, finalFilePath);
 	} catch (e: any) {
+		await db.insert(importDrafts).values(draft).onConflictDoNothing();
 		throw new Error(`Failed to store original file: ${e.message}`);
-	}
-
-	// 4. Parse CSV data rows for observations import
-	const fileBuffer = fs.readFileSync(finalFilePath);
-	const parsed = parseCsv(fileBuffer);
-	const headers = parsed.headers;
-	
-	const dateColIdx = headers.indexOf(mappingConfig.dateColumn);
-	if (dateColIdx === -1) {
-		fs.unlinkSync(finalFilePath); // Cleanup file if invalid mapping
-		throw new Error(`Date column "${mappingConfig.dateColumn}" not found in CSV.`);
-	}
-
-	// Prepare metrics map
-	const metricMappings = mappingConfig.metrics.map(m => {
-		const idx = headers.indexOf(m.columnName);
-		const dimensions = JSON.stringify(
-			Object.fromEntries(Object.entries(m.dimensions ?? {}).sort(([a], [b]) => a.localeCompare(b)))
-		);
-		return { ...m, dimensions, columnIndex: idx };
-	}).filter(m => m.columnIndex !== -1);
-
-	if (metricMappings.length === 0) {
-		fs.unlinkSync(finalFilePath);
-		throw new Error('At least one valid numeric metric column must be mapped.');
 	}
 
 	// Pre-resolve existing metric definitions
@@ -588,7 +627,7 @@ export async function cleanupDraft(draftId: string) {
 			const draft = draftRecord[0];
 			const dataDir = process.env.DATA_DIRECTORY || './data';
 			const { fileId } = parseStoredFilename(draft.storedFilename);
-			const filePath = path.join(dataDir, 'uploads', 'drafts', fileId);
+			const filePath = getDraftFilePath(dataDir, fileId);
 			if (fs.existsSync(filePath)) {
 				fs.unlinkSync(filePath);
 			}

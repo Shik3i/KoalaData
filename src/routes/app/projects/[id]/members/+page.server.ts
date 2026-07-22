@@ -3,6 +3,7 @@ import { projectMembers, projects, users } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { logAuditEvent } from '$lib/server/audit';
+import { isSqliteUniqueConstraint } from '$lib/server/db/errors';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -87,13 +88,20 @@ export const actions: Actions = {
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
 		// Insert
-		await db.insert(projectMembers).values({
-			id: crypto.randomUUID(),
-			projectId,
-			userId: target.id,
-			role: 'editor',
-			createdAt: Math.floor(Date.now() / 1000)
-		});
+		try {
+			await db.insert(projectMembers).values({
+				id: crypto.randomUUID(),
+				projectId,
+				userId: target.id,
+				role: 'editor',
+				createdAt: Math.floor(Date.now() / 1000)
+			});
+		} catch (error) {
+			if (isSqliteUniqueConstraint(error)) {
+				return fail(409, { error: 'User is already a member of this project.' });
+			}
+			throw error;
+		}
 
 		await logAuditEvent(
 			locals.user.id,
@@ -173,31 +181,33 @@ export const actions: Actions = {
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
 		// Execute Transfer in Transaction
-		await db.transaction(async (tx) => {
+		db.transaction((tx) => {
 			// 1. Remove new owner from project_members if they were an editor
-			await tx
+			tx
 				.delete(projectMembers)
-				.where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, target.id)));
+				.where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, target.id)))
+				.run();
 
 			// 2. Add old owner as editor to keep their access, if they are not admin
 			// (Admin always has full access, but we can make them editor for consistency)
 			const oldOwnerId = project.ownerId;
-			await tx.insert(projectMembers).values({
+			tx.insert(projectMembers).values({
 				id: crypto.randomUUID(),
 				projectId,
 				userId: oldOwnerId,
 				role: 'editor',
 				createdAt: Math.floor(Date.now() / 1000)
-			});
+			}).run();
 
 			// 3. Update project ownerId
-			await tx
+			tx
 				.update(projects)
 				.set({
 					ownerId: target.id,
 					updatedAt: Math.floor(Date.now() / 1000)
 				})
-				.where(eq(projects.id, projectId));
+				.where(eq(projects.id, projectId))
+				.run();
 		});
 
 		await logAuditEvent(

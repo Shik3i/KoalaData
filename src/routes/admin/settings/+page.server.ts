@@ -47,8 +47,8 @@ export const actions: Actions = {
 		}
 
 		const cleanInt = (val: string, name: string) => {
-			const parsed = parseInt(val, 10);
-			if (isNaN(parsed) || parsed < 1) {
+			const parsed = Number(val);
+			if (!Number.isSafeInteger(parsed) || parsed < 1) {
 				throw new Error(`${name} must be a positive integer.`);
 			}
 			return parsed.toString();

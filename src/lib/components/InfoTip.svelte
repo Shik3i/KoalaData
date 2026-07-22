@@ -1,24 +1,61 @@
 <script lang="ts">
+	import { tick } from 'svelte';
+
 	let { id, text, label = 'More information' }: { id: string; text: string; label?: string } = $props();
 	let open = $state(false);
+	let triggerElement = $state<HTMLButtonElement>();
+	let tooltipElement = $state<HTMLSpanElement>();
+	let tooltipStyle = $state('');
+
+	function positionTooltip() {
+		if (!open || !triggerElement || !tooltipElement) return;
+		const margin = 12;
+		const gap = 8;
+		const triggerRect = triggerElement.getBoundingClientRect();
+		const tooltipRect = tooltipElement.getBoundingClientRect();
+		const left = Math.min(
+			window.innerWidth - tooltipRect.width - margin,
+			Math.max(margin, triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2)
+		);
+		const above = triggerRect.top - tooltipRect.height - gap;
+		const below = triggerRect.bottom + gap;
+		const top = above >= margin
+			? above
+			: Math.min(below, window.innerHeight - tooltipRect.height - margin);
+		tooltipStyle = `left: ${Math.round(left)}px; top: ${Math.max(margin, Math.round(top))}px; visibility: visible;`;
+	}
+
+	async function showTooltip() {
+		tooltipStyle = 'left: 0; top: 0; visibility: hidden;';
+		open = true;
+		await tick();
+		positionTooltip();
+	}
+
+	function hideTooltip() {
+		open = false;
+	}
 </script>
+
+<svelte:window onresize={positionTooltip} onscroll={positionTooltip} />
 
 <span class="info-tip">
 	<button
+		bind:this={triggerElement}
 		type="button"
 		class="info-trigger"
 		aria-label={label}
 		aria-describedby={open ? id : undefined}
 		aria-expanded={open}
-		onfocus={() => open = true}
-		onblur={() => open = false}
-		onmouseenter={() => open = true}
-		onmouseleave={() => open = false}
-		onclick={() => open = true}
-		onkeydown={(event) => { if (event.key === 'Escape') open = false; }}
+		onfocus={showTooltip}
+		onblur={hideTooltip}
+		onmouseenter={showTooltip}
+		onmouseleave={hideTooltip}
+		onclick={showTooltip}
+		onkeydown={(event) => { if (event.key === 'Escape') hideTooltip(); }}
 	>?</button>
 	{#if open}
-		<span id={id} class="info-content" role="tooltip">{text}</span>
+		<span bind:this={tooltipElement} id={id} class="info-content" role="tooltip" style={tooltipStyle}>{text}</span>
 	{/if}
 </span>
 
@@ -39,11 +76,9 @@
 	}
 	.info-trigger:hover, .info-trigger:focus-visible { border-color: var(--primary); color: var(--primary); outline: none; }
 	.info-content {
-		position: absolute;
-		z-index: 50;
-		left: 50%;
-		bottom: calc(100% + 0.5rem);
-		width: min(17rem, 75vw);
+		position: fixed;
+		z-index: 1000;
+		width: min(17rem, calc(100vw - 1.5rem));
 		padding: 0.65rem 0.75rem;
 		border: 1px solid var(--border-color);
 		border-radius: var(--radius-md);
@@ -54,6 +89,5 @@
 		font-weight: 400;
 		line-height: 1.45;
 		text-align: left;
-		transform: translateX(-50%);
 	}
 </style>

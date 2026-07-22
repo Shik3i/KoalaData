@@ -10,5 +10,7 @@ describe('public project rating summaries', () => {
 
 	it('ignores unrelated custom metrics', () => {
 		expect(ratingStars('Support requests', '{"region":"US"}')).toBeNull();
+		expect(ratingStars('Users by Item Version: 2.0', '{}')).toBeNull();
+		expect(ratingStars('Installationen nach Erweiterungsversion: 5.4.1', '{}')).toBeNull();
 	});
 });

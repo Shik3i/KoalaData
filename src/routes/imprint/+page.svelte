@@ -17,7 +17,7 @@
 		<section>
 			<h2>Operator and contact</h2>
 			<p><strong>Timo Schmidt</strong></p>
-			<p>Email: <a href="mailto:koalasync@koalastuff.net">koalasync@koalastuff.net</a></p>
+			<p>Email: <a href="mailto:koaladata@koalastuff.net">koaladata@koalastuff.net</a></p>
 			<p>Private message: <a href="https://mastodon.social/@koalastuff" target="_blank" rel="me noopener noreferrer">@koalastuff on Mastodon</a></p>
 		</section>
 

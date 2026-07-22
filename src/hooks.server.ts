@@ -48,7 +48,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		pathname.endsWith('.key') ||
 		pathname.endsWith('.pwd') ||
 		pathname.endsWith('.php') ||
-		pathname.endsWith('.xml') ||
+		(pathname.endsWith('.xml') && pathname !== '/sitemap.xml') ||
 		pathname.endsWith('.git/HEAD') ||
 		pathname.endsWith('.svn/wc.db') ||
 		pathname.startsWith('/wp-admin') ||

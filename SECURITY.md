@@ -10,7 +10,7 @@ Do not open a public issue for suspected vulnerabilities.
 
 Preferred channel: [open a private GitHub security advisory](https://github.com/Shik3i/KoalaData/security/advisories/new).
 
-Alternative: email `koalasync@koalastuff.net` with the subject `KoalaData security report`.
+Alternative: email `koaladata@koalastuff.net` with the subject `KoalaData security report`.
 
 Include:
 

@@ -7,6 +7,7 @@ import { saveProjectLogo, removeProjectLogo } from '$lib/server/assets';
 import { normalizeChromeStoreUrl, normalizeOptionalHttpsUrl } from '$lib/server/urls';
 import { logAuditEvent } from '$lib/server/audit';
 import { isPricingModel } from '$lib/project-classification';
+import { isSqliteUniqueConstraint } from '$lib/server/db/errors';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -51,6 +52,9 @@ export const actions: Actions = {
 		if (!shortDescription || shortDescription.length < 5 || shortDescription.length > 200) {
 			return fail(400, { error: 'Short description must be between 5 and 200 characters.' });
 		}
+		if (fullDescription.length > 2000) {
+			return fail(400, { error: 'Full description cannot exceed 2000 characters.' });
+		}
 
 		const validCategories = ['productivity', 'entertainment', 'developer-tools', 'accessibility', 'privacy', 'social', 'shopping', 'education', 'other'];
 		if (!validCategories.includes(category)) {
@@ -69,13 +73,14 @@ export const actions: Actions = {
 		// Retire legacy Google-fetched favicons when the website changes. New logos
 		// are uploaded explicitly so project metadata is never sent to a third party.
 		let logoPath = project.logoPath;
+		let retiredLogoPath: string | null = null;
 		if (logoPath?.includes('-favicon-') && project.websiteUrl !== websiteUrl) {
-			removeProjectLogo(logoPath);
+			retiredLogoPath = logoPath;
 			logoPath = null;
 		}
 
 		const now = Math.floor(Date.now() / 1000);
-		await db.transaction(async (tx) => {
+		db.transaction((tx) => {
 			tx.update(projects).set({
 				name,
 				shortDescription,
@@ -90,25 +95,24 @@ export const actions: Actions = {
 				updatedAt: now
 			}).where(eq(projects.id, projectId)).run();
 
-			if (storeUrl) {
-				const existingChromeSource = tx.select({ id: dataSources.id })
-					.from(dataSources)
-					.where(and(eq(dataSources.projectId, projectId), eq(dataSources.sourceType, 'chrome_web_store')))
-					.limit(1)
-					.get();
+			const existingChromeSource = tx.select({ id: dataSources.id })
+				.from(dataSources)
+				.where(and(eq(dataSources.projectId, projectId), eq(dataSources.sourceType, 'chrome_web_store')))
+				.limit(1)
+				.get();
 
-				if (existingChromeSource) {
-					tx.update(dataSources).set({ externalUrl: storeUrl, updatedAt: now })
-						.where(eq(dataSources.id, existingChromeSource.id)).run();
-				} else {
-					tx.insert(dataSources).values({
-						id: crypto.randomUUID(), projectId, name: 'Chrome Web Store',
-						sourceType: 'chrome_web_store', externalUrl: storeUrl,
-						granularity: 'daily', createdAt: now, updatedAt: now
-					}).run();
-				}
+			if (existingChromeSource) {
+				tx.update(dataSources).set({ externalUrl: storeUrl, updatedAt: now })
+					.where(eq(dataSources.id, existingChromeSource.id)).run();
+			} else if (storeUrl) {
+				tx.insert(dataSources).values({
+					id: crypto.randomUUID(), projectId, name: 'Chrome Web Store',
+					sourceType: 'chrome_web_store', externalUrl: storeUrl,
+					granularity: 'daily', createdAt: now, updatedAt: now
+				}).run();
 			}
 		});
+		if (retiredLogoPath) removeProjectLogo(retiredLogoPath);
 
 		await logAuditEvent(locals.user.id, locals.user.username, 'update_project_settings', 'project', projectId, {}, ip);
 
@@ -140,6 +144,8 @@ export const actions: Actions = {
 			.update(projects)
 			.set({
 				visibility,
+				leaderboardOptIn: visibility === 'public' ? project.leaderboardOptIn : 0,
+				leaderboardStatus: visibility === 'public' ? project.leaderboardStatus : 'not_requested',
 				moderationStatus: needsReview ? 'hidden' : project.moderationStatus,
 				moderationReason: needsReview ? 'Awaiting public listing review.' : project.moderationReason,
 				updatedAt: Math.floor(Date.now() / 1000)
@@ -184,18 +190,20 @@ export const actions: Actions = {
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
 		// Update inside transaction
-		await db.transaction(async (tx) => {
-			// Update project slug
-			await tx
+		try {
+			db.transaction((tx) => {
+				// Update project slug
+				tx
 				.update(projects)
 				.set({
 					slug: newSlug,
 					updatedAt: Math.floor(Date.now() / 1000)
 				})
-				.where(eq(projects.id, projectId));
+				.where(eq(projects.id, projectId))
+				.run();
 
-			// Record redirect from old slug
-			await tx
+				// Record redirect from old slug
+				tx
 				.insert(projectSlugRedirects)
 				.values({
 					oldSlug,
@@ -205,8 +213,15 @@ export const actions: Actions = {
 				.onConflictDoUpdate({
 					target: projectSlugRedirects.oldSlug,
 					set: { newSlug, projectId }
-				});
-		});
+				})
+				.run();
+			});
+		} catch (error) {
+			if (isSqliteUniqueConstraint(error)) {
+				return fail(409, { error: 'This slug was claimed by another project. Choose a different slug.' });
+			}
+			throw error;
+		}
 
 		await logAuditEvent(locals.user.id, locals.user.username, 'update_project_slug', 'project', projectId, { oldSlug, newSlug }, ip);
 
@@ -221,6 +236,9 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const optIn = data.get('leaderboardOptIn')?.toString() === 'true';
+		if (optIn && project.visibility !== 'public') {
+			return fail(400, { error: 'Only public projects can participate in leaderboards.' });
+		}
 
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
@@ -263,20 +281,22 @@ export const actions: Actions = {
 		try {
 			// Save new logo
 			const filename = await saveProjectLogo(projectId, file);
-
-			// Delete old logo file if it exists
-			if (project.logoPath) {
-				removeProjectLogo(project.logoPath);
+			try {
+				const updated = await db
+					.update(projects)
+					.set({
+						logoPath: filename,
+						updatedAt: Math.floor(Date.now() / 1000)
+					})
+					.where(eq(projects.id, projectId))
+					.returning({ id: projects.id });
+				if (updated.length === 0) throw new Error('Project no longer exists.');
+			} catch (error) {
+				removeProjectLogo(filename);
+				throw error;
 			}
 
-			// Update database
-			await db
-				.update(projects)
-				.set({
-					logoPath: filename,
-					updatedAt: Math.floor(Date.now() / 1000)
-				})
-				.where(eq(projects.id, projectId));
+			if (project.logoPath) removeProjectLogo(project.logoPath);
 
 			await logAuditEvent(locals.user.id, locals.user.username, 'upload_project_logo', 'project', projectId, { filename }, ip);
 
@@ -299,17 +319,16 @@ export const actions: Actions = {
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
-		// Delete from disk
-		removeProjectLogo(project.logoPath);
-
-		// Update database
-		await db
+		const updated = await db
 			.update(projects)
 			.set({
 				logoPath: null,
 				updatedAt: Math.floor(Date.now() / 1000)
 			})
-			.where(eq(projects.id, projectId));
+			.where(eq(projects.id, projectId))
+			.returning({ id: projects.id });
+		if (updated.length === 0) return fail(404, { error: 'Project no longer exists.' });
+		removeProjectLogo(project.logoPath);
 
 		await logAuditEvent(locals.user.id, locals.user.username, 'delete_project_logo', 'project', projectId, {}, ip);
 

@@ -7,6 +7,10 @@ import { eq, and, isNull, sum, count, ne } from 'drizzle-orm';
  * Also returns the user's current project and storage usage.
  */
 export async function getUserLimits(userId: string) {
+	const positiveInteger = (value: unknown, fallback: number) => {
+		const parsed = typeof value === 'number' ? value : Number(String(value));
+		return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+	};
 	// 1. Fetch system defaults
 	const settingsList = await db.select().from(systemSettings);
 	const defaults = {
@@ -17,10 +21,10 @@ export async function getUserLimits(userId: string) {
 	};
 
 	for (const s of settingsList) {
-		if (s.key === 'default_max_projects') defaults.maxProjects = parseInt(s.value, 10);
-		if (s.key === 'default_max_storage_bytes') defaults.maxStorageBytes = parseInt(s.value, 10);
-		if (s.key === 'default_max_csv_size_bytes') defaults.maxCsvSizeBytes = parseInt(s.value, 10);
-		if (s.key === 'default_max_csv_rows') defaults.maxCsvRows = parseInt(s.value, 10);
+		if (s.key === 'default_max_projects') defaults.maxProjects = positiveInteger(s.value, defaults.maxProjects);
+		if (s.key === 'default_max_storage_bytes') defaults.maxStorageBytes = positiveInteger(s.value, defaults.maxStorageBytes);
+		if (s.key === 'default_max_csv_size_bytes') defaults.maxCsvSizeBytes = positiveInteger(s.value, defaults.maxCsvSizeBytes);
+		if (s.key === 'default_max_csv_rows') defaults.maxCsvRows = positiveInteger(s.value, defaults.maxCsvRows);
 	}
 
 	// 2. Fetch user overrides
@@ -32,10 +36,10 @@ export async function getUserLimits(userId: string) {
 	const userOverride = overrides[0] || {};
 
 	const limits = {
-		maxProjects: userOverride.maxProjects ?? defaults.maxProjects,
-		maxStorageBytes: userOverride.maxStorageBytes ?? defaults.maxStorageBytes,
-		maxCsvSizeBytes: userOverride.maxCsvSizeBytes ?? defaults.maxCsvSizeBytes,
-		maxCsvRows: userOverride.maxCsvRows ?? defaults.maxCsvRows
+		maxProjects: positiveInteger(userOverride.maxProjects, defaults.maxProjects),
+		maxStorageBytes: positiveInteger(userOverride.maxStorageBytes, defaults.maxStorageBytes),
+		maxCsvSizeBytes: positiveInteger(userOverride.maxCsvSizeBytes, defaults.maxCsvSizeBytes),
+		maxCsvRows: positiveInteger(userOverride.maxCsvRows, defaults.maxCsvRows)
 	};
 
 	// 3. Query current project usage

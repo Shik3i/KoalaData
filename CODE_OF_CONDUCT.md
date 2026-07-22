@@ -16,6 +16,6 @@ Harassment, discrimination, threats, sexualized conduct, deliberate disruption, 
 
 ## Enforcement
 
-Report conduct concerns privately to `koalasync@koalastuff.net`. Maintainers may edit or remove content, close contributions, restrict participation, or ban accounts when necessary to protect the community. Reports will be handled as confidentially as practical.
+Report conduct concerns privately to `koaladata@koalastuff.net`. Maintainers may edit or remove content, close contributions, restrict participation, or ban accounts when necessary to protect the community. Reports will be handled as confidentially as practical.
 
 This policy applies in repository discussions and other project spaces controlled by KoalaData maintainers.

@@ -1,16 +1,17 @@
 import { db } from '$lib/server/db';
 import { importBatches, dataSources, metricObservations, importDrafts } from '$lib/server/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, desc } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
-import { createImportDraft } from '$lib/server/csv/pipeline';
+import { createImportDraft, parseStoredFilename } from '$lib/server/csv/pipeline';
 import { logAuditEvent } from '$lib/server/audit';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
 
-export const load: PageServerLoad = async ({ parent }) => {
+export const load: PageServerLoad = async ({ parent, locals }) => {
 	const { project, membershipRole } = await parent();
+	if (!locals.user) throw redirect(302, '/login');
 
 	// Load data sources to populate the selection box
 	const sources = await db
@@ -23,20 +24,20 @@ export const load: PageServerLoad = async ({ parent }) => {
 		.select()
 		.from(importBatches)
 		.where(eq(importBatches.projectId, project.id))
-		.orderBy(importBatches.createdAt);
+		.orderBy(desc(importBatches.createdAt));
 
 	// Load pending drafts for manual mapping
 	const drafts = await db
 		.select()
 		.from(importDrafts)
-		.where(eq(importDrafts.projectId, project.id));
+		.where(and(eq(importDrafts.projectId, project.id), eq(importDrafts.userId, locals.user.id)));
 
 	return {
 		sources,
 		history,
 		drafts: drafts.map((d) => ({
 			id: d.id,
-			originalFilename: d.storedFilename.includes(':::') ? d.storedFilename.split(':::')[0] : d.storedFilename,
+			originalFilename: parseStoredFilename(d.storedFilename).originalName,
 			rowCount: d.rowCount,
 			createdAt: d.createdAt
 		})),
@@ -54,13 +55,13 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const sourceId = data.get('sourceId')?.toString() || '';
-		const files = data.getAll('file') as File[];
+		const files = (data.getAll('file') as File[]).filter((file) => file.size > 0);
 
 		if (!sourceId) {
 			return fail(400, { error: 'Please select a data source.' });
 		}
 
-		if (files.length === 0 || (files.length === 1 && files[0].size === 0)) {
+		if (files.length === 0) {
 			return fail(400, { error: 'Please upload at least one CSV file.' });
 		}
 
@@ -69,8 +70,6 @@ export const actions: Actions = {
 		const errors: string[] = [];
 
 		for (const file of files) {
-			if (file.size === 0) continue;
-
 			try {
 				const arrayBuffer = await file.arrayBuffer();
 				const buffer = Buffer.from(arrayBuffer);
@@ -111,9 +110,10 @@ export const actions: Actions = {
 	rollbackBatch: async ({ request, params, locals, getClientAddress }) => {
 		const projectId = params.id;
 		if (!locals.user) return fail(401);
+		const currentUser = locals.user;
 
 		// Must be Owner or Admin to rollback imports
-		await assertProjectAccess(locals.user.id, projectId, 'owner');
+		await assertProjectAccess(currentUser.id, projectId, 'owner');
 
 		const data = await request.formData();
 		const batchId = data.get('batchId')?.toString() || '';
@@ -130,45 +130,46 @@ export const actions: Actions = {
 			const batchRecord = await db
 				.select()
 				.from(importBatches)
-				.where(eq(importBatches.id, batchId))
+				.where(and(eq(importBatches.id, batchId), eq(importBatches.projectId, projectId), isNull(importBatches.revertedAt)))
 				.limit(1);
+			if (batchRecord.length === 0) return fail(404, { error: 'Active import batch not found.' });
 
 			const nowTime = Math.floor(Date.now() / 1000);
+			let rawFileDeleted = !batchRecord[0].storedFilename;
 
-			if (batchRecord.length > 0) {
+			{
 				const batch = batchRecord[0];
-				if (batch.storedFilename) {
+				// Run database updates inside transaction synchronously
+				db.transaction((tx) => {
+					const updateResult = tx
+						.update(importBatches)
+						.set({
+							revertedAt: nowTime,
+							revertedBy: currentUser.id,
+							status: 'reverted'
+						})
+						.where(and(eq(importBatches.id, batchId), eq(importBatches.projectId, projectId), isNull(importBatches.revertedAt)))
+						.run();
+					if (updateResult.changes === 0) throw new Error('Import batch was already reverted.');
+					tx.delete(metricObservations).where(eq(metricObservations.importBatchId, batchId)).run();
+				});
+
+				if (batch.storedFilename && path.basename(batch.storedFilename) === batch.storedFilename) {
 					const dataDir = process.env.DATA_DIRECTORY || './data';
 					const filePath = path.join(dataDir, 'uploads', batch.storedFilename);
 					try {
-						if (fs.existsSync(filePath)) {
-							fs.unlinkSync(filePath);
-						}
+						if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+						await db.update(importBatches).set({ rawFileDeletedAt: nowTime }).where(eq(importBatches.id, batchId));
+						rawFileDeleted = true;
 					} catch (fsErr) {
 						console.error('[Rollback] Failed to delete physical CSV file:', fsErr);
 					}
 				}
-
-				// Run database updates inside transaction synchronously
-				db.transaction((tx) => {
-					// Delete observations belonging to batch to reclaim database space
-					tx.delete(metricObservations).where(eq(metricObservations.importBatchId, batchId)).run();
-
-					// Mark import batch row as reverted and raw file as deleted
-					tx
-						.update(importBatches)
-						.set({
-							revertedAt: nowTime,
-							rawFileDeletedAt: nowTime
-						})
-						.where(eq(importBatches.id, batchId))
-						.run();
-				});
 			}
 
 			await logAuditEvent(
-				locals.user.id,
-				locals.user.username,
+				currentUser.id,
+				currentUser.username,
 				'rollback_import_batch',
 				'import_batch',
 				batchId,
@@ -176,7 +177,11 @@ export const actions: Actions = {
 				ip
 			);
 
-			return { success: 'Import batch rolled back successfully. Physical files and active database observations have been purged.' };
+			return {
+				success: rawFileDeleted
+					? 'Import batch rolled back successfully. Physical files and active database observations have been purged.'
+					: 'Import batch rolled back. Its observations were purged, but the raw file could not be deleted and remains counted toward storage.'
+			};
 		} catch (e: any) {
 			return fail(400, { error: e.message || 'Rollback failed.' });
 		}

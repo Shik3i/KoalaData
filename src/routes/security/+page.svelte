@@ -17,7 +17,7 @@
 			<section><h2>Accounts</h2><p>Passwords are stored as hashes, sessions use HTTP-only cookies, administrative actions are audited and seeded administrator passwords must be changed.</p></section>
 			<section><h2>Uploads</h2><p>File size and row limits, content checks, private storage, explicit previews and reversible import batches constrain CSV processing.</p></section>
 			<section><h2>Public listings</h2><p>New listings require review. External links use HTTPS validation, and verification has a narrow documented meaning.</p></section>
-			<section><h2>Report a vulnerability</h2><p>Use a <a href="https://github.com/Shik3i/KoalaData/security/advisories/new" target="_blank" rel="noopener noreferrer">private GitHub security advisory</a> or email <a href="mailto:koalasync@koalastuff.net?subject=KoalaData%20security%20report">koalasync@koalastuff.net</a>. Do not include credentials, session cookies or personal data.</p></section>
+			<section><h2>Report a vulnerability</h2><p>Use a <a href="https://github.com/Shik3i/KoalaData/security/advisories/new" target="_blank" rel="noopener noreferrer">private GitHub security advisory</a> or email <a href="mailto:koaladata@koalastuff.net?subject=KoalaData%20security%20report">koaladata@koalastuff.net</a>. Do not include credentials, session cookies or personal data.</p></section>
 		</div>
 	</article>
 </div>

@@ -1,11 +1,13 @@
 import { db } from '$lib/server/db';
 import { dataSources, projects } from '$lib/server/db/schema';
-import { generateUniqueSlug } from '$lib/server/slugs';
+import { generateUniqueSlug, slugify } from '$lib/server/slugs';
+import { isSqliteUniqueConstraint } from '$lib/server/db/errors';
 import { getUserLimits } from '$lib/server/limits';
 import { logAuditEvent } from '$lib/server/audit';
 import { normalizeChromeStoreUrl, normalizeOptionalHttpsUrl } from '$lib/server/urls';
 import { isPricingModel } from '$lib/project-classification';
 import { fail, redirect } from '@sveltejs/kit';
+import { and, count, eq, isNull } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -27,9 +29,10 @@ export const actions: Actions = {
 		if (!locals.user) {
 			return fail(401, { error: 'Unauthorized' });
 		}
+		const currentUser = locals.user;
 
 		// Re-enforce project limit checks
-		const { limits, usage } = await getUserLimits(locals.user.id);
+		const { limits, usage } = await getUserLimits(currentUser.id);
 		if (usage.projectsCount >= limits.maxProjects) {
 			return fail(400, { error: `Project limit reached. You can only own up to ${limits.maxProjects} projects.` });
 		}
@@ -90,53 +93,71 @@ export const actions: Actions = {
 		}
 
 		// Generate Slug & ID
-		const slug = await generateUniqueSlug(name);
+		let slug = await generateUniqueSlug(name);
 		const projectId = crypto.randomUUID();
 		const now = Math.floor(Date.now() / 1000);
+		let created = false;
+		for (let attempt = 0; attempt < 3 && !created; attempt++) {
+			try {
+				const outcome = db.transaction((tx) => {
+					const owned = tx
+						.select({ value: count() })
+						.from(projects)
+						.where(and(eq(projects.ownerId, currentUser.id), isNull(projects.deletedAt)))
+						.get();
+					if ((owned?.value ?? 0) >= limits.maxProjects) return 'limit' as const;
+					tx.insert(projects).values({
+						id: projectId,
+						ownerId: currentUser.id,
+						name,
+						slug,
+						shortDescription,
+						fullDescription,
+						websiteUrl,
+						repositoryUrl,
+						storeUrl,
+						category,
+						pricingModel,
+						isOpenSource,
+						visibility,
+						logoPath: null,
+						leaderboardOptIn: 0,
+						leaderboardStatus: 'not_requested',
+						verificationStatus: 'unverified',
+						moderationStatus: 'hidden',
+						moderationReason: 'Awaiting initial listing review.',
+						createdAt: now,
+						updatedAt: now
+					}).run();
 
-		db.transaction((tx) => {
-			tx.insert(projects).values({
-				id: projectId,
-				ownerId: locals.user!.id,
-				name,
-				slug,
-				shortDescription,
-				fullDescription,
-				websiteUrl,
-				repositoryUrl,
-				storeUrl,
-				category,
-				pricingModel,
-				isOpenSource,
-				visibility,
-				logoPath: null,
-				leaderboardOptIn: 0,
-				leaderboardStatus: 'not_requested',
-				verificationStatus: 'unverified',
-				moderationStatus: 'hidden',
-				moderationReason: 'Awaiting initial listing review.',
-				createdAt: now,
-				updatedAt: now
-			}).run();
-
-			if (storeUrl) {
-				tx.insert(dataSources).values({
-					id: crypto.randomUUID(),
-					projectId,
-					name: 'Chrome Web Store',
-					sourceType: 'chrome_web_store',
-					externalUrl: storeUrl,
-					granularity: 'daily',
-					createdAt: now,
-					updatedAt: now
-				}).run();
+					if (storeUrl) {
+						tx.insert(dataSources).values({
+							id: crypto.randomUUID(),
+							projectId,
+							name: 'Chrome Web Store',
+							sourceType: 'chrome_web_store',
+							externalUrl: storeUrl,
+							granularity: 'daily',
+							createdAt: now,
+							updatedAt: now
+						}).run();
+					}
+					return 'created' as const;
+				});
+				if (outcome === 'limit') {
+					return fail(409, { error: `Project limit reached. You can only own up to ${limits.maxProjects} projects.` });
+				}
+				created = true;
+			} catch (error) {
+				if (!isSqliteUniqueConstraint(error) || attempt === 2) throw error;
+				slug = `${slugify(name) || 'project'}-${crypto.randomUUID().slice(0, 8)}`;
 			}
-		});
+		}
 
 		// Audit Log
 		await logAuditEvent(
-			locals.user.id,
-			locals.user.username,
+			currentUser.id,
+			currentUser.username,
 			'create_project',
 			'project',
 			projectId,

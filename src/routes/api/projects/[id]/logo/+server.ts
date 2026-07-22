@@ -17,12 +17,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 	const dataDir = process.env.DATA_DIRECTORY || './data';
 	const assetsDir = path.join(dataDir, 'project-assets');
-	const logoFilePath = path.resolve(assetsDir, project.logoPath);
-
-	// Validate path traversal
-	if (!logoFilePath.startsWith(path.resolve(assetsDir))) {
-		throw error(400, 'Invalid logo path traversal.');
+	if (path.basename(project.logoPath) !== project.logoPath) {
+		throw error(400, 'Invalid logo filename.');
 	}
+	const logoFilePath = path.resolve(assetsDir, project.logoPath);
 
 	if (!fs.existsSync(logoFilePath)) {
 		throw error(404, 'Logo file does not exist.');
@@ -39,7 +37,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	return new Response(buffer, {
 		headers: {
 			'Content-Type': contentType,
-			'Cache-Control': 'public, max-age=86400' // cache for 1 day
+			'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400'
 		}
 	});
 };

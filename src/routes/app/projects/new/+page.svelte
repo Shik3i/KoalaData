@@ -52,7 +52,7 @@
 					type="text" 
 					id="name" 
 					name="name" 
-					placeholder="e.g. KoalaSync" 
+					placeholder="e.g. Privacy Toolkit"
 					required 
 					disabled={loading || data.limitReached}
 				/>

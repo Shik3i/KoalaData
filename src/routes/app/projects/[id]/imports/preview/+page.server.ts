@@ -1,10 +1,10 @@
 import { db } from '$lib/server/db';
 import { importDrafts } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { parseCsv } from '$lib/server/csv/parser';
 import { detectChromeCsv } from '$lib/server/csv/chrome';
-import { confirmImportDraft } from '$lib/server/csv/pipeline';
+import { confirmImportDraft, getDraftFilePath, parseStoredFilename } from '$lib/server/csv/pipeline';
 import { classifyChromeReportFilename } from '$lib/dashboard-metrics';
 import { fail, redirect } from '@sveltejs/kit';
 import fs from 'fs';
@@ -29,7 +29,13 @@ export const load: PageServerLoad = async ({ url, params, locals }) => {
 	const draftRecord = await db
 		.select()
 		.from(importDrafts)
-		.where(eq(importDrafts.id, draftId))
+		.where(
+			and(
+				eq(importDrafts.id, draftId),
+				eq(importDrafts.projectId, projectId),
+				eq(importDrafts.userId, locals.user.id)
+			)
+		)
 		.limit(1);
 
 	if (draftRecord.length === 0) {
@@ -45,8 +51,13 @@ export const load: PageServerLoad = async ({ url, params, locals }) => {
 
 	// Read CSV file from disk to extract headers and preview rows
 	const dataDir = process.env.DATA_DIRECTORY || './data';
-	const fileId = draft.storedFilename.includes(':::') ? draft.storedFilename.split(':::')[1] : draft.storedFilename;
-	const draftFilePath = path.join(dataDir, 'uploads', 'drafts', fileId);
+	const { originalName: originalFilename, fileId } = parseStoredFilename(draft.storedFilename);
+	let draftFilePath: string;
+	try {
+		draftFilePath = getDraftFilePath(dataDir, fileId);
+	} catch {
+		throw redirect(302, `/app/projects/${projectId}/imports?error=draft_file_invalid`);
+	}
 
 	if (!fs.existsSync(draftFilePath)) {
 		throw redirect(302, `/app/projects/${projectId}/imports?error=draft_file_missing`);
@@ -54,7 +65,6 @@ export const load: PageServerLoad = async ({ url, params, locals }) => {
 
 	const fileBuffer = fs.readFileSync(draftFilePath);
 	const parsed = parseCsv(fileBuffer);
-	const originalFilename = draft.storedFilename.includes(':::') ? draft.storedFilename.split(':::')[0] : draft.storedFilename;
 
 	// Try auto-detection of Chrome Web Store headers
 	const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
@@ -102,7 +112,13 @@ export const actions: Actions = {
 		const draftRecord = await db
 			.select()
 			.from(importDrafts)
-			.where(eq(importDrafts.id, draftId))
+			.where(
+				and(
+					eq(importDrafts.id, draftId),
+					eq(importDrafts.projectId, projectId),
+					eq(importDrafts.userId, locals.user.id)
+				)
+			)
 			.limit(1);
 
 		if (draftRecord.length === 0) {
@@ -111,7 +127,7 @@ export const actions: Actions = {
 
 		const draft = draftRecord[0];
 		const headers = JSON.parse(draft.headers) as string[];
-		const originalFilename = draft.storedFilename.includes(':::') ? draft.storedFilename.split(':::')[0] : draft.storedFilename;
+		const { originalName: originalFilename } = parseStoredFilename(draft.storedFilename);
 		const report = classifyChromeReportFilename(originalFilename);
 		const fileLabel = originalFilename.replace(/\.[^.]+$/, '').replace(/_[a-z0-9]{32}$/i, '').trim();
 

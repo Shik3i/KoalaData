@@ -3,10 +3,10 @@
 	let { data } = $props();
 
 	function formatBytes(bytes: number) {
-		if (bytes === 0) return '0 Bytes';
+		if (!Number.isFinite(bytes) || bytes <= 0) return '0 Bytes';
 		const k = 1024;
-		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+		const i = Math.min(sizes.length - 1, Math.floor(Math.log(bytes) / Math.log(k)));
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 	}
 
@@ -15,8 +15,8 @@
 	}
 
 	// Calculate percentages for limits bars
-	let projectsPct = $derived(Math.min(100, (data.usage.projectsCount / data.limits.maxProjects) * 100));
-	let storagePct = $derived(Math.min(100, (data.usage.storageBytes / data.limits.maxStorageBytes) * 100));
+	let projectsPct = $derived(data.limits.maxProjects > 0 ? Math.min(100, (data.usage.projectsCount / data.limits.maxProjects) * 100) : 0);
+	let storagePct = $derived(data.limits.maxStorageBytes > 0 ? Math.min(100, (data.usage.storageBytes / data.limits.maxStorageBytes) * 100) : 0);
 </script>
 
 <svelte:head>

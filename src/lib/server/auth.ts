@@ -19,7 +19,7 @@ export async function getSessionMaxAgeSeconds(): Promise<number> {
 		.from(systemSettings)
 		.where(eq(systemSettings.key, 'session_max_age'))
 		.limit(1);
-	const value = Number.parseInt(configured[0]?.value || process.env.SESSION_MAX_AGE || '', 10);
+	const value = Number(configured[0]?.value || process.env.SESSION_MAX_AGE || '');
 	return Number.isInteger(value) && value >= 300 ? value : DEFAULT_SESSION_MAX_AGE;
 }
 

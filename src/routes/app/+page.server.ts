@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
-import { projects, importBatches, dataSources } from '$lib/server/db/schema';
-import { eq, and, isNull, inArray } from 'drizzle-orm';
+import { projects, projectMembers, importBatches, dataSources } from '$lib/server/db/schema';
+import { eq, and, isNull, inArray, or, desc } from 'drizzle-orm';
 import { getUserLimits } from '$lib/server/limits';
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -12,11 +12,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 
-	// Fetch projects owned by this user
-	const userProjects = await db
+	const ownedProjects = await db
 		.select()
 		.from(projects)
 		.where(and(eq(projects.ownerId, userId), isNull(projects.deletedAt)))
+		.orderBy(projects.name);
+	const memberships = await db
+		.select({ projectId: projectMembers.projectId })
+		.from(projectMembers)
+		.where(eq(projectMembers.userId, userId));
+	const memberProjectIds = memberships.map((membership) => membership.projectId);
+	const accessCondition = memberProjectIds.length > 0
+		? or(eq(projects.ownerId, userId), inArray(projects.id, memberProjectIds))
+		: eq(projects.ownerId, userId);
+	const userProjects = await db
+		.select()
+		.from(projects)
+		.where(and(accessCondition, isNull(projects.deletedAt)))
 		.orderBy(projects.name);
 
 	// Fetch recent imports uploaded by this user
@@ -24,16 +36,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.select()
 		.from(importBatches)
 		.where(eq(importBatches.userId, userId))
-		.orderBy(importBatches.createdAt)
+		.orderBy(desc(importBatches.createdAt))
 		.limit(5);
+	const completedImport = await db
+		.select({ id: importBatches.id })
+		.from(importBatches)
+		.where(and(eq(importBatches.userId, userId), eq(importBatches.status, 'completed'), isNull(importBatches.revertedAt)))
+		.limit(1);
 
 	const projectIds = userProjects.map((project) => project.id);
 	const sources = projectIds.length > 0
 		? await db.select().from(dataSources).where(inArray(dataSources.projectId, projectIds))
 		: [];
-	const firstProject = userProjects[0] ?? null;
-	const hasCompletedImport = recentImports.some((batch) => batch.status === 'completed' && !batch.revertedAt);
-	const hasPublicListing = userProjects.some((project) => project.visibility === 'public' && project.moderationStatus === 'active');
+	const firstProject = ownedProjects[0] ?? null;
+	const hasCompletedImport = completedImport.length > 0;
+	const hasPublicListing = ownedProjects.some((project) => project.visibility === 'public' && project.moderationStatus === 'active');
 
 	// Fetch storage and limits metrics
 	const { limits, usage } = await getUserLimits(userId);
@@ -46,8 +63,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		usage,
 		onboarding: {
 			hasProject: Boolean(firstProject),
-			hasStoreConnection: userProjects.some((project) => Boolean(project.storeUrl)),
-			hasSource: sources.length > 0,
+			hasStoreConnection: ownedProjects.some((project) => Boolean(project.storeUrl)),
+			hasSource: sources.some((source) => ownedProjects.some((project) => project.id === source.projectId)),
 			hasCompletedImport,
 			hasPublicListing,
 			projectId: firstProject?.id ?? null,

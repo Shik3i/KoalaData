@@ -11,6 +11,7 @@ export default defineConfig({
 	},
 	test: {
 		expect: { requireAssertions: true },
+		globalSetup: ['./src/test/vitest-global-setup.ts'],
 		projects: [
 			{
 				extends: './vite.config.ts',

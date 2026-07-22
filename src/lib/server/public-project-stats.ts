@@ -1,4 +1,8 @@
-import { displayDimensionLabel } from '$lib/dashboard-metrics';
+import {
+	classifyChromeReportLabel,
+	displayDimensionLabel,
+	splitLegacyMetricName
+} from '$lib/dashboard-metrics';
 import db from './db';
 import { sql } from 'drizzle-orm';
 
@@ -19,13 +23,17 @@ const emptyStats = (): PublicProjectStats => ({
 });
 
 export function ratingStars(name: string, dimensions: string): number | null {
-	let label = name;
+	const { reportLabel, seriesLabel } = splitLegacyMetricName(name);
+	let dimensionLabel: string | null = null;
 	try {
 		const parsed = JSON.parse(dimensions) as Record<string, unknown>;
-		if (typeof parsed.rating === 'string') label = parsed.rating;
+		if (typeof parsed.rating === 'string') dimensionLabel = parsed.rating;
 	} catch {
 		// Legacy observations may not contain valid dimension JSON.
 	}
+	if (classifyChromeReportLabel(reportLabel)?.id !== 'ratings') return null;
+	const label = dimensionLabel ?? seriesLabel;
+	if (!label) return null;
 	const match = displayDimensionLabel(label).match(/(?:^|\D)([1-5])(?:\D|$)/);
 	return match ? Number(match[1]) : null;
 }

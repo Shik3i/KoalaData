@@ -3,6 +3,7 @@ import { users, sessions } from './db/schema';
 import { eq, and, ne, isNull } from 'drizzle-orm';
 import { hashPassword, invalidateUserSessions } from './auth';
 import { logAuditEvent } from './audit';
+import { isSqliteUniqueConstraint } from './db/errors';
 
 const RESERVED_USERNAMES = new Set([
 	'admin',
@@ -93,17 +94,22 @@ export async function registerUser(
 	const status = mode === 'open' ? 'active' : 'pending';
 	const passwordHash = await hashPassword(password);
 
-	await db.insert(users).values({
-		id: userId,
-		username,
-		normalizedUsername: normalized,
-		displayName: username,
-		passwordHash,
-		role: 'user',
-		status,
-		createdAt: Math.floor(Date.now() / 1000),
-		updatedAt: Math.floor(Date.now() / 1000)
-	});
+	try {
+		await db.insert(users).values({
+			id: userId,
+			username,
+			normalizedUsername: normalized,
+			displayName: username,
+			passwordHash,
+			role: 'user',
+			status,
+			createdAt: Math.floor(Date.now() / 1000),
+			updatedAt: Math.floor(Date.now() / 1000)
+		});
+	} catch (error) {
+		if (isSqliteUniqueConstraint(error)) throw new Error('Username is already taken.');
+		throw error;
+	}
 
 	await logAuditEvent(
 		userId,
@@ -303,6 +309,8 @@ export async function resetUserPassword(
 	if (newPassword.length < 8) {
 		throw new Error('Password must be at least 8 characters long.');
 	}
+	const user = await db.select({ id: users.id }).from(users).where(eq(users.id, targetUserId)).limit(1);
+	if (user.length === 0) throw new Error('User not found.');
 
 	const hash = await hashPassword(newPassword);
 

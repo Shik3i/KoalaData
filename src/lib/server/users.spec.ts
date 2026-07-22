@@ -161,4 +161,10 @@ describe('User Management Service', () => {
 			banUser(adminUser.id, adminUser.username, adminUser.id)
 		).rejects.toThrow('Cannot demote, ban, or delete the final remaining active administrator.');
 	});
+
+	it('should reject password resets for missing users', async () => {
+		await expect(
+			resetUserPassword(adminUser.id, adminUser.username, crypto.randomUUID(), 'password123', true)
+		).rejects.toThrow('User not found.');
+	});
 });
