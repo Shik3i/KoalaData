@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.1 - 2026-07-22
+
+### Import and dashboard fixes
+
+- Automatically map all numeric Chrome Web Store export columns, including operating-system, region, language, version, rating, and activation reports.
+- Keep same-named custom dimensions from different exports separate during automatic imports.
+- Show summed Store Impressions and Store Page Views for the selected timeframe and scale day-of-week bars relative to the real maximum.
+- Remove stale in-memory leaderboard results so approved public projects appear immediately after data or status changes.
+- Correct the Chrome Web Store console link and add the larger landing-page AVIF, WebP, and PNG logo variants.
+
 ## v1.3.0 - 2026-07-22
 
 ### Release hardening
