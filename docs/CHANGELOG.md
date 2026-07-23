@@ -7,6 +7,7 @@
 - Protect project OG images with project visibility rules and reject invalid or empty CSV mappings.
 - Reuse a single prewarmed public-statistics snapshot, bound public chart history, and add production query indexes.
 - Verify discovery assets, responsive widths, tenant isolation, realistic warm TTFB, and isolated test databases.
+- Start the Lighthouse preview with versioned migrations and isolated CI credentials instead of an interactive schema push.
 
 ## v1.4.5 - 2026-07-22
 

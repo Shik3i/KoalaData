@@ -42,8 +42,14 @@ jobs:
         run: npm run build
 
       - name: Start production preview for Lighthouse
+        env:
+          DATABASE_PATH: /tmp/koaladata-ci-preview.db
+          DATA_DIRECTORY: /tmp/koaladata-ci-data
+          KOALADATA_ADMIN_USERNAME: admin
+          KOALADATA_ADMIN_PASSWORD: ci-preview-password-is-not-used-outside-actions
+          ORIGIN: http://127.0.0.1:4173
         run: |
-          npx drizzle-kit push
+          mkdir -p "$DATA_DIRECTORY"
           npm run preview -- --host 127.0.0.1 > /tmp/koaladata-preview.log 2>&1 &
           for attempt in {1..30}; do
             curl --fail --silent http://127.0.0.1:4173/api/health && exit 0
