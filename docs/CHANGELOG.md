@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.5.0 - 2026-07-23
+
+- Add interactive Drag & Drop CSV upload zone with file preview and size badges on project imports.
+- Add optional extension version release markers on timeline charts with single-click toggle (disabled by default).
+- Expand data sources schema and report catalog to support Firefox Add-ons (AMO) and Microsoft Edge Add-ons CSV exports.
+- Add visual acquisition conversion funnel card calculating Click-Through Rate (CTR) and Install Conversion Rate.
+- Add social media share card generator rendering 1200x630 high-resolution PNG images with dark/light theme options.
+
 ## v1.4.9 - 2026-07-23
 
 - Publish releases exclusively as GHCR container images and link the site footer directly to the GitHub repository.

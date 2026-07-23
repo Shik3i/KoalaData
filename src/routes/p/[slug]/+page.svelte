@@ -7,6 +7,8 @@
 	import BreakdownTabs from '$lib/components/BreakdownTabs.svelte';
 	import RatingAnalytics from '$lib/components/RatingAnalytics.svelte';
 	import ProjectBadges from '$lib/components/ProjectBadges.svelte';
+	import ConversionFunnel from '$lib/components/ConversionFunnel.svelte';
+	import ShareCardModal from '$lib/components/ShareCardModal.svelte';
 	import Seo from '$lib/components/Seo.svelte';
 	import { buildProjectSchemas } from '$lib/seo';
 	import {
@@ -23,6 +25,7 @@
 	let compareMode = $state(false);
 	let showMovingAverage = $state(false);
 	let copied = $state(false);
+	let isShareModalOpen = $state(false);
 	let activeSection = $state('growth');
 	let days = $derived(dateFilter === 'all' ? null : Number(dateFilter));
 	let isIndexable = $derived(project.visibility === 'public' && project.moderationStatus === 'active');
@@ -36,6 +39,21 @@
 	let audienceGroups = $derived(breakdownGroups.filter((group) => group.section === 'audience'));
 	let retentionGroups = $derived(breakdownGroups.filter((group) => group.section === 'retention'));
 	let qualityGroups = $derived(breakdownGroups.filter((group) => group.section === 'quality'));
+
+	let versionBreakdownGroup = $derived(audienceGroups.find((g) => g.id === 'users-version'));
+	let releaseMarkers = $derived.by(() => {
+		if (!versionBreakdownGroup || !versionBreakdownGroup.timeline) return [];
+		const markers: { date: string; version: string }[] = [];
+		for (const s of versionBreakdownGroup.timeline.series) {
+			if (s.observations.length > 0) {
+				const firstObs = s.observations[0];
+				if (firstObs && firstObs.date) {
+					markers.push({ date: firstObs.date, version: s.name });
+				}
+			}
+		}
+		return markers.sort((a, b) => a.date.localeCompare(b.date));
+	});
 
 	function formatNumber(value: number): string {
 		return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
@@ -224,6 +242,7 @@
 			<div class="hero-actions">
 				{#if project.storeUrl}<a class="btn btn-primary" href={project.storeUrl} target="_blank" rel="noopener"><Icon name="storefront" /> Add to Chrome</a>{/if}
 				{#if project.websiteUrl}<a class="btn btn-secondary" href={project.websiteUrl} target="_blank" rel="noopener"><Icon name="globe" /> Visit website</a>{/if}
+				<button class="btn btn-secondary share-card-btn" type="button" onclick={() => isShareModalOpen = true}><Icon name="sparkle" /> Share Card</button>
 				{#if project.repositoryUrl}<a class="source-link" href={project.repositoryUrl} target="_blank" rel="noopener"><Icon name="code" /> Source code</a>{/if}
 				<button class="source-link share-button" type="button" onclick={async () => { await navigator.clipboard.writeText(page.url.origin + `/p/${project.slug}`); copied = true; setTimeout(() => copied = false, 1800); }}><Icon name="clipboard-text" /> {copied ? 'Copied' : 'Copy dashboard link'}</button>
 				<a class="source-link" href="mailto:koaladata@koalastuff.net?subject={encodeURIComponent(`KoalaData listing report: ${project.name}`)}"><Icon name="warning" /> Report listing</a>
@@ -257,7 +276,7 @@
 	</section>
 
 	<nav class="section-nav" aria-label="Analytics sections">
-		<a href="#growth" class:active={activeSection === 'growth'} aria-current={activeSection === 'growth' ? 'location' : undefined}>Growth</a>{#if acquisitionGroups.length}<a href="#acquisition" class:active={activeSection === 'acquisition'} aria-current={activeSection === 'acquisition' ? 'location' : undefined}>Acquisition</a>{/if}{#if audienceGroups.length}<a href="#audience" class:active={activeSection === 'audience'} aria-current={activeSection === 'audience' ? 'location' : undefined}>Audience</a>{/if}{#if retentionGroups.length}<a href="#retention" class:active={activeSection === 'retention'} aria-current={activeSection === 'retention' ? 'location' : undefined}>Retention</a>{/if}{#if qualityGroups.length}<a href="#quality" class:active={activeSection === 'quality'} aria-current={activeSection === 'quality' ? 'location' : undefined}>Ratings</a>{/if}
+		<a href="#growth" class:active={activeSection === 'growth'} aria-current={activeSection === 'growth' ? 'location' : undefined}>Growth</a>{#if acquisitionGroups.length || kpis.impressions > 0 || kpis.pageViews > 0}<a href="#acquisition" class:active={activeSection === 'acquisition'} aria-current={activeSection === 'acquisition' ? 'location' : undefined}>Acquisition</a>{/if}{#if audienceGroups.length}<a href="#audience" class:active={activeSection === 'audience'} aria-current={activeSection === 'audience' ? 'location' : undefined}>Audience</a>{/if}{#if retentionGroups.length}<a href="#retention" class:active={activeSection === 'retention'} aria-current={activeSection === 'retention' ? 'location' : undefined}>Retention</a>{/if}{#if qualityGroups.length}<a href="#quality" class:active={activeSection === 'quality'} aria-current={activeSection === 'quality' ? 'location' : undefined}>Ratings</a>{/if}
 	</nav>
 
 	<section id="growth" class="dashboard-section">
@@ -273,11 +292,11 @@
 			{#if installsMetric || uninstallsMetric}
 				<article class="card chart-card wide">
 					<header><div><h3>Daily Installs and Uninstalls</h3><p class="text-muted">{installsMetric?.sourceName ?? uninstallsMetric?.sourceName}</p></div><strong>{formatNumber(kpis.netInstalls)} net</strong></header>
-					<MetricChart title="{project.name}-installs-uninstalls" seriesList={installUninstallSeries} categoryLabels={comparisonLabels} showMovingAverage={showMovingAverage} />
+					<MetricChart title="{project.name}-installs-uninstalls" seriesList={installUninstallSeries} categoryLabels={comparisonLabels} showMovingAverage={showMovingAverage} {releaseMarkers} />
 				</article>
 			{/if}
 			{#if usersMetric}
-				<article class="card chart-card"><header><div><h3>Weekly Users</h3><p class="text-muted">Installed users, not activity telemetry</p></div><strong>{formatNumber(kpis.users ?? 0)}</strong></header><MetricChart title="{project.name}-weekly-users" observations={selectedUsers} /></article>
+				<article class="card chart-card"><header><div><h3>Weekly Users</h3><p class="text-muted">Installed users, not activity telemetry</p></div><strong>{formatNumber(kpis.users ?? 0)}</strong></header><MetricChart title="{project.name}-weekly-users" observations={selectedUsers} {releaseMarkers} /></article>
 			{/if}
 			{#if pageViewsMetric}
 				<article class="card chart-card"><header><div><h3>Store Page Views</h3><p class="text-muted">Listing demand</p></div><strong>{formatNumber(kpis.pageViews)}</strong></header><MetricChart title="{project.name}-store-page-views" observations={selectedPageViews} showMovingAverage={showMovingAverage} /></article>
@@ -299,8 +318,24 @@
 		{/if}
 	</section>
 
-	{#if acquisitionGroups.length}
-		<section id="acquisition" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Acquisition</p><h2>Where installs come from</h2><p class="text-muted">Choose one breakdown at a time. Every imported category remains available in the complete table.</p></div></div><BreakdownTabs groups={acquisitionGroups} {days} /></section>
+	{#if kpis.impressions > 0 || kpis.pageViews > 0 || kpis.installs > 0 || acquisitionGroups.length}
+		<section id="acquisition" class="dashboard-section">
+			<div class="section-heading">
+				<div>
+					<p class="section-kicker">Acquisition</p>
+					<h2>Store conversion and demand</h2>
+					<p class="text-muted">Calculated conversion funnel across impressions, detail page views, and installs.</p>
+				</div>
+			</div>
+
+			{#if kpis.impressions > 0 || kpis.pageViews > 0 || kpis.installs > 0}
+				<ConversionFunnel impressions={kpis.impressions} pageViews={kpis.pageViews} installs={kpis.installs} />
+			{/if}
+
+			{#if acquisitionGroups.length}
+				<BreakdownTabs groups={acquisitionGroups} {days} />
+			{/if}
+		</section>
 	{/if}
 
 	{#if audienceGroups.length}
@@ -318,6 +353,13 @@
 	{#if additionalMetrics.length}
 		<section class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Additional data</p><h2>Other imported metrics</h2><p class="text-muted">Additional sources and unclassified custom data remain visible and are not discarded.</p></div></div><div class="trend-grid">{#each additionalMetrics as metric}<article class="card chart-card"><header><div><h3>{metricLabel(metric)}</h3><p class="text-muted">{metric.sourceName}</p></div><strong>{formatNumber(metricDisplayValue(metric, days) ?? 0)}</strong></header><MetricChart title="{project.name}-{metric.name}" observations={filterObservationsByCalendarDays(metric.observations, days)} /></article>{/each}</div></section>
 	{/if}
+
+	<ShareCardModal
+		isOpen={isShareModalOpen}
+		onClose={() => isShareModalOpen = false}
+		{project}
+		{kpis}
+	/>
 </div>
 
 <style>

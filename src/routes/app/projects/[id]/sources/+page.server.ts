@@ -39,7 +39,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Source name must be between 3 and 50 characters.' });
 		}
 
-		const validTypes = ['chrome_web_store', 'generic_csv'];
+		const validTypes = ['chrome_web_store', 'firefox_amo', 'edge_add_ons', 'generic_csv'];
 		if (!validTypes.includes(sourceType)) {
 			return fail(400, { error: 'Invalid source type.' });
 		}

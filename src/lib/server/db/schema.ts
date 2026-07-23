@@ -122,7 +122,7 @@ export const dataSources = sqliteTable('data_sources', {
 	id: text('id').primaryKey(),
 	projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
 	name: text('name').notNull(),
-	sourceType: text('source_type', { enum: ['chrome_web_store', 'generic_csv'] }).notNull(),
+	sourceType: text('source_type', { enum: ['chrome_web_store', 'firefox_amo', 'edge_add_ons', 'generic_csv'] }).notNull(),
 	externalUrl: text('external_url'),
 	granularity: text('granularity', { enum: ['daily', 'weekly', 'monthly', 'irregular'] }).notNull(),
 	createdAt: integer('created_at').notNull(),

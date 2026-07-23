@@ -116,6 +116,8 @@
 							<label for="sourceType">Source Type</label>
 							<select id="sourceType" name="sourceType" required disabled={loading}>
 								<option value="chrome_web_store" selected>Chrome Web Store Export</option>
+								<option value="firefox_amo">Firefox Add-ons (AMO) Export</option>
+								<option value="edge_add_ons">Microsoft Edge Add-ons Export</option>
 								<option value="generic_csv">Generic / Custom CSV</option>
 							</select>
 						</div>

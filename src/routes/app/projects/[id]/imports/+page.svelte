@@ -29,6 +29,49 @@
 	function formatDate(timestamp: number) {
 		return new Date(timestamp * 1000).toLocaleString();
 	}
+
+	let fileInput: HTMLInputElement | undefined = $state();
+	let isDragging = $state(false);
+	let selectedFiles = $state<{ name: string; size: string }[]>([]);
+
+	function formatBytes(bytes: number): string {
+		if (bytes === 0) return '0 B';
+		const k = 1024;
+		const sizes = ['B', 'KB', 'MB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+	}
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		isDragging = true;
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		e.preventDefault();
+		isDragging = false;
+	}
+
+	function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		isDragging = false;
+		if (e.dataTransfer?.files && e.dataTransfer.files.length > 0 && fileInput) {
+			const dataTransfer = new DataTransfer();
+			const files = Array.from(e.dataTransfer.files).filter((f) => f.name.toLowerCase().endsWith('.csv'));
+			if (files.length > 0) {
+				files.forEach((f) => dataTransfer.items.add(f));
+				fileInput.files = dataTransfer.files;
+				selectedFiles = files.map((f) => ({ name: f.name, size: formatBytes(f.size) }));
+			}
+		}
+	}
+
+	function handleFileChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		if (target.files) {
+			selectedFiles = Array.from(target.files).map((f) => ({ name: f.name, size: formatBytes(f.size) }));
+		}
+	}
 </script>
 
 <div class="project-imports-page">
@@ -98,15 +141,43 @@
 
 							<div class="form-group">
 								<label for="file">CSV Files</label>
-								<input 
-									type="file" 
-									id="file" 
-									name="file" 
-									accept=".csv" 
-									multiple
-									required 
-									disabled={loading}
-								/>
+								<div 
+									class="dropzone" 
+									class:dragging={isDragging}
+									ondragover={handleDragOver}
+									ondragleave={handleDragLeave}
+									ondrop={handleDrop}
+									role="region"
+									aria-label="CSV file drop zone"
+								>
+									<div class="dropzone-prompt">
+										<Icon name="cloud-arrow-up" />
+										<span><strong>Drag & drop CSV files here</strong> or <label for="file" class="dropzone-browse">browse files</label></span>
+										<small>Supports multiple .csv files</small>
+									</div>
+									<input 
+										bind:this={fileInput}
+										type="file" 
+										id="file" 
+										name="file" 
+										accept=".csv" 
+										multiple
+										required 
+										disabled={loading}
+										onchange={handleFileChange}
+										class="visually-hidden-file-input"
+									/>
+									{#if selectedFiles.length > 0}
+										<div class="selected-files-preview">
+											<span class="preview-title"><Icon name="seal-check" /> {selectedFiles.length} file(s) selected:</span>
+											<ul class="file-list-tags">
+												{#each selectedFiles as item}
+													<li><span class="file-name">{item.name}</span> <small class="file-size">({item.size})</small></li>
+												{/each}
+											</ul>
+										</div>
+									{/if}
+								</div>
 							</div>
 
 							<button type="submit" class="btn btn-primary btn-full" disabled={loading}>
@@ -351,5 +422,91 @@
 		color: var(--text-muted);
 		font-size: 0.78rem;
 		line-height: 1.5;
+	}
+
+	.dropzone {
+		border: 2px dashed var(--border-color);
+		border-radius: var(--radius-md);
+		padding: 1.5rem 1rem;
+		text-align: center;
+		background: var(--bg-surface);
+		transition: border-color 0.2s, background-color 0.2s;
+		position: relative;
+	}
+	.dropzone.dragging {
+		border-color: var(--primary);
+		background-color: var(--primary-bg, rgba(45, 102, 69, 0.08));
+	}
+	.dropzone-prompt {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.35rem;
+		color: var(--text-muted);
+		font-size: 0.88rem;
+	}
+	.dropzone-browse {
+		color: var(--primary);
+		font-weight: 600;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.dropzone small {
+		font-size: 0.75rem;
+		color: var(--text-muted);
+	}
+	.visually-hidden-file-input {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+	.selected-files-preview {
+		margin-top: 1rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--border-color);
+		text-align: left;
+		font-size: 0.8rem;
+	}
+	.preview-title {
+		font-weight: 600;
+		color: var(--success);
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		margin-bottom: 0.35rem;
+	}
+	.file-list-tags {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		max-height: 120px;
+		overflow-y: auto;
+	}
+	.file-list-tags li {
+		background: var(--bg-inset);
+		padding: 0.25rem 0.5rem;
+		border-radius: var(--radius-sm);
+		display: flex;
+		justify-content: space-between;
+		font-size: 0.78rem;
+	}
+	.file-name {
+		font-weight: 500;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.file-size {
+		color: var(--text-muted);
+		margin-left: 0.5rem;
 	}
 </style>

@@ -10,16 +10,28 @@
 		observations: Observation[];
 	};
 
-	let { title, observations, seriesList, categoryLabels, showMovingAverage = false, showForecast = false } = $props<{
+	type ReleaseMarker = { date: string; version: string };
+
+	let {
+		title,
+		observations,
+		seriesList,
+		categoryLabels,
+		showMovingAverage = false,
+		showForecast = false,
+		releaseMarkers = []
+	} = $props<{
 		title?: string;
 		observations?: Observation[];
 		seriesList?: SeriesData[];
 		categoryLabels?: string[];
 		showMovingAverage?: boolean;
 		showForecast?: boolean;
+		releaseMarkers?: ReleaseMarker[];
 	}>();
 
 	let exporting = $state(false);
+	let showReleaseMarkers = $state(false);
 	let chartReady = $state(false);
 	let chartError = $state(false);
 	let hasData = $state(true);
@@ -232,6 +244,37 @@
 			}
 			}
 
+		if (showReleaseMarkers && releaseMarkers && releaseMarkers.length > 0 && seriesOptions.length > 0) {
+			const dateSet = new Set(dates);
+			const validMarkers = releaseMarkers.filter((m: ReleaseMarker) => dateSet.has(m.date));
+			if (validMarkers.length > 0) {
+				seriesOptions[0].markLine = {
+					symbol: ['none', 'none'],
+					silent: true,
+					data: validMarkers.map((m: ReleaseMarker) => ({
+						xAxis: m.date,
+						label: {
+							formatter: `v${m.version}`,
+							position: 'insideEndTop',
+							color: isDark ? '#78d397' : '#2f6d47',
+							fontSize: 10,
+							fontWeight: 'bold',
+							backgroundColor: isDark ? '#1a241d' : '#f0f9f4',
+							padding: [2, 4],
+							borderRadius: 3,
+							borderColor: isDark ? '#2a382e' : '#bbf7d0',
+							borderWidth: 1
+						},
+						lineStyle: {
+							type: 'dashed',
+							color: isDark ? 'rgba(120, 211, 151, 0.65)' : 'rgba(47, 109, 71, 0.65)',
+							width: 1.5
+						}
+					}))
+				};
+			}
+		}
+
 		const hasZoomSlider = dates.length > 30;
 		const legendData = seriesOptions.map((s: any) => s.name);
 		const hasLegend = legendData.length > 1;
@@ -338,6 +381,7 @@
 			void categoryLabels;
 			void showMovingAverage;
 			void showForecast;
+			void showReleaseMarkers;
 			void initChart();
 		}
 	});
@@ -373,6 +417,18 @@
 
 <div class="chart-container-wrapper">
 	{#if hasData}<div class="chart-export-buttons" aria-label="Chart exports">
+		{#if releaseMarkers && releaseMarkers.length > 0}
+			<button 
+				type="button" 
+				class="export-btn" 
+				class:active={showReleaseMarkers}
+				onclick={() => { showReleaseMarkers = !showReleaseMarkers; }}
+				title="Toggle version release markers on graph"
+				aria-label="Toggle version release markers"
+			>
+				{showReleaseMarkers ? 'Hide Releases' : 'Tag Releases'}
+			</button>
+		{/if}
 		<button class="export-btn" onclick={exportPNG} disabled={exporting} title="Download PNG" aria-label="Download chart as PNG">PNG</button>
 		<button class="export-btn" onclick={exportCSV} disabled={exporting} title="Download CSV" aria-label="Download chart data as CSV">CSV</button>
 	</div>{/if}
@@ -448,6 +504,11 @@
 	.export-btn:hover {
 		background-color: var(--bg-inset);
 		color: var(--text-base);
+	}
+	.export-btn.active {
+		background-color: var(--primary);
+		color: #ffffff;
+		border-color: var(--primary);
 	}
 	.export-btn:disabled {
 		opacity: 0.5;
