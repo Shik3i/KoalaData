@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-const publicRoutes = ['/', '/discover', '/leaderboards', '/login', '/register', '/privacy', '/imprint', '/terms', '/security'];
+const publicRoutes = ['/', '/discover', '/leaderboards', '/login', '/register', '/privacy', '/terms', '/security'];
 
 test('homepage presents a balanced FAQ and a compact versioned footer', async ({ page }) => {
 	await page.goto('/');
@@ -70,10 +70,10 @@ test('English legal pages disclose account data and seven-day access logs', asyn
 	await expect(page.getByRole('heading', { name: 'Terms of Use' })).toBeVisible();
 	await expect(page.getByText(/Nutzungsbedingungen/i)).toHaveCount(0);
 
-	await page.goto('/imprint');
-	await expect(page.getByRole('link', { name: 'koaladata@koalastuff.net' })).toHaveAttribute(
+	await page.goto('/');
+	await expect(page.getByRole('link', { name: 'Imprint' })).toHaveAttribute(
 		'href',
-		'mailto:koaladata@koalastuff.net'
+		'https://koalastuff.net/legal'
 	);
 });
 

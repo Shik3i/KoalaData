@@ -21,7 +21,7 @@
 			<h2>Moderation</h2>
 			<p>KoalaData may hide or remove misleading, unsafe, unlawful, spam-oriented or abandoned listings. New public listings remain under review until approved. Approved profiles use standard dofollow links, but KoalaData does not promise search-engine ranking benefits.</p>
 			<h2>Availability and deletion</h2>
-			<p>The service is provided without an availability guarantee. Publishers can request account or project deletion using the contact details in the <a href="/imprint">Legal Notice</a>.</p>
+			<p>The service is provided without an availability guarantee. Publishers can request account or project deletion using the contact details in the <a href="https://koalastuff.net/legal">Legal Notice</a>.</p>
 		</section>
 	</article>
 </div>

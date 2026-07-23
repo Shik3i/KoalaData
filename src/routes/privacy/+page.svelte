@@ -17,7 +17,7 @@
 
 		<section>
 			<h2>1. Operator and hosting</h2>
-			<p>The operator named in the <a href="/imprint">Legal Notice</a> is responsible for this service. KoalaData is hosted on infrastructure provided by Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Germany. The regular hosting location is within the EU/EEA.</p>
+			<p>The operator named in the <a href="https://koalastuff.net/legal">Legal Notice</a> is responsible for this service. KoalaData is hosted on infrastructure provided by Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Germany. The regular hosting location is within the EU/EEA.</p>
 		</section>
 
 		<section>
@@ -53,7 +53,7 @@
 
 		<section>
 			<h2>7. Your rights</h2>
-			<p>Under the GDPR, you may have rights to access, rectification, erasure, restriction of processing, data portability, objection, and lodging a complaint with a supervisory authority. Use the contact details in the <a href="/imprint">Legal Notice</a> for privacy requests.</p>
+			<p>Under the GDPR, you may have rights to access, rectification, erasure, restriction of processing, data portability, objection, and lodging a complaint with a supervisory authority. Use the contact details in the <a href="https://koalastuff.net/legal">Legal Notice</a> for privacy requests.</p>
 		</section>
 	</article>
 </div>

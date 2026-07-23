@@ -17,7 +17,6 @@ export const GET: RequestHandler = async ({ url }) => {
 		...(site.publicLeaderboardsEnabled ? ['/leaderboards'] : []),
 		'/security',
 		'/privacy',
-		'/imprint',
 		'/terms'
 	];
 	const staticLastModified = '2026-07-22';

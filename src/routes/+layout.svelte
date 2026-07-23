@@ -174,7 +174,7 @@
 		<div class="container footer-inner flex justify-between align-center text-muted">
 			<p>© {new Date().getFullYear()} {data.site.siteTitle}. Open-source Chrome Web Store analytics.</p>
 			<div class="footer-links flex gap-2">
-				<a href="/imprint">Imprint</a>
+				<a href="https://koalastuff.net/legal">Imprint</a>
 				<span>•</span>
 				<a href="/terms">Terms</a>
 				<span>•</span>

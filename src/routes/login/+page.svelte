@@ -89,7 +89,7 @@
 
 		<div class="auth-footer text-muted">
 			<p>Don't have an account? <a href="/register">Register</a></p>
-			<p>No email-based reset is possible. For account recovery, contact the operator through the <a href="/imprint">imprint</a>.</p>
+			<p>No email-based reset is possible. For account recovery, contact the operator through the <a href="https://koalastuff.net/legal">legal notice</a>.</p>
 		</div>
 
 		<aside class="privacy-note" aria-label="Login privacy">
