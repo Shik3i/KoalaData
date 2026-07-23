@@ -40,9 +40,15 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 	const admin = sqlite.prepare("SELECT id FROM users WHERE username = 'admin'").get() as { id: string };
 	const now = Math.floor(Date.now() / 1000);
 	const projectId = crypto.randomUUID();
+	const noRatingProjectId = crypto.randomUUID();
 	const sourceId = crypto.randomUUID();
 	const batchIds = [crypto.randomUUID(), crypto.randomUUID()];
 	const slug = `performance-${crypto.randomUUID().slice(0, 8)}`;
+	const noRatingProjectName = `No rating fixture ${crypto.randomUUID().slice(0, 8)}`;
+	const fixtureEnd = new Date();
+	fixtureEnd.setUTCHours(0, 0, 0, 0);
+	const pageViewStartDay = 550;
+	const expectedPageViewStart = new Date(fixtureEnd.getTime() - (599 - pageViewStartDay) * 86_400_000).toISOString().slice(0, 10);
 	const metricDefinitions = [
 		...PRIMARY_METRICS.map(([metricType, name, aggregation]) => ({ id: crypto.randomUUID(), metricType, name, aggregation })),
 		...BREAKDOWN_METRICS.map((name) => ({ id: crypto.randomUUID(), metricType: 'custom', name, aggregation: 'sum' }))
@@ -57,6 +63,13 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 				) VALUES (?, ?, 'Performance fixture', ?, 'Realistic public performance fixture', '',
 					'developer-tools', 'free', 0, 'public', 'active', ?, ?)
 			`).run(projectId, admin.id, slug, now, now);
+			sqlite.prepare(`
+				INSERT INTO projects (
+					id, owner_id, name, slug, short_description, full_description, category,
+					pricing_model, is_open_source, visibility, moderation_status, created_at, updated_at
+				) VALUES (?, ?, ?, ?, 'Public fixture without rating data', '',
+					'developer-tools', 'free', 0, 'public', 'active', ?, ?)
+			`).run(noRatingProjectId, admin.id, noRatingProjectName, `no-rating-${crypto.randomUUID().slice(0, 8)}`, now, now);
 			sqlite.prepare(`
 				INSERT INTO data_sources (id, project_id, name, source_type, granularity, created_at, updated_at)
 				VALUES (?, ?, 'Chrome Web Store Export', 'chrome_web_store', 'daily', ?, ?)
@@ -97,21 +110,24 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 					id, import_batch_id, source_id, metric_id, date, value, dimensions, created_at
 				) VALUES (?, ?, ?, ?, ?, ?, '{}', ?)
 			`);
-			const end = new Date();
-			end.setUTCHours(0, 0, 0, 0);
 			const batchRows = [0, 0];
 			metricDefinitions.forEach((metric, metricIndex) => {
 				const dayCount = metricIndex < PRIMARY_METRICS.length ? 600 : 235;
 				for (let day = 0; day < dayCount; day++) {
-					const date = new Date(end.getTime() - (dayCount - 1 - day) * 86_400_000).toISOString().slice(0, 10);
+					const date = new Date(fixtureEnd.getTime() - (dayCount - 1 - day) * 86_400_000).toISOString().slice(0, 10);
 					const batchIndex = day < Math.ceil(dayCount / 2) ? 0 : 1;
+					const value = metricIndex === 3 && day < pageViewStartDay
+						? 0
+						: metricIndex === 4 && day >= 510
+							? 0
+							: (metricIndex + 1) * ((day % 17) + 1);
 					insertObservation.run(
 						`${projectId}-${metricIndex}-${day}`,
 						batchIds[batchIndex],
 						sourceId,
 						metric.id,
 						date,
-						(metricIndex + 1) * ((day % 17) + 1),
+						value,
 						now
 					);
 					batchRows[batchIndex]++;
@@ -144,10 +160,21 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 		console.log(`DASHBOARD_BYTES ${dashboardBytes}`);
 		expect(dashboardBytes).toBeLessThan(250_000);
 
+		await page.goto('/discover');
+		const noRatingCard = page.locator('.explore-card').filter({ hasText: noRatingProjectName });
+		await expect(noRatingCard).toBeVisible();
+		await expect(noRatingCard.locator('dt', { hasText: 'Rating' })).toHaveCount(0);
+		await expect(noRatingCard.locator('.quick-stats > div')).toHaveCount(2);
+
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto(`/p/${slug}`);
 		await expect(page.locator('[data-report="users-version"]')).toHaveCount(1);
 		await expect(page.locator('.chart-dom')).toHaveCount(5);
+		const pageViewChart = page.getByRole('img', { name: 'Performance fixture store page views trend chart' });
+		await expect(pageViewChart).toHaveAttribute('data-start-label', expectedPageViewStart);
+		const impressionsChart = page.getByRole('img', { name: 'Performance fixture store impressions trend chart' });
+		await expect(impressionsChart).toHaveAttribute('data-has-data', 'false');
+		await expect(impressionsChart.locator('..').getByText('No data in selected timeframe.')).toBeVisible();
 		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
 		const smallTargets = await page.locator('a, button, input, select').evaluateAll((elements) => elements.flatMap((element) => {
 			const rect = element.getBoundingClientRect();
@@ -179,6 +206,7 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 		});
 	} finally {
 		sqlite.prepare('DELETE FROM projects WHERE id = ?').run(projectId);
+		sqlite.prepare('DELETE FROM projects WHERE id = ?').run(noRatingProjectId);
 		sqlite.close();
 	}
 });

@@ -106,7 +106,9 @@
 						<p class="desc-text text-muted">{project.shortDescription}</p>
 
 						<dl class="quick-stats" aria-label={`${project.name} key metrics`}>
-							<div><dt>Rating</dt><dd aria-label={project.rating === null ? 'No rating data' : `${project.rating.toFixed(1)} out of 5 stars`}>{project.rating === null ? '—' : `★ ${project.rating.toFixed(1)}`}</dd></div>
+							{#if project.rating !== null}
+								<div><dt>Rating</dt><dd aria-label={`${project.rating.toFixed(1)} out of 5 stars`}>★ {project.rating.toFixed(1)}</dd></div>
+							{/if}
 							<div><dt>Weekly users</dt><dd>{formatNumber(project.activeUsers)}</dd></div>
 							<div><dt>Daily installs</dt><dd>{formatNumber(project.installs)}</dd></div>
 						</dl>
@@ -144,7 +146,7 @@
 		gap: 1.25rem;
 		align-items: stretch;
 	}
-	.quick-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin: auto 0 0; }
+	.quick-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.5rem; margin: auto 0 0; }
 	.quick-stats div { min-width: 0; padding: 0.7rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-inset); }
 	.quick-stats dt { color: var(--text-muted); font-size: 0.7rem; line-height: 1.25; }
 	.quick-stats dd { margin: 0.2rem 0 0; font-size: 0.95rem; font-weight: 750; font-variant-numeric: tabular-nums; }

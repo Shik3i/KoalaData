@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { EChartsType } from 'echarts/core';
-	import { chartDataZoom, computeLinearForecast, computeMovingAverage } from '$lib/chart-utils';
+	import { chartDataZoom, computeLinearForecast, computeMovingAverage, prepareChartData } from '$lib/chart-utils';
 
 	type Observation = { date: string; value: number };
 	type SeriesData = {
@@ -22,6 +22,8 @@
 	let exporting = $state(false);
 	let chartReady = $state(false);
 	let chartError = $state(false);
+	let hasData = $state(true);
+	let chartStartLabel = $state('');
 	let initGeneration = 0;
 
 	function csvCell(value: string | number): string {
@@ -48,20 +50,23 @@
 	function exportCSV() {
 		exporting = true;
 		try {
+			const prepared = prepareChartData(
+				seriesList?.length ? seriesList : observations ? [{ observations }] : [],
+				categoryLabels
+			);
+			if (!prepared.dates.length) return;
 			let csv = '';
 			if (seriesList && seriesList.length > 0) {
 				const headers = ['Date', ...seriesList.map((s: SeriesData) => s.name)];
 				csv = headers.map(csvCell).join(',') + '\n';
-				const maxLen = Math.max(...seriesList.map((s: SeriesData) => s.observations.length));
-				for (let i = 0; i < maxLen; i++) {
-					const date = seriesList[0].observations[i]?.date ?? '';
-					const row = [date, ...seriesList.map((s: SeriesData) => s.observations[i]?.value ?? '')];
+				for (let i = 0; i < prepared.dates.length; i++) {
+					const row = [prepared.dates[i], ...prepared.seriesValues.map((values) => values[i] ?? '')];
 					csv += row.map(csvCell).join(',') + '\n';
 				}
 			} else if (observations) {
 				csv = 'Date,Value\n';
-				for (const o of observations) {
-					csv += `${csvCell(o.date)},${csvCell(o.value)}\n`;
+				for (let i = 0; i < prepared.dates.length; i++) {
+					csv += `${csvCell(prepared.dates[i])},${csvCell(prepared.seriesValues[0][i] ?? '')}\n`;
 				}
 			} else {
 				return;
@@ -90,6 +95,18 @@
 		chartReady = false;
 		chartError = false;
 		if (!chartDom) return;
+		const inputSeries = seriesList?.length
+			? seriesList
+			: observations ? [{ name: 'Actual', color: '', observations }] : [];
+		const prepared = prepareChartData(inputSeries, categoryLabels);
+		hasData = prepared.dates.length > 0;
+		chartStartLabel = prepared.dates[0] ?? '';
+		if (!hasData) {
+			chart?.dispose();
+			chart = null;
+			chartReady = true;
+			return;
+		}
 
 		try {
 			const { echarts } = await import('$lib/chart-runtime');
@@ -106,13 +123,12 @@
 			const isCompact = chartDom.clientWidth <= 520;
 			compactMode = isCompact;
 
-			let dates: string[] = categoryLabels?.length ? [...categoryLabels] : [];
+			let dates = [...prepared.dates];
 			let seriesOptions: any[] = [];
 
 			if (seriesList && seriesList.length > 0) {
-				if (!dates.length) dates = seriesList[0].observations.map((o: Observation) => o.date);
-				seriesOptions = seriesList.flatMap((s: SeriesData) => {
-					const values = s.observations.map((o: Observation) => o.value);
+				seriesOptions = seriesList.flatMap((s: SeriesData, seriesIndex: number) => {
+					const values = prepared.seriesValues[seriesIndex];
 					const result: any[] = [{
 						name: s.name,
 						data: values,
@@ -145,8 +161,7 @@
 					return result;
 				});
 			} else if (observations) {
-				if (!dates.length) dates = observations.map((o: Observation) => o.date);
-			const values = observations.map((o: Observation) => o.value);
+			const values = prepared.seriesValues[0];
 			const mainColor = isDark ? '#78d397' : '#2f6d47';
 
 			seriesOptions = [
@@ -313,7 +328,7 @@
 		} catch (error) {
 			if (generation === initGeneration && !destroyed) {
 				chartError = true;
-				console.error('[MetricChart] Failed to render chart:', error);
+				console.error('[MetricChart] Failed to render chart:', error instanceof Error ? error.stack ?? error.message : String(error));
 			}
 		}
 	}
@@ -357,12 +372,14 @@
 </script>
 
 <div class="chart-container-wrapper">
-	<div class="chart-export-buttons" aria-label="Chart exports">
+	{#if hasData}<div class="chart-export-buttons" aria-label="Chart exports">
 		<button class="export-btn" onclick={exportPNG} disabled={exporting} title="Download PNG" aria-label="Download chart as PNG">PNG</button>
 		<button class="export-btn" onclick={exportCSV} disabled={exporting} title="Download CSV" aria-label="Download chart data as CSV">CSV</button>
-	</div>
-	<div bind:this={chartDom} class="chart-dom" role="img" aria-label={title ? `${title.replaceAll('-', ' ')} trend chart` : 'Metric trend chart'} aria-busy={!chartReady && !chartError}></div>
-	{#if !chartReady}
+	</div>{/if}
+	<div bind:this={chartDom} class="chart-dom" role="img" aria-label={title ? `${title.replaceAll('-', ' ')} trend chart` : 'Metric trend chart'} aria-busy={!chartReady && !chartError} data-has-data={hasData} data-start-label={chartStartLabel}></div>
+	{#if !hasData}
+		<div class="chart-status" role="status">No data in selected timeframe.</div>
+	{:else if !chartReady}
 		<div class="chart-status" role="status">
 			{chartError ? 'Chart could not be rendered.' : 'Loading chart…'}
 		</div>
