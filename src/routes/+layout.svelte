@@ -172,15 +172,17 @@
 	<footer class="main-footer">
 		<div class="container footer-inner flex justify-between align-center text-muted">
 			<p>© {new Date().getFullYear()} {data.site.siteTitle}. Open-source Chrome Web Store analytics.</p>
-			<div class="footer-links flex gap-2">
+			<div class="footer-links flex align-center gap-2">
 				<a href="https://koalastuff.net/legal">Imprint</a>
-				<span>•</span>
+				<span class="footer-dot" aria-hidden="true">•</span>
 				<a href="/terms">Terms</a>
-				<span>•</span>
+				<span class="footer-dot" aria-hidden="true">•</span>
 				<a href="/privacy">Privacy</a>
-				<span>•</span>
-				<a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">GitHub</a>
-				<span>•</span>
+				<span class="footer-dot" aria-hidden="true">•</span>
+				<a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">
+					GitHub{#if data.version && data.version !== 'unreleased'}&nbsp;<span class="version-tag">({data.version.startsWith('v') ? data.version : `v${data.version}`})</span>{/if}
+				</a>
+				<span class="footer-dot" aria-hidden="true">•</span>
 				<a href="https://support.koalastuff.net" target="_blank" rel="noopener noreferrer" class="support-link"><span aria-hidden="true">♥</span> Support KoalaData</a>
 			</div>
 		</div>
@@ -317,6 +319,8 @@
 	}
 
 	.footer-links {
+		display: flex;
+		align-items: center;
 		flex-wrap: wrap;
 	}
 	.footer-links a {
@@ -327,6 +331,22 @@
 	}
 	.footer-links a:hover {
 		color: var(--primary);
+	}
+	.footer-links .footer-dot {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--text-muted);
+		opacity: 0.5;
+		user-select: none;
+		height: 44px;
+		font-size: 0.8rem;
+		line-height: 1;
+	}
+	.footer-links .version-tag {
+		font-size: 0.78rem;
+		opacity: 0.8;
+		font-weight: 500;
 	}
 	.footer-links .support-link {
 		display: inline-flex;
@@ -350,7 +370,7 @@
 	@media (max-width: 640px) {
 		.main-content { padding: 1.25rem 0; }
 		.footer-inner { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
-		.footer-links span { display: none; }
+		.footer-links .footer-dot { display: none; }
 		.footer-links { gap: 0.75rem 1rem; }
 		.main-footer p { margin-bottom: 0; }
 	}
