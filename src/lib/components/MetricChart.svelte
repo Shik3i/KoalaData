@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { EChartsType } from 'echarts/core';
-	import { computeLinearForecast, computeMovingAverage } from '$lib/chart-utils';
+	import { chartDataZoom, computeLinearForecast, computeMovingAverage } from '$lib/chart-utils';
 
 	type Observation = { date: string; value: number };
 	type SeriesData = {
@@ -290,9 +290,8 @@
 					}
 				}
 			},
-			dataZoom: hasZoomSlider ? [
-				{
-					type: 'slider',
+				dataZoom: chartDataZoom(dates.length)?.map((zoom) => ({
+					...zoom,
 					bottom: '1%',
 					height: 14,
 					borderColor: 'transparent',
@@ -305,8 +304,7 @@
 						color: isDark ? '#a5b2a8' : '#64748b',
 						fontSize: 10
 					}
-				}
-			] : undefined,
+				})),
 			series: seriesOptions
 		};
 

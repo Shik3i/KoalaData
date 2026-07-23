@@ -4,7 +4,13 @@ import { eq, and, isNull, inArray, sql } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { classifyChromeReportLabel, splitLegacyMetricName } from '$lib/dashboard-metrics';
+import {
+	buildBreakdownGroups,
+	classifyChromeReportLabel,
+	splitLegacyMetricName,
+	summarizeBreakdownGroups,
+	type DashboardMetric
+} from '$lib/dashboard-metrics';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const slug = params.slug;
@@ -44,7 +50,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.where(eq(dataSources.projectId, project.id));
 
 	const sourceIds = sources.map((s) => s.id);
-	const metricsWithData: any[] = [];
+	const metricsWithData: DashboardMetric[] = [];
 
 	if (sourceIds.length > 0) {
 		// Fetch all metric definitions for this project's sources in one query
@@ -56,51 +62,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		const metricIds = definitions.map((d) => d.id);
 
 		if (metricIds.length > 0) {
-			const snapshotMetricIds = definitions
-				.filter((definition) => definition.metricType === 'custom'
-					&& classifyChromeReportLabel(splitLegacyMetricName(definition.name).reportLabel)?.semantics === 'snapshot')
-				.map((definition) => definition.id);
-			const observationScope = snapshotMetricIds.length > 0
-				? sql`(
-					(metric_id IN (${sql.join(snapshotMetricIds.map((id) => sql`${id}`), sql`, `)}) AND snapshot_rn = 1)
-					OR
-					(metric_id NOT IN (${sql.join(snapshotMetricIds.map((id) => sql`${id}`), sql`, `)}) AND date >= COALESCE(
-						(SELECT date(MAX(date), '-370 days') FROM effective_observations),
-						date
-					))
-				)`
-				: sql`date >= COALESCE(
-					(SELECT date(MAX(date), '-370 days') FROM effective_observations),
-					date
-				)`;
-			const trendRawScope = sql`o.date >= COALESCE(
-				(SELECT date(MAX(recent.date), '-370 days')
-				 FROM metric_observations recent
-				 INNER JOIN import_batches recent_batch ON recent_batch.id = recent.import_batch_id
-				 WHERE recent.metric_id IN (${sql.join(metricIds.map((id) => sql`${id}`), sql`, `)})
-				   AND recent_batch.status = 'completed'
-				   AND recent_batch.reverted_at IS NULL),
-				o.date
-			)`;
-			const rawObservationScope = snapshotMetricIds.length > 0
-				? sql`(
-					(o.metric_id IN (${sql.join(snapshotMetricIds.map((id) => sql`${id}`), sql`, `)}) AND o.date = (
-						SELECT MAX(latest.date)
-						FROM metric_observations latest
-						INNER JOIN import_batches latest_batch ON latest_batch.id = latest.import_batch_id
-						WHERE latest.metric_id = o.metric_id
-						  AND latest.dimensions = o.dimensions
-						  AND latest_batch.status = 'completed'
-						  AND latest_batch.reverted_at IS NULL
-					))
-					OR
-					(o.metric_id NOT IN (${sql.join(snapshotMetricIds.map((id) => sql`${id}`), sql`, `)}) AND ${trendRawScope})
-				)`
-				: trendRawScope;
-
 			// Query all effective observations for these metric IDs in one database round-trip
 			const query = sql`
-				WITH ranked_observations AS (
+				WITH observation_bounds AS (
+					SELECT MAX(o.date) AS max_date
+					FROM metric_observations o
+					INNER JOIN import_batches b ON o.import_batch_id = b.id
+					WHERE o.metric_id IN (${sql.join(metricIds.map((id) => sql`${id}`), sql`, `)})
+					  AND b.status = 'completed'
+					  AND b.reverted_at IS NULL
+				), ranked_observations AS (
 					SELECT 
 						o.source_id,
 						o.metric_id,
@@ -118,22 +89,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 					WHERE o.metric_id IN (${sql.join(metricIds.map((id) => sql`${id}`), sql`, `)})
 					  AND b.status = 'completed'
 					  AND b.reverted_at IS NULL
-					  AND ${rawObservationScope}
+					  AND o.date >= COALESCE((SELECT date(max_date, '-370 days') FROM observation_bounds), o.date)
 				), effective_observations AS (
 					SELECT source_id, metric_id, date, value, dimensions, observation_id, completed_at
 					FROM ranked_observations
 					WHERE rn = 1
-				), scoped_observations AS (
-					SELECT source_id, metric_id, date, value, dimensions, observation_id, completed_at,
-						ROW_NUMBER() OVER (
-							PARTITION BY metric_id, dimensions
-							ORDER BY date DESC, completed_at DESC, observation_id DESC
-						) AS snapshot_rn
-					FROM effective_observations
 				)
 				SELECT source_id, metric_id, date, value, dimensions, observation_id, completed_at
-				FROM scoped_observations
-				WHERE ${observationScope}
+				FROM effective_observations
 				ORDER BY date ASC
 			`;
 
@@ -194,8 +157,18 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		}
 	}
 
+	const breakdownGroups = summarizeBreakdownGroups(buildBreakdownGroups(metricsWithData));
+	const compactMetrics = metricsWithData
+		.filter((metric) => metric.metricType !== 'custom'
+			|| !classifyChromeReportLabel(splitLegacyMetricName(metric.name).reportLabel))
+		.map((metric) => ({
+			...metric,
+			observations: metric.observations.map(({ date, value }) => ({ date, value }))
+		}));
+
 	return {
 		project,
-		metrics: metricsWithData
+		metrics: compactMetrics,
+		breakdownGroups
 	};
 };

@@ -1,13 +1,13 @@
 <script lang="ts">
 	import BreakdownPanel from '$lib/components/BreakdownPanel.svelte';
-	import type { BreakdownGroup } from '$lib/dashboard-metrics';
+	import type { BreakdownSummaryGroup } from '$lib/dashboard-metrics';
 
-	let { groups, days = 90 } = $props<{ groups: BreakdownGroup[]; days: number | null }>();
+	let { groups, days = 90 } = $props<{ groups: BreakdownSummaryGroup[]; days: number | null }>();
 	let selectedId = $state('');
-	let selectedGroup = $derived(groups.find((group: BreakdownGroup) => group.id === selectedId) ?? groups[0]);
+	let selectedGroup = $derived(groups.find((group: BreakdownSummaryGroup) => group.id === selectedId) ?? groups[0]);
 
 	$effect(() => {
-		if (groups.length && !groups.some((group: BreakdownGroup) => group.id === selectedId)) {
+		if (groups.length && !groups.some((group: BreakdownSummaryGroup) => group.id === selectedId)) {
 			selectedId = groups[0].id;
 		}
 	});

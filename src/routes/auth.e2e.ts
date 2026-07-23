@@ -314,10 +314,9 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.fill('input[name="username"]', testUsername);
 		await page.fill('input[name="password"]', testPassword);
 		await page.click('button[type="submit"]');
+		await page.waitForURL('/app');
 
 		// 12. LEADERBOARD REQUEST & APPROVAL
-		await page.goto(`/app`);
-		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await page.locator('.project-name a', { hasText: projectName }).click();
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		await page.click('a.tab-link[href$="/settings"]');

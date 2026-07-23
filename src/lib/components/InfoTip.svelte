@@ -64,17 +64,29 @@
 	.info-trigger {
 		display: inline-grid;
 		place-items: center;
-		width: 1.15rem;
-		height: 1.15rem;
+		position: relative;
+		isolation: isolate;
+		width: 2.75rem;
+		height: 2.75rem;
+		margin: -0.8rem;
 		padding: 0;
-		border: 1px solid var(--border-color);
-		border-radius: 50%;
-		background: var(--bg-inset);
+		border: 0;
+		background: transparent;
 		color: var(--text-muted);
 		font: 700 0.7rem/1 system-ui;
 		cursor: help;
 	}
-	.info-trigger:hover, .info-trigger:focus-visible { border-color: var(--primary); color: var(--primary); outline: none; }
+	.info-trigger::before {
+		content: '';
+		position: absolute;
+		inset: 0.8rem;
+		border: 1px solid var(--border-color);
+		border-radius: 50%;
+		background: var(--bg-inset);
+		z-index: -1;
+	}
+	.info-trigger:hover, .info-trigger:focus-visible { color: var(--primary); }
+	.info-trigger:hover::before, .info-trigger:focus-visible::before { border-color: var(--primary); }
 	.info-content {
 		position: fixed;
 		z-index: 1000;

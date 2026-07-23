@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.8 - 2026-07-23
+
+- Replace raw dashboard breakdown histories with server-side summaries for the supported 7, 30, 90, and 365-day periods.
+- Remove internal observation identifiers and timestamps from public payloads and eliminate the correlated snapshot query.
+- Keep charts scroll-safe with explicit slider-only zoom and regression coverage for wheel and touchpad behavior.
+- Enforce compact 50,000-row dashboard payloads, fast logo client navigation, and realistic multi-import performance fixtures.
+- Run Playwright coverage in Chromium and Firefox, remove a cross-browser login race, and enlarge small dashboard touch targets.
+
 ## v1.4.7 - 2026-07-23
 
 - Consolidate localized extension-version reports into one breakdown instead of rendering one graph per version.

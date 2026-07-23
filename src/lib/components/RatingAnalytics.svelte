@@ -1,14 +1,15 @@
 <script lang="ts">
 	import MetricChart from '$lib/components/MetricChart.svelte';
 	import {
-		calculateBreakdownRows,
-		calculateBreakdownTimeline,
-		type BreakdownGroup
+		dashboardPeriodKey,
+		filterBreakdownTimeline,
+		type BreakdownRow,
+		type BreakdownSummaryGroup
 	} from '$lib/dashboard-metrics';
 
-	let { group, days = 90 } = $props<{ group: BreakdownGroup; days: number | null }>();
-	let rows = $derived(calculateBreakdownRows(group, days));
-	let timeline = $derived(calculateBreakdownTimeline(group, days));
+	let { group, days = 90 } = $props<{ group: BreakdownSummaryGroup; days: number | null }>();
+	let rows: BreakdownRow[] = $derived(group.periodRows[dashboardPeriodKey(days)]);
+	let timeline = $derived(filterBreakdownTimeline(group.timeline, days));
 	let total = $derived(rows.reduce((sum, row) => sum + row.value, 0));
 	let maxValue = $derived(Math.max(...rows.map((row) => row.value), 1));
 

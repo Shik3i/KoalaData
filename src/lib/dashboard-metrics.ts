@@ -12,7 +12,9 @@ export type DashboardMetric = {
 	metricId: string;
 	metricType: string;
 	name: string;
+	unit?: string;
 	aggregation: string;
+	isCumulative?: number;
 	observations: DashboardObservation[];
 };
 
@@ -51,6 +53,15 @@ import { CHROME_REPORT_PATTERNS } from '$lib/chrome-report-catalog';
 export type BreakdownTimeline = {
 	dates: string[];
 	series: BreakdownSeries[];
+};
+
+export const DASHBOARD_PERIODS = [7, 30, 90, 365] as const;
+export type DashboardPeriod = (typeof DASHBOARD_PERIODS)[number];
+export type DashboardPeriodKey = '7' | '30' | '90' | '365';
+
+export type BreakdownSummaryGroup = Omit<BreakdownGroup, 'series'> & {
+	periodRows: Record<DashboardPeriodKey, BreakdownRow[]>;
+	timeline: BreakdownTimeline | null;
 };
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -230,6 +241,35 @@ export function calculateBreakdownTimeline(group: BreakdownGroup, days: number |
 				observations: dates.map((date) => ({ date, value: valuesByDate.get(date) ?? 0 }))
 			};
 		})
+	};
+}
+
+export function dashboardPeriodKey(days: number | null): DashboardPeriodKey {
+	return days === null ? '365' : String(days) as DashboardPeriodKey;
+}
+
+export function summarizeBreakdownGroups(groups: BreakdownGroup[]): BreakdownSummaryGroup[] {
+	return groups.map(({ series, ...group }) => {
+		const sourceGroup = { ...group, series };
+		return {
+			...group,
+			periodRows: Object.fromEntries(DASHBOARD_PERIODS.map((days) => [
+				dashboardPeriodKey(days),
+				calculateBreakdownRows(sourceGroup, days)
+			])) as Record<DashboardPeriodKey, BreakdownRow[]>,
+			timeline: group.id === 'ratings' ? calculateBreakdownTimeline(sourceGroup, null) : null
+		};
+	});
+}
+
+export function filterBreakdownTimeline(timeline: BreakdownTimeline | null, days: number | null): BreakdownTimeline {
+	if (!timeline || days === null || timeline.dates.length === 0) return timeline ?? { dates: [], series: [] };
+	const startDate = rangeStart(timeline.dates.at(-1)!, days);
+	const firstIndex = timeline.dates.findIndex((date) => date >= startDate);
+	if (firstIndex === -1) return { dates: [], series: [] };
+	return {
+		dates: timeline.dates.slice(firstIndex),
+		series: timeline.series.map((series) => ({ ...series, observations: series.observations.slice(firstIndex) }))
 	};
 }
 

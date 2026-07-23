@@ -10,13 +10,11 @@
 	import Seo from '$lib/components/Seo.svelte';
 	import { buildProjectSchemas } from '$lib/seo';
 	import {
-		buildBreakdownGroups,
-		classifyChromeReportLabel,
 		filterObservationsByCalendarDays,
 		metricDisplayValue,
-		splitLegacyMetricName,
 		type DashboardMetric,
-		type DashboardObservation
+		type DashboardObservation,
+		type BreakdownSummaryGroup
 	} from '$lib/dashboard-metrics';
 
 	let { data } = $props();
@@ -33,7 +31,7 @@
 	let schemas = $derived(isIndexable
 		? buildProjectSchemas(page.url.origin, project, metrics.map((metric) => metricLabel(metric)))
 		: []);
-	let breakdownGroups = $derived(buildBreakdownGroups(metrics));
+	let breakdownGroups = $derived(data.breakdownGroups as BreakdownSummaryGroup[]);
 	let acquisitionGroups = $derived(breakdownGroups.filter((group) => group.section === 'acquisition'));
 	let audienceGroups = $derived(breakdownGroups.filter((group) => group.section === 'audience'));
 	let retentionGroups = $derived(breakdownGroups.filter((group) => group.section === 'retention'));
@@ -68,7 +66,7 @@
 		impressionsMetric?.metricId, pageViewsMetric?.metricId
 	].filter(Boolean)));
 	let additionalMetrics = $derived(metrics.filter((metric) => {
-		if (metric.metricType === 'custom') return !classifyChromeReportLabel(splitLegacyMetricName(metric.name).reportLabel);
+		if (metric.metricType === 'custom') return true;
 		return !primaryMetricIds.has(metric.metricId);
 	}));
 
@@ -243,7 +241,7 @@
 			<p class="text-muted data-note">Counts are grouped by their real meaning. Period totals are used for flows; current values are used for snapshots.</p>
 		</div>
 		<div class="filter-panel" aria-label="Analytics timeframe">
-			{#each [['7', '7D'], ['30', '30D'], ['90', '90D'], ['365', '1Y'], ['all', 'All']] as option}
+			{#each [['7', '7D'], ['30', '30D'], ['90', '90D'], ['365', '1Y']] as option}
 				<button class:active={dateFilter === option[0]} aria-pressed={dateFilter === option[0]} onclick={() => dateFilter = option[0]}>{option[1]}</button>
 			{/each}
 		</div>
@@ -337,7 +335,7 @@
 	h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.5rem); }
 	.hero-description { max-width: 48rem; margin: 0.35rem 0 0; color: var(--text-muted); font-size: 1rem; }
 	.hero-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.65rem; min-width: 14rem; }
-	.source-link { width: 100%; text-align: right; font-size: 0.8rem; font-weight: 600; }
+	.source-link { width: 100%; min-height: 44px; display: inline-flex; align-items: center; justify-content: flex-end; text-align: right; font-size: 0.8rem; font-weight: 600; }
 	.share-button { padding: 0; border: 0; background: transparent; color: var(--primary); cursor: pointer; }
 	.about-details { border-top: 1px solid var(--border-color); margin-top: 1.5rem; padding-top: 1rem; position: relative; z-index: 1; }
 	.about-details summary { cursor: pointer; font-weight: 700; }
@@ -357,7 +355,7 @@
 	.positive { color: var(--success) !important; }
 	.negative { color: var(--error) !important; }
 	.section-nav { position: sticky; top: 0.75rem; z-index: 20; justify-self: center; display: flex; gap: 0.25rem; padding: 0.3rem; border: 1px solid var(--border-color); border-radius: 999px; background: color-mix(in srgb, var(--bg-surface) 92%, transparent); box-shadow: var(--shadow-sm); backdrop-filter: blur(12px); }
-	.section-nav a { padding: 0.4rem 0.75rem; border-radius: 999px; color: var(--text-muted); font-size: 0.78rem; font-weight: 700; }
+	.section-nav a { min-height: 44px; display: inline-flex; align-items: center; padding: 0.4rem 0.75rem; border-radius: 999px; color: var(--text-muted); font-size: 0.78rem; font-weight: 700; }
 	.section-nav a:hover { background: var(--bg-inset); color: var(--text-base); text-decoration: none; }
 	.section-nav a.active { background: var(--primary); color: var(--text-inverse); text-decoration: none; }
 	.dashboard-section { display: grid; gap: 1.25rem; scroll-margin-top: 5rem; }
@@ -385,7 +383,7 @@
 	@media (max-width: 820px) {
 		.hero-main, .analytics-intro, .section-heading { align-items: flex-start; flex-direction: column; gap: 1rem; }
 		.hero-actions { width: 100%; justify-content: flex-start; }
-		.source-link { width: auto; text-align: left; align-self: center; }
+		.source-link { width: auto; text-align: left; align-self: center; justify-content: flex-start; }
 		.kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 		.chart-card.wide { grid-column: auto; }
 		.analysis-controls { justify-content: flex-start; }

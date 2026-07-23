@@ -5,6 +5,7 @@ import {
 	calculateBreakdownTimeline,
 	classifyChromeReportFilename,
 	filterObservationsByCalendarDays,
+	summarizeBreakdownGroups,
 	type DashboardMetric
 } from './dashboard-metrics';
 
@@ -130,5 +131,27 @@ describe('dashboard metric semantics', () => {
 			{ date: '2026-07-02', value: 3 }
 		];
 		expect(filterObservationsByCalendarDays(observations, 7).map((observation) => observation.value)).toEqual([2, 3]);
+	});
+
+	it('materializes fixed dashboard periods without serializing raw breakdown observations', () => {
+		const metrics = Array.from({ length: 40 }, (_, metricIndex): DashboardMetric => ({
+			sourceId: 'source',
+			sourceName: 'CWS',
+			metricId: `version-${metricIndex}`,
+			metricType: 'custom',
+			name: `Tägliche Nutzer nach Erweiterungsversion: 2.5.${metricIndex}.0`,
+			aggregation: 'sum',
+			observations: Array.from({ length: 235 }, (_, day) => ({
+				date: new Date(Date.UTC(2026, 0, day + 1)).toISOString().slice(0, 10),
+				value: metricIndex + day
+			}))
+		}));
+		const summaries = summarizeBreakdownGroups(buildBreakdownGroups(metrics));
+
+		expect(summaries).toHaveLength(1);
+		expect(summaries[0].id).toBe('users-version');
+		expect(summaries[0].periodRows['90']).toHaveLength(40);
+		expect(summaries[0]).not.toHaveProperty('series');
+		expect(JSON.stringify(summaries).length).toBeLessThan(30_000);
 	});
 });

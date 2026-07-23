@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { calculateBreakdownRows, type BreakdownGroup } from '$lib/dashboard-metrics';
+	import { dashboardPeriodKey, type BreakdownRow, type BreakdownSummaryGroup } from '$lib/dashboard-metrics';
 
-	let { group, days = 90 } = $props<{ group: BreakdownGroup; days: number | null }>();
+	let { group, days = 90 } = $props<{ group: BreakdownSummaryGroup; days: number | null }>();
 	let expanded = $state(false);
-	let rows = $derived(calculateBreakdownRows(group, days));
+	let rows: BreakdownRow[] = $derived(group.periodRows[dashboardPeriodKey(days)]);
 	let topRows = $derived(rows.slice(0, 8));
 	let otherRows = $derived(rows.slice(8));
 	let otherValue = $derived(otherRows.reduce((sum, row) => sum + row.value, 0));
@@ -81,7 +81,7 @@
 	.bar-value small { color: var(--text-muted); font-weight: 500; }
 	.bar-track { height: 8px; border-radius: 999px; background: var(--bg-inset); overflow: hidden; }
 	.bar-fill { height: 100%; border-radius: inherit; background: var(--primary); }
-	.details-toggle { margin-top: 1rem; border: 0; padding: 0; background: none; color: var(--primary); font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+	.details-toggle { min-height: 44px; margin-top: 0.4rem; border: 0; padding: 0.6rem 0; background: none; color: var(--primary); font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
 	.table-scroll { overflow-x: auto; margin-top: 0.75rem; }
 	table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
 	th, td { padding: 0.5rem; border-bottom: 1px solid var(--border-color); text-align: left; }

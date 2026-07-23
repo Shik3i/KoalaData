@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,6 +10,10 @@ process.env.DATABASE_PATH = join(testRoot, 'test.db');
 process.env.DATA_DIRECTORY = join(testRoot, 'data');
 
 export default defineConfig({
+	projects: [
+		{ name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+		{ name: 'firefox', use: { ...devices['Desktop Firefox'] } }
+	],
 	use: {
 		baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:4173'
 	},

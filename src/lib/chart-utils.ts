@@ -31,3 +31,9 @@ export function computeLinearForecast(data: number[], steps: number): number[] |
 	const intercept = yMean - slope * xMean;
 	return Array.from({ length: steps }, (_, index) => Math.max(0, slope * (n + index) + intercept));
 }
+
+export type ChartDataZoom = { type: 'slider' };
+
+export function chartDataZoom(pointCount: number): ChartDataZoom[] | undefined {
+	return pointCount > 30 ? [{ type: 'slider' }] : undefined;
+}
