@@ -2,7 +2,10 @@ import { db } from '$lib/server/db';
 import { importBatches, dataSources, metricObservations, importDrafts } from '$lib/server/db/schema';
 import { eq, and, isNull, desc, count } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
-import { createImportDraft, parseStoredFilename } from '$lib/server/csv/pipeline';
+import { createImportDraft, confirmImportDraft, parseStoredFilename, getDraftFilePath } from '$lib/server/csv/pipeline';
+import { parseCsv } from '$lib/server/csv/parser';
+import { detectChromeCsv } from '$lib/server/csv/chrome';
+import { classifyChromeReportFilename } from '$lib/dashboard-metrics';
 import { logAuditEvent } from '$lib/server/audit';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -11,6 +14,32 @@ import path from 'path';
 import { refreshPublicProjectStats } from '$lib/server/public-project-stats';
 
 const HISTORY_PAGE_SIZE = 50;
+
+function buildMetricsForAutoImport(originalFilename: string, autoDetect: ReturnType<typeof detectChromeCsv>) {
+	if (!autoDetect?.mappings?.date?.column) return null;
+	const report = classifyChromeReportFilename(originalFilename);
+	const fileLabel = originalFilename.replace(/\.[^.]+$/, '').replace(/_[a-z0-9]{32}$/i, '').trim();
+	const metrics = [];
+	for (const [key, value] of Object.entries(autoDetect.mappings)) {
+		if (key !== 'date' && value?.column) {
+			metrics.push({
+				columnName: value.column,
+				metricType: value.metricType || 'custom',
+				name: value.metricType === 'custom' && report ? fileLabel : value.metricType === 'custom' ? `${fileLabel}: ${value.column}` : value.column,
+				unit: 'count',
+				aggregation: value.metricType === 'active_users' || report?.semantics === 'snapshot' ? 'latest' : 'sum',
+				isCumulative: false,
+				dimensions: value.metricType === 'custom' && report ? { [report.dimensionKey]: value.column } : undefined
+			});
+		}
+	}
+	if (metrics.length === 0) return null;
+	return {
+		dateColumn: autoDetect.mappings.date.column,
+		dateFormat: 'YYYY-MM-DD',
+		metrics
+	};
+}
 
 export const load: PageServerLoad = async ({ parent, locals, url }) => {
 	const { project, membershipRole } = await parent();
@@ -46,7 +75,7 @@ export const load: PageServerLoad = async ({ parent, locals, url }) => {
 };
 
 export const actions: Actions = {
-	uploadCsv: async ({ request, params, locals }) => {
+	uploadCsv: async ({ request, params, locals, getClientAddress }) => {
 		const projectId = params.id;
 		if (!locals.user) return fail(401);
 
@@ -65,26 +94,63 @@ export const actions: Actions = {
 			return fail(400, { error: 'Please upload at least one CSV file.' });
 		}
 
-		let reviewCount = 0;
-		let lastDraftId = '';
+		let autoImportedCount = 0;
+		let manualCount = 0;
+		let lastManualDraftId = '';
 		const errors: string[] = [];
+
+		let ip = '127.0.0.1';
+		try { ip = getClientAddress() || '127.0.0.1'; } catch (e) {}
 
 		for (const file of files) {
 			try {
 				const arrayBuffer = await file.arrayBuffer();
 				const buffer = Buffer.from(arrayBuffer);
 
-				// Every file enters a reviewable draft. High-confidence mappings are
-				// preconfigured on the preview page but never committed silently.
-				const draftId = await createImportDraft(
-					locals.user.id,
-					projectId,
-					sourceId,
-					file.name,
-					buffer
+				const parsed = parseCsv(buffer);
+				const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
+				const report = classifyChromeReportFilename(file.name);
+				const hasStandardMetric = Object.values(autoDetect.mappings).some((mapping) =>
+					mapping.metricType !== 'date' && mapping.metricType !== 'custom'
 				);
-				lastDraftId = draftId;
-				reviewCount++;
+				const hasCustomMetric = Object.values(autoDetect.mappings).some((mapping) => mapping.metricType === 'custom');
+
+				const canAutoImport = autoDetect.mappings.date && (report || (hasStandardMetric && !hasCustomMetric) || autoDetect.confidence === 'high');
+
+				if (canAutoImport) {
+					const draftId = await createImportDraft(
+						locals.user.id,
+						projectId,
+						sourceId,
+						file.name,
+						buffer
+					);
+					const mappingConfig = buildMetricsForAutoImport(file.name, autoDetect);
+					if (mappingConfig) {
+						await confirmImportDraft(
+							locals.user.id,
+							locals.user.username,
+							projectId,
+							draftId,
+							mappingConfig,
+							ip
+						);
+						autoImportedCount++;
+					} else {
+						lastManualDraftId = draftId;
+						manualCount++;
+					}
+				} else {
+					const draftId = await createImportDraft(
+						locals.user.id,
+						projectId,
+						sourceId,
+						file.name,
+						buffer
+					);
+					lastManualDraftId = draftId;
+					manualCount++;
+				}
 			} catch (e: any) {
 				errors.push(`File "${file.name}" import failed: ${e.message}`);
 			}
@@ -92,19 +158,76 @@ export const actions: Actions = {
 
 		if (errors.length > 0) {
 			return fail(400, { 
-				error: `Upload partially failed. ${reviewCount} files are ready for review. Errors: ${errors.join('; ')}`
+				error: `Upload partially failed. ${autoImportedCount} files auto-imported, ${manualCount} files pending manual review. Errors: ${errors.join('; ')}`
 			});
 		}
 
-		// Direct redirect to preview if exactly one file requires review.
-		if (reviewCount === 1) {
-			throw redirect(302, `/app/projects/${projectId}/imports/preview?draftId=${lastDraftId}`);
+		// Direct redirect to preview if exactly one file requires manual mapping and none auto-imported.
+		if (manualCount === 1 && autoImportedCount === 0) {
+			throw redirect(302, `/app/projects/${projectId}/imports/preview?draftId=${lastManualDraftId}`);
 		}
 
-		// Otherwise redirect to the review queue.
-		const message = `${reviewCount} files uploaded. Review each detected mapping before importing.`;
+		let message = `${autoImportedCount} files imported successfully.`;
+		if (manualCount > 0) {
+			message += ` ${manualCount} files require manual column mapping (see list below).`;
+		}
 
 		throw redirect(302, `/app/projects/${projectId}/imports?success=${encodeURIComponent(message)}`);
+	},
+
+	confirmAllDrafts: async ({ params, locals, getClientAddress }) => {
+		const projectId = params.id;
+		if (!locals.user) return fail(401);
+		await assertProjectAccess(locals.user.id, projectId, 'editor');
+
+		let ip = '127.0.0.1';
+		try { ip = getClientAddress() || '127.0.0.1'; } catch (e) {}
+
+		const userDrafts = await db.select().from(importDrafts).where(
+			and(eq(importDrafts.projectId, projectId), eq(importDrafts.userId, locals.user.id))
+		);
+
+		if (userDrafts.length === 0) {
+			return fail(400, { error: 'No pending drafts to import.' });
+		}
+
+		const dataDir = process.env.DATA_DIRECTORY || './data';
+		let importedCount = 0;
+		let failedCount = 0;
+
+		for (const draft of userDrafts) {
+			try {
+				const { originalName, fileId } = parseStoredFilename(draft.storedFilename);
+				const draftFilePath = getDraftFilePath(dataDir, fileId);
+				if (!fs.existsSync(draftFilePath)) continue;
+				const buffer = fs.readFileSync(draftFilePath);
+				const parsed = parseCsv(buffer);
+				const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
+
+				if (autoDetect.mappings.date) {
+					const mappingConfig = buildMetricsForAutoImport(originalName, autoDetect);
+					if (mappingConfig) {
+						await confirmImportDraft(
+							locals.user.id,
+							locals.user.username,
+							projectId,
+							draft.id,
+							mappingConfig,
+							ip
+						);
+						importedCount++;
+					} else {
+						failedCount++;
+					}
+				} else {
+					failedCount++;
+				}
+			} catch (e) {
+				failedCount++;
+			}
+		}
+
+		throw redirect(302, `/app/projects/${projectId}/imports?success=${encodeURIComponent(`${importedCount} pending drafts auto-imported successfully.${failedCount > 0 ? ` ${failedCount} drafts require manual mapping.` : ''}`)}`);
 	},
 
 	rollbackBatch: async ({ request, params, locals, getClientAddress }) => {

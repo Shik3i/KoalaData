@@ -189,8 +189,15 @@
 
 				{#if data.drafts.length > 0}
 					<section class="card settings-card warning-card" style="margin-top: 1.5rem; border-color: var(--warning-border);">
-						<h2>Pending Drafts ({data.drafts.length})</h2>
-						<p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">Review the detected date, metrics and aggregation rules before committing each file. Drafts expire after one hour.</p>
+						<div class="flex justify-between align-center" style="margin-bottom: 0.5rem; gap: 0.5rem; flex-wrap: wrap;">
+							<h2 style="margin: 0;">Pending Drafts ({data.drafts.length})</h2>
+							<form method="POST" action="?/confirmAllDrafts" use:enhance>
+								<button type="submit" class="btn btn-primary btn-sm" disabled={loading}>
+									Import All Pending ({data.drafts.length})
+								</button>
+							</form>
+						</div>
+						<p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">Review the detected date, metrics and aggregation rules before committing each file, or click "Import All Pending" to auto-import all detected files. Drafts expire after one hour.</p>
 						<ul class="drafts-list" style="list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: 0.75rem;">
 							{#each data.drafts as draft}
 								<li class="flex justify-between align-center" style="font-size: 0.85rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">

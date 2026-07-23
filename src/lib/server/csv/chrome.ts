@@ -7,7 +7,8 @@ import { CHROME_HEADER_ALIASES } from '$lib/chrome-report-catalog';
 
 // Aliases for Chrome Web Store standard exports
 function normalizeHeader(header: string): string {
-	return header
+	if (!header) return '';
+	return String(header)
 		.normalize('NFKD')
 		.replace(/[\u0300-\u036f]/g, '')
 		.toLowerCase()

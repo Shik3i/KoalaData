@@ -1,6 +1,6 @@
 export const CHROME_HEADER_ALIASES = {
 	date: [
-		'date', 'time', 'date_utc', 'timestamp', 'day', 'datum',
+		'date', 'time', 'date_utc', 'timestamp', 'day', 'datum', 'datum des berichts', 'tag',
 		'date du rapport', 'fecha', 'data', 'giorno', 'datum rapport', 'data raportu', 'tarih',
 		'日付', '날짜', '日期'
 	],
@@ -27,14 +27,14 @@ export const CHROME_HEADER_ALIASES = {
 	],
 	store_page_views: [
 		'store page views', 'page views', 'pageviews', 'store_views', 'store_page_views',
-		'seitenaufrufe', 'store-seitenaufrufe', 'vues de la page de la boutique',
+		'seitenaufrufe', 'store-seitenaufrufe', 'seitenaufrufe im gesamten store', 'seitenaufrufe nach quelle', 'vues de la page de la boutique',
 		'vistas de la pagina de la tienda', 'visualizacoes da pagina da loja',
 		'visualizzazioni pagina dello store', 'winkelpaginaweergaven', 'wyswietlenia strony sklepu',
 		'mağaza sayfası görüntülemeleri', 'magaza sayfasi goruntulemeleri', 'ストア掲載情報のページビュー', '스토어 페이지 조회수', '商店页面浏览量'
 	],
 	store_impressions: [
 		'impressions', 'store impressions', 'store_impressions', 'impressionen', 'store-impressionen',
-		'impressions de la boutique', 'impresiones de la tienda', 'impressoes da loja',
+		'impressionen im gesamten store', 'impressions de la boutique', 'impresiones de la tienda', 'impressoes da loja',
 		'impressioni dello store', 'winkelvertoningen', 'wyswietlenia w sklepie',
 		'mağaza gösterimleri', 'magaza gosterimleri', 'ストアの表示回数', '스토어 노출수', '商店展示次数'
 	]

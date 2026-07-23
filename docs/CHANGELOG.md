@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.5.2 - 2026-07-23
+
+- Restore automatic background CSV import for high-confidence Chrome Web Store exports.
+- Add "Import All Pending" batch action to auto-import all pending draft CSVs in one click.
+- Expand German Chrome Web Store header alias matching for store impressions, store page views, and date fields.
+- Harden CSV parsing pipeline against null/undefined headers and concurrency edge cases.
+
 ## v1.5.1 - 2026-07-23
 
 - Fix vertical alignment of footer dot separators across viewports.
