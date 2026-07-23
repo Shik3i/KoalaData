@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { importBatches, dataSources, metricObservations, importDrafts } from '$lib/server/db/schema';
-import { eq, and, isNull, desc } from 'drizzle-orm';
+import { eq, and, isNull, desc, count } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { createImportDraft, parseStoredFilename } from '$lib/server/csv/pipeline';
 import { logAuditEvent } from '$lib/server/audit';
@@ -8,29 +8,27 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
+import { refreshPublicProjectStats } from '$lib/server/public-project-stats';
 
-export const load: PageServerLoad = async ({ parent, locals }) => {
+const HISTORY_PAGE_SIZE = 50;
+
+export const load: PageServerLoad = async ({ parent, locals, url }) => {
 	const { project, membershipRole } = await parent();
 	if (!locals.user) throw redirect(302, '/login');
+	const requestedPage = Number.parseInt(url.searchParams.get('historyPage') ?? '1', 10);
+	const historyPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
-	// Load data sources to populate the selection box
-	const sources = await db
-		.select()
-		.from(dataSources)
-		.where(eq(dataSources.projectId, project.id));
-
-	// Load import history
-	const history = await db
-		.select()
-		.from(importBatches)
-		.where(eq(importBatches.projectId, project.id))
-		.orderBy(desc(importBatches.createdAt));
-
-	// Load pending drafts for manual mapping
-	const drafts = await db
-		.select()
-		.from(importDrafts)
-		.where(and(eq(importDrafts.projectId, project.id), eq(importDrafts.userId, locals.user.id)));
+	const [sources, history, historyCount, drafts] = await Promise.all([
+		db.select().from(dataSources).where(eq(dataSources.projectId, project.id)),
+		db.select().from(importBatches)
+			.where(eq(importBatches.projectId, project.id))
+			.orderBy(desc(importBatches.createdAt))
+			.limit(HISTORY_PAGE_SIZE)
+			.offset((historyPage - 1) * HISTORY_PAGE_SIZE),
+		db.select({ value: count() }).from(importBatches).where(eq(importBatches.projectId, project.id)),
+		db.select().from(importDrafts)
+			.where(and(eq(importDrafts.projectId, project.id), eq(importDrafts.userId, locals.user.id)))
+	]);
 
 	return {
 		sources,
@@ -41,6 +39,8 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 			rowCount: d.rowCount,
 			createdAt: d.createdAt
 		})),
+		historyPage,
+		historyPages: Math.max(1, Math.ceil(historyCount[0].value / HISTORY_PAGE_SIZE)),
 		membershipRole
 	};
 };
@@ -167,17 +167,22 @@ export const actions: Actions = {
 				}
 			}
 
-			await logAuditEvent(
+				await logAuditEvent(
 				currentUser.id,
 				currentUser.username,
 				'rollback_import_batch',
 				'import_batch',
 				batchId,
 				{},
-				ip
-			);
+					ip
+				);
+				try {
+					await refreshPublicProjectStats([projectId]);
+				} catch (refreshError) {
+					console.error('[Public Stats] Rollback refresh failed:', refreshError);
+				}
 
-			return {
+				return {
 				success: rawFileDeleted
 					? 'Import batch rolled back successfully. Physical files and active database observations have been purged.'
 					: 'Import batch rolled back. Its observations were purged, but the raw file could not be deleted and remains counted toward storage.'

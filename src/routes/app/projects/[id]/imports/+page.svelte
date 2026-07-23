@@ -230,15 +230,23 @@
 									</tr>
 								{/each}
 							</tbody>
-						</table>
-					</div>
-				{/if}
+							</table>
+						</div>
+						{#if data.historyPages > 1}
+							<nav class="history-pagination" aria-label="Import history pages">
+								{#if data.historyPage > 1}<a class="btn btn-secondary btn-sm" href="?historyPage={data.historyPage - 1}">Previous</a>{/if}
+								<span>Page {data.historyPage} of {data.historyPages}</span>
+								{#if data.historyPage < data.historyPages}<a class="btn btn-secondary btn-sm" href="?historyPage={data.historyPage + 1}">Next</a>{/if}
+							</nav>
+						{/if}
+					{/if}
 			</section>
 		</div>
 	</div>
 </div>
 
-<style>
+	<style>
+	.history-pagination { display: flex; align-items: center; justify-content: center; gap: 0.75rem; padding: 1rem; border-top: 1px solid var(--border-color); font-size: 0.8rem; }
 	.col-span-2 {
 		grid-column: span 2;
 	}

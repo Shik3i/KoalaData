@@ -27,7 +27,10 @@ export const sessions = sqliteTable('sessions', {
 	lastUsedAt: integer('last_used_at').notNull(),
 	ipAddress: text('ip_address'),
 	userAgent: text('user_agent')
-});
+}, (table) => ({
+	userIdx: index('idx_sessions_user').on(table.userId),
+	expiresIdx: index('idx_sessions_expires').on(table.expiresAt)
+}));
 
 // System Settings
 export const systemSettings = sqliteTable('system_settings', {
@@ -73,7 +76,26 @@ export const projects = sqliteTable('projects', {
 	deletedAt: integer('deleted_at')
 }, (table) => ({
 	slugIdx: uniqueIndex('idx_projects_slug').on(table.slug),
-	discoverIdx: index('idx_projects_discover').on(table.visibility, table.deletedAt, table.moderationStatus)
+	discoverIdx: index('idx_projects_discover').on(table.visibility, table.deletedAt, table.moderationStatus),
+	ownerIdx: index('idx_projects_owner').on(table.ownerId, table.deletedAt)
+}));
+
+// Precomputed public analytics used by landing, discovery, and leaderboard reads.
+// Raw observations are never scanned in a public page request.
+export const publicProjectStats = sqliteTable('public_project_stats', {
+	projectId: text('project_id').primaryKey().references(() => projects.id, { onDelete: 'cascade' }),
+	activeUsers: real('active_users'),
+	activeUsersDate: text('active_users_date'),
+	installs: real('installs'),
+	installsDate: text('installs_date'),
+	rating: real('rating'),
+	ratingCount: integer('rating_count').notNull().default(0),
+	lastDataDate: text('last_data_date'),
+	growth: real('growth').notNull().default(0),
+	growthPercent: real('growth_percent').notNull().default(0),
+	refreshedAt: integer('refreshed_at').notNull()
+}, (table) => ({
+	growthIdx: index('idx_public_project_stats_growth').on(table.growth)
 }));
 
 // Project Slug Redirects
@@ -91,7 +113,8 @@ export const projectMembers = sqliteTable('project_members', {
 	role: text('role', { enum: ['editor'] }).notNull().default('editor'),
 	createdAt: integer('created_at').notNull()
 }, (table) => ({
-	projUserUnq: uniqueIndex('idx_project_members_unq').on(table.projectId, table.userId)
+	projUserUnq: uniqueIndex('idx_project_members_unq').on(table.projectId, table.userId),
+	userIdx: index('idx_project_members_user').on(table.userId)
 }));
 
 // Data Sources
@@ -169,6 +192,7 @@ export const importBatches = sqliteTable('import_batches', {
 	rawFileDeletedAt: integer('raw_file_deleted_at')
 }, (table) => ({
 	projectCreatedIdx: index('idx_import_batches_project_created').on(table.projectId, table.createdAt),
+	createdIdx: index('idx_import_batches_created').on(table.createdAt),
 	sourceIdx: index('idx_import_batches_source').on(table.sourceId),
 	userStorageIdx: index('idx_import_batches_user_storage').on(table.userId, table.rawFileDeletedAt, table.status)
 }));
@@ -201,11 +225,16 @@ export const auditLogs = sqliteTable('audit_logs', {
 	metadata: text('metadata'), // JSON string
 	ipAddress: text('ip_address'),
 	userAgent: text('user_agent')
-});
+}, (table) => ({
+	timestampIdx: index('idx_audit_logs_timestamp').on(table.timestamp),
+	actorIdx: index('idx_audit_logs_actor').on(table.actorId)
+}));
 
 // Rate Limit Records
 export const rateLimitRecords = sqliteTable('rate_limit_records', {
 	key: text('key').primaryKey(),
 	tokens: real('tokens').notNull(),
 	lastUpdated: integer('last_updated').notNull()
-});
+}, (table) => ({
+	updatedIdx: index('idx_rate_limit_records_updated').on(table.lastUpdated)
+}));

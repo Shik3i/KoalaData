@@ -217,7 +217,6 @@
 			}
 			}
 
-		const hasZoom = dates.length > 14;
 		const hasZoomSlider = dates.length > 30;
 		const legendData = seriesOptions.map((s: any) => s.name);
 		const hasLegend = legendData.length > 1;
@@ -291,13 +290,8 @@
 					}
 				}
 			},
-			dataZoom: hasZoom ? [
+			dataZoom: hasZoomSlider ? [
 				{
-					type: 'inside',
-					start: 0,
-					end: 100
-				},
-				...(hasZoomSlider ? [{
 					type: 'slider',
 					bottom: '1%',
 					height: 14,
@@ -311,7 +305,7 @@
 						color: isDark ? '#a5b2a8' : '#64748b',
 						fontSize: 10
 					}
-				}] : [])
+				}
 			] : undefined,
 			series: seriesOptions
 		};

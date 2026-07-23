@@ -36,6 +36,20 @@
       "when": 1784762759242,
       "tag": "0004_production_readiness_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784768641069,
+      "tag": "0005_materialized_public_stats",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1784768888399,
+      "tag": "0006_request_path_indexes",
+      "breakpoints": true
     }
   ]
 }

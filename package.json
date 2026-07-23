@@ -1,7 +1,7 @@
 {
 	"name": "koaladata",
 	"private": true,
-	"version": "1.4.0",
+	"version": "1.4.7",
 	"type": "module",
 	"homepage": "https://data.koalastuff.net",
 	"repository": {

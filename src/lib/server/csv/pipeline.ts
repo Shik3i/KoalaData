@@ -7,6 +7,7 @@ import { eq, and, isNull, ne, sum, count, lte, inArray } from 'drizzle-orm';
 import { parseCsv } from './parser';
 import { logAuditEvent } from '../audit';
 import { getUserLimits } from '../limits';
+import { refreshPublicProjectStats } from '../public-project-stats';
 
 const DRAFTS_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -562,17 +563,22 @@ export async function confirmImportDraft(
 			}
 		});
 
-		await logAuditEvent(
+			await logAuditEvent(
 			userId,
 			username,
 			'import_csv_success',
 			'import_batch',
 			batchId,
 			{ rowCount: parsed.rows.length, duplicateCount, overlapCount },
-			actorIp
-		);
+				actorIp
+			);
+			try {
+				await refreshPublicProjectStats([projectId]);
+			} catch (refreshError) {
+				console.error('[Public Stats] Import refresh failed:', refreshError);
+			}
 
-		return {
+			return {
 			batchId,
 			rowCount: parsed.rows.length,
 			duplicateCount,

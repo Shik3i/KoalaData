@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import db from './db';
 import { users, projects, dataSources, metricDefinitions, importBatches, metricObservations } from './db/schema';
 import { getLeaderboard } from './growth';
+import { refreshPublicProjectStats } from './public-project-stats';
 import { initDb } from './db/setup';
 import { eq } from 'drizzle-orm';
 
@@ -199,7 +200,8 @@ describe('Growth Leaderboard Rules', () => {
 			{ date: todayStr, value: 150 }
 		]);
 
-		// Execute leaderboard calculation
+		// Materialize write-side summaries, then execute the request-path SELECT.
+		await refreshPublicProjectStats([projectStale.id, projectLowStart.id, projectHighStart.id]);
 		const board = await getLeaderboard();
 
 		// Verification 1: Stale Project must be excluded entirely from the leaderboard

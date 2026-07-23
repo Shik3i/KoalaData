@@ -12,15 +12,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 
-	const ownedProjects = await db
-		.select()
-		.from(projects)
-		.where(and(eq(projects.ownerId, userId), isNull(projects.deletedAt)))
-		.orderBy(projects.name);
-	const memberships = await db
-		.select({ projectId: projectMembers.projectId })
-		.from(projectMembers)
-		.where(eq(projectMembers.userId, userId));
+	const [memberships, recentImports, completedImport, limitState] = await Promise.all([
+		db.select({ projectId: projectMembers.projectId })
+			.from(projectMembers)
+			.where(eq(projectMembers.userId, userId)),
+		db.select()
+			.from(importBatches)
+			.where(eq(importBatches.userId, userId))
+			.orderBy(desc(importBatches.createdAt))
+			.limit(5),
+		db.select({ id: importBatches.id })
+			.from(importBatches)
+			.where(and(eq(importBatches.userId, userId), eq(importBatches.status, 'completed'), isNull(importBatches.revertedAt)))
+			.limit(1),
+		getUserLimits(userId)
+	]);
 	const memberProjectIds = memberships.map((membership) => membership.projectId);
 	const accessCondition = memberProjectIds.length > 0
 		? or(eq(projects.ownerId, userId), inArray(projects.id, memberProjectIds))
@@ -31,29 +37,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.where(and(accessCondition, isNull(projects.deletedAt)))
 		.orderBy(projects.name);
 
-	// Fetch recent imports uploaded by this user
-	const recentImports = await db
-		.select()
-		.from(importBatches)
-		.where(eq(importBatches.userId, userId))
-		.orderBy(desc(importBatches.createdAt))
-		.limit(5);
-	const completedImport = await db
-		.select({ id: importBatches.id })
-		.from(importBatches)
-		.where(and(eq(importBatches.userId, userId), eq(importBatches.status, 'completed'), isNull(importBatches.revertedAt)))
-		.limit(1);
-
 	const projectIds = userProjects.map((project) => project.id);
 	const sources = projectIds.length > 0
 		? await db.select().from(dataSources).where(inArray(dataSources.projectId, projectIds))
 		: [];
+	const ownedProjects = userProjects.filter((project) => project.ownerId === userId);
 	const firstProject = ownedProjects[0] ?? null;
 	const hasCompletedImport = completedImport.length > 0;
 	const hasPublicListing = ownedProjects.some((project) => project.visibility === 'public' && project.moderationStatus === 'active');
 
-	// Fetch storage and limits metrics
-	const { limits, usage } = await getUserLimits(userId);
+	const { limits, usage } = limitState;
 
 	return {
 		user: locals.user,

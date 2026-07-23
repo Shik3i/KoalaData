@@ -40,7 +40,7 @@ test('warm public TTFB stays below 500ms with 50,000 observations', async ({ req
 				metricId,
 				sourceId,
 				index === 0 ? 'active_users' : 'custom',
-				`Performance metric ${index + 1}`,
+				index === 0 ? 'Weekly Users' : `Tägliche Nutzer nach Erweiterungsversion: ${index}.0.0.0`,
 				index === 0 ? 1 : 0,
 				now
 			));
@@ -88,6 +88,8 @@ test('warm public TTFB stays below 500ms with 50,000 observations', async ({ req
 			console.log(`PUBLIC_TTFB_MS ${route} ${samples.join(',')}`);
 			for (const sample of samples) expect(sample).toBeLessThan(500);
 		}
+		const dashboardResponse = await request.get(`/p/${slug}`);
+		expect((await dashboardResponse.body()).byteLength).toBeLessThan(250_000);
 		await testInfo.attach('public-ttfb.json', {
 			body: JSON.stringify({ observations: 50_000, samplesMs: measurements }),
 			contentType: 'application/json'

@@ -1,60 +1,49 @@
 import { db } from '$lib/server/db';
-import { users, projects, importBatches } from '$lib/server/db/schema';
-import { count, eq, and, isNull } from 'drizzle-orm';
-import fs from 'fs';
+import { sql } from 'drizzle-orm';
+import fs from 'fs/promises';
 import path from 'path';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-	// Query total user counts
-	const totalUsersResult = await db.select({ val: count() }).from(users);
-	const activeUsersResult = await db.select({ val: count() }).from(users).where(eq(users.status, 'active'));
-	const pendingUsersResult = await db.select({ val: count() }).from(users).where(eq(users.status, 'pending'));
-	const bannedUsersResult = await db.select({ val: count() }).from(users).where(eq(users.status, 'banned'));
-
-	// Query project counts (excluding soft deleted)
-	const totalProjectsResult = await db.select({ val: count() }).from(projects).where(isNull(projects.deletedAt));
-	const publicProjectsResult = await db
-		.select({ val: count() })
-		.from(projects)
-		.where(and(isNull(projects.deletedAt), eq(projects.visibility, 'public')));
-
-	// Query import counts
-	const totalImportsResult = await db.select({ val: count() }).from(importBatches);
-	const failedImportsResult = await db
-		.select({ val: count() })
-		.from(importBatches)
-		.where(eq(importBatches.status, 'failed'));
+	const [counts] = await db.all<{
+		total_users: number; active_users: number; pending_users: number; banned_users: number;
+		total_projects: number; public_projects: number; total_imports: number; failed_imports: number;
+	}>(sql`
+		SELECT
+			(SELECT COUNT(*) FROM users) AS total_users,
+			(SELECT COUNT(*) FROM users WHERE status = 'active') AS active_users,
+			(SELECT COUNT(*) FROM users WHERE status = 'pending') AS pending_users,
+			(SELECT COUNT(*) FROM users WHERE status = 'banned') AS banned_users,
+			(SELECT COUNT(*) FROM projects WHERE deleted_at IS NULL) AS total_projects,
+			(SELECT COUNT(*) FROM projects WHERE deleted_at IS NULL AND visibility = 'public') AS public_projects,
+			(SELECT COUNT(*) FROM import_batches) AS total_imports,
+			(SELECT COUNT(*) FROM import_batches WHERE status = 'failed') AS failed_imports
+	`);
 
 	// Calculate uploads folder disk usage
 	let diskUsageBytes = 0;
 	try {
 		const uploadDir = process.env.DATA_DIRECTORY || './data';
 		const uploadsPath = path.join(uploadDir, 'uploads');
-		if (fs.existsSync(uploadsPath)) {
-			const files = fs.readdirSync(uploadsPath);
-			for (const file of files) {
-				const filePath = path.join(uploadsPath, file);
-				const stat = fs.statSync(filePath);
-				if (stat.isFile()) {
-					diskUsageBytes += stat.size;
-				}
-			}
-		}
+		const files = await fs.readdir(uploadsPath, { withFileTypes: true });
+		const sizes = await Promise.all(files
+			.filter((file) => file.isFile())
+			.map(async (file) => (await fs.stat(path.join(uploadsPath, file.name))).size));
+		diskUsageBytes = sizes.reduce((sum, size) => sum + size, 0);
 	} catch (e) {
-		console.error('[Admin] Error calculating disk usage:', e);
+		if ((e as NodeJS.ErrnoException).code !== 'ENOENT') console.error('[Admin] Error calculating disk usage:', e);
 	}
 
 	return {
 		stats: {
-			totalUsers: totalUsersResult[0].val,
-			activeUsers: activeUsersResult[0].val,
-			pendingUsers: pendingUsersResult[0].val,
-			bannedUsers: bannedUsersResult[0].val,
-			totalProjects: totalProjectsResult[0].val,
-			publicProjects: publicProjectsResult[0].val,
-			totalImports: totalImportsResult[0].val,
-			failedImports: failedImportsResult[0].val,
+			totalUsers: counts.total_users,
+			activeUsers: counts.active_users,
+			pendingUsers: counts.pending_users,
+			bannedUsers: counts.banned_users,
+			totalProjects: counts.total_projects,
+			publicProjects: counts.public_projects,
+			totalImports: counts.total_imports,
+			failedImports: counts.failed_imports,
 			diskUsageBytes
 		}
 	};

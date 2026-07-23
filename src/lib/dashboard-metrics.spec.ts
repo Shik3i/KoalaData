@@ -18,6 +18,29 @@ describe('dashboard metric semantics', () => {
 		expect(classifyChromeReportFilename('Instalaciones por idioma.csv')).toMatchObject({ id: 'installs-language', semantics: 'flow' });
 		expect(classifyChromeReportFilename('Instalações por sistema operacional.csv')).toMatchObject({ id: 'installs-os', semantics: 'flow' });
 		expect(classifyChromeReportFilename('Użytkownicy tygodniowi według region.csv')).toMatchObject({ id: 'weekly-users-region', semantics: 'snapshot' });
+		expect(classifyChromeReportFilename('Tägliche Nutzer nach Erweiterungsversion.csv')).toMatchObject({ id: 'users-version', semantics: 'snapshot' });
+	});
+
+	it('groups every extension version into one snapshot breakdown', () => {
+		const groups = buildBreakdownGroups([
+			{
+				sourceId: 'source', sourceName: 'CWS', metricId: 'v1', metricType: 'custom',
+				name: 'Tägliche Nutzer nach Erweiterungsversion: 2.5.0.0', aggregation: 'sum',
+				observations: [{ date: '2026-07-20', value: 624 }]
+			},
+			{
+				sourceId: 'source', sourceName: 'CWS', metricId: 'v2', metricType: 'custom',
+				name: 'Tägliche Nutzer nach Erweiterungsversion: 2.5.4.0', aggregation: 'sum',
+				observations: [{ date: '2026-07-20', value: 1767 }]
+			}
+		]);
+
+		expect(groups).toHaveLength(1);
+		expect(groups[0]).toMatchObject({ id: 'users-version', title: 'Users by Extension Version' });
+		expect(calculateBreakdownRows(groups[0], 90).map((row) => [row.name, row.value])).toEqual([
+			['2.5.4.0', 1767],
+			['2.5.0.0', 624]
+		]);
 	});
 
 	it('groups legacy metric definitions without dropping a series', () => {

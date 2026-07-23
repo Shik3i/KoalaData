@@ -72,13 +72,21 @@
 							</tr>
 						{/each}
 					</tbody>
-				</table>
-			</div>
-		{/if}
+					</table>
+				</div>
+				{#if data.pages > 1}
+					<nav class="uploads-pagination" aria-label="Upload pages">
+						{#if data.page > 1}<a class="btn btn-secondary btn-sm" href="?page={data.page - 1}">Previous</a>{/if}
+						<span>Page {data.page} of {data.pages}</span>
+						{#if data.page < data.pages}<a class="btn btn-secondary btn-sm" href="?page={data.page + 1}">Next</a>{/if}
+					</nav>
+				{/if}
+			{/if}
 	</div>
 </div>
 
-<style>
+	<style>
+	.uploads-pagination { display: flex; align-items: center; justify-content: center; gap: 0.75rem; padding: 1rem; border-top: 1px solid var(--border-color); font-size: 0.8rem; }
 	.page-title {
 		margin-bottom: 0.25rem;
 	}

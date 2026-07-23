@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.7 - 2026-07-23
+
+- Consolidate localized extension-version reports into one breakdown instead of rendering one graph per version.
+- Remove touchpad wheel capture from charts while retaining an explicit range slider for long series.
+- Materialize public project summaries in SQLite so landing, discovery, and leaderboard requests never scan raw observations.
+- Bound dashboard snapshot payloads before windowing and paginate growing import histories.
+- Remove unused landing-page data, per-request package reads, serial admin queries, and synchronous admin filesystem work.
+- Add request-path indexes and performance regressions for large public datasets.
+
 ## v1.4.6 - 2026-07-23
 
 - Prevent cancelled enhanced forms from submitting destructive project, source, ownership, or rollback actions.

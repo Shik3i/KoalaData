@@ -1,11 +1,14 @@
 import { db } from '$lib/server/db';
 import { importBatches, users, projects } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { count, desc, eq } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	// Fetch all imports in the system, joined with user and project details
-	const list = await db
+const PAGE_SIZE = 100;
+
+export const load: PageServerLoad = async ({ url }) => {
+	const requestedPage = Number.parseInt(url.searchParams.get('page') ?? '1', 10);
+	const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+	const [list, total] = await Promise.all([db
 		.select({
 			id: importBatches.id,
 			originalFilename: importBatches.originalFilename,
@@ -24,9 +27,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.from(importBatches)
 		.innerJoin(users, eq(importBatches.userId, users.id))
 		.innerJoin(projects, eq(importBatches.projectId, projects.id))
-		.orderBy(importBatches.createdAt);
+		.orderBy(desc(importBatches.createdAt))
+		.limit(PAGE_SIZE)
+		.offset((page - 1) * PAGE_SIZE),
+		db.select({ value: count() }).from(importBatches)
+	]);
 
 	return {
-		imports: list
+		imports: list,
+		page,
+		pages: Math.max(1, Math.ceil(total[0].value / PAGE_SIZE))
 	};
 };
