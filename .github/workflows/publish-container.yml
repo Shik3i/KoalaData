@@ -12,6 +12,7 @@ on:
         type: string
 
 permissions:
+  # Container-only publication. This workflow must never create GitHub Releases.
   contents: read
   packages: write
 

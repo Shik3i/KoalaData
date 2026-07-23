@@ -26,6 +26,9 @@ jobs:
       - name: Check Formatting
         run: git diff --check
 
+      - name: Enforce container-only publishing policy
+        run: npm run check:release-policy
+
       - name: Svelte and TypeScript Check
         run: npm run check
 

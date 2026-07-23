@@ -1,7 +1,7 @@
 {
 	"name": "koaladata",
 	"private": true,
-	"version": "1.4.8",
+	"version": "1.4.9",
 	"type": "module",
 	"homepage": "https://data.koalastuff.net",
 	"repository": {
@@ -22,6 +22,7 @@
 		"test:e2e": "playwright test",
 		"test:quality": "playwright test src/routes/ui-quality.e2e.ts",
 		"check:lighthouse": "node scripts/check-lighthouse.mjs",
+		"check:release-policy": "node scripts/check-release-policy.mjs",
 		"backup:verify": "node scripts/verify-backup.mjs",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:unit": "vitest --no-file-parallelism",

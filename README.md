@@ -1,7 +1,6 @@
 <h1><img src="assets/brand/koaladata-icon-source.png" alt="KoalaData mascot" width="48" height="48" /> KoalaData</h1>
 
 [![CI](https://github.com/Shik3i/KoalaData/actions/workflows/ci.yml/badge.svg)](https://github.com/Shik3i/KoalaData/actions/workflows/ci.yml)
-[![Latest release](https://img.shields.io/github/v/release/Shik3i/KoalaData?display_name=tag&sort=semver)](https://github.com/Shik3i/KoalaData/releases/latest)
 [![Container](https://img.shields.io/badge/GHCR-koaladata-2496ED?logo=docker&logoColor=white)](https://github.com/Shik3i/KoalaData/pkgs/container/koaladata)
 [![Support KoalaData](https://img.shields.io/badge/Ko--fi-Support%20KoalaData-FF5E5B?logo=ko-fi&logoColor=white)](https://support.koalastuff.net)
 [![Security policy](https://img.shields.io/badge/security-policy-2d6645)](SECURITY.md)
@@ -77,13 +76,13 @@ Open [http://localhost:3000](http://localhost:3000). The seeded administrator mu
 
 ### Published container
 
-Versioned images and `latest` are published to GitHub Container Registry:
+Versioned images and `latest` are published to GitHub Container Registry. Semantic Git tags trigger `.github/workflows/publish-container.yml`; they publish only container images. KoalaData does not use GitHub Releases or distribute application/source archives as release assets.
 
 ```bash
 docker pull ghcr.io/shik3i/koaladata:latest
 ```
 
-Use an immutable release tag instead of `latest` for production deployments:
+Use an immutable container tag instead of `latest` for production deployments:
 
 ```bash
 docker pull ghcr.io/shik3i/koaladata:vX.Y.Z

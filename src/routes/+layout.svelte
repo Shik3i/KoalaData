@@ -14,7 +14,6 @@
 
 	// Resolve the active user from data
 	let user = $derived(data.user);
-	let releaseVersion = $derived(/^\d+\.\d+\.\d+$/.test(data.version) ? data.version : null);
 
 	// Theme handling state
 	let currentTheme = $state('auto');
@@ -180,11 +179,7 @@
 				<span>•</span>
 				<a href="/privacy">Privacy</a>
 				<span>•</span>
-				{#if releaseVersion}
-					<a href={`https://github.com/Shik3i/KoalaData/releases/tag/v${releaseVersion}`} target="_blank" rel="noopener noreferrer">GitHub v{releaseVersion}</a>
-				{:else}
-					<a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">GitHub</a>
-				{/if}
+				<a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">GitHub</a>
 				<span>•</span>
 				<a href="https://support.koalastuff.net" target="_blank" rel="noopener noreferrer" class="support-link"><span aria-hidden="true">♥</span> Support KoalaData</a>
 			</div>

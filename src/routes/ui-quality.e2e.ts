@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 
 const publicRoutes = ['/', '/discover', '/leaderboards', '/login', '/register', '/privacy', '/terms', '/security'];
 
-test('homepage presents a balanced FAQ and a compact versioned footer', async ({ page }) => {
+test('homepage presents a balanced FAQ and links its footer to the repository', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.locator('.faq-grid details')).toHaveCount(6);
 	await expect(page.getByText('Are publisher links dofollow?')).toBeVisible();
@@ -12,8 +12,10 @@ test('homepage presents a balanced FAQ and a compact versioned footer', async ({
 		'href',
 		'https://support.koalastuff.net'
 	);
-	const releaseLink = page.locator('.main-footer a', { hasText: /^GitHub v\d+\.\d+\.\d+$/ });
-	await expect(releaseLink).toHaveAttribute('href', /\/releases\/tag\/v\d+\.\d+\.\d+$/);
+	await expect(page.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute(
+		'href',
+		'https://github.com/Shik3i/KoalaData'
+	);
 	await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /\/og-koaladata\.png$/);
 	await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute('content', '1200');
 	await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute('content', '630');

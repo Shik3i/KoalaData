@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.9 - 2026-07-23
+
+- Publish releases exclusively as GHCR container images and link the site footer directly to the GitHub repository.
+- Remove empty rating placeholders from project cards, label unavailable leaderboard ratings clearly, and trim charts to their first populated datapoint.
+- Add CI policy enforcement that rejects GitHub Release creation from the container workflow.
+
 ## v1.4.8 - 2026-07-23
 
 - Replace raw dashboard breakdown histories with server-side summaries for the supported 7, 30, 90, and 365-day periods.
@@ -126,9 +132,9 @@
 
 ## v1.0.3 - 2026-07-20
 
-### Release hardening
+### Container publishing hardening
 
-- Granted the tag workflow the GitHub contents permission required to publish releases.
+- Restricted the tag workflow to the permissions required to publish container images.
 - Increased the Playwright production-server startup budget for slower CI runners.
 - Raised light-theme link contrast for data-populated cards to meet WCAG AA.
 

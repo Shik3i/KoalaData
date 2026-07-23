@@ -110,7 +110,7 @@
 							<td>
 								<strong>{formatNumber(project.installs)}</strong>
 							</td>
-							<td><strong aria-label={project.rating === null ? 'No rating data' : `${project.rating.toFixed(1)} out of 5 stars`}>{project.rating === null ? '—' : `★ ${project.rating.toFixed(1)}`}</strong></td>
+							<td><strong aria-label={project.rating === null ? 'No rating data' : `${project.rating.toFixed(1)} out of 5 stars`}>{project.rating === null ? 'No data' : `★ ${project.rating.toFixed(1)}`}</strong></td>
 								<td>
 									<span class="growth-text {project.growth >= 0 ? 'growth-up' : 'growth-down'}">
 										{project.growth >= 0 ? '+' : ''}{formatNumber(project.growth)}
