@@ -43,8 +43,11 @@
 			use:enhance={() => {
 				loading = true;
 				return async ({ update }) => {
-					loading = false;
-					update();
+					try {
+						await update();
+					} finally {
+						loading = false;
+					}
 				};
 			}}
 		>

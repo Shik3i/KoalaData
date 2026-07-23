@@ -12,8 +12,8 @@ import { refreshAllPublicProjectStats } from '$lib/server/public-project-stats';
 const PUBLIC_DATA_REFRESH_MS = 60 * 60 * 1000;
 
 async function refreshPublicData() {
-	await refreshLeaderboardCache();
 	await refreshAllPublicProjectStats();
+	await refreshLeaderboardCache();
 }
 
 async function cleanupExpiredLimiters() {

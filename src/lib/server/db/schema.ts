@@ -104,7 +104,9 @@ export const dataSources = sqliteTable('data_sources', {
 	granularity: text('granularity', { enum: ['daily', 'weekly', 'monthly', 'irregular'] }).notNull(),
 	createdAt: integer('created_at').notNull(),
 	updatedAt: integer('updated_at').notNull()
-});
+}, (table) => ({
+	projectIdx: index('idx_data_sources_project').on(table.projectId)
+}));
 
 // Metric Definitions
 export const metricDefinitions = sqliteTable('metric_definitions', {
@@ -134,7 +136,10 @@ export const importDrafts = sqliteTable('import_drafts', {
 	rowCount: integer('row_count').notNull(),
 	createdAt: integer('created_at').notNull(),
 	expiresAt: integer('expires_at').notNull()
-});
+}, (table) => ({
+	projectUserIdx: index('idx_import_drafts_project_user').on(table.projectId, table.userId),
+	expiresIdx: index('idx_import_drafts_expires').on(table.expiresAt)
+}));
 
 // Import Batches
 export const importBatches = sqliteTable('import_batches', {
@@ -162,7 +167,11 @@ export const importBatches = sqliteTable('import_batches', {
 	duplicateCount: integer('duplicate_count').notNull().default(0),
 	overlapCount: integer('overlap_count').notNull().default(0),
 	rawFileDeletedAt: integer('raw_file_deleted_at')
-});
+}, (table) => ({
+	projectCreatedIdx: index('idx_import_batches_project_created').on(table.projectId, table.createdAt),
+	sourceIdx: index('idx_import_batches_source').on(table.sourceId),
+	userStorageIdx: index('idx_import_batches_user_storage').on(table.userId, table.rawFileDeletedAt, table.status)
+}));
 
 // Metric Observations
 export const metricObservations = sqliteTable('metric_observations', {
@@ -176,7 +185,8 @@ export const metricObservations = sqliteTable('metric_observations', {
 	createdAt: integer('created_at').notNull()
 }, (table) => ({
 	batchMetricDateDimUnq: uniqueIndex('idx_obs_batch_metric_date_dim').on(table.importBatchId, table.metricId, table.date, table.dimensions),
-	lookupIdx: index('idx_obs_lookup').on(table.sourceId, table.metricId, table.date)
+	lookupIdx: index('idx_obs_lookup').on(table.sourceId, table.metricId, table.date),
+	metricDateIdx: index('idx_obs_metric_date').on(table.metricId, table.date)
 }));
 
 // Audit Logs

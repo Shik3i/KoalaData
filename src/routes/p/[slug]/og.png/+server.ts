@@ -1,12 +1,13 @@
 import { db } from '$lib/server/db';
 import { projects } from '$lib/server/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
+import { assertProjectAccess } from '$lib/server/permissions';
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import fs from 'fs';
 import path from 'path';
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	const slug = params.slug;
 
 	// Verify that the project actually exists and is active
@@ -19,6 +20,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	if (projectRecord.length === 0) {
 		throw error(404, 'Project not found.');
 	}
+	await assertProjectAccess(locals.user?.id ?? null, projectRecord[0].id, 'viewer');
 
 	// Load the actual binary PNG fallback card
 	const pngPath = path.resolve('static/og-koaladata.png');

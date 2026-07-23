@@ -143,6 +143,9 @@ export const actions: Actions = {
 					? 'latest'
 					: requestedAggregation;
 				const isCumulative = data.get(`cum_col_${i}`) === 'true';
+				if (!['active_users', 'installs', 'uninstalls', 'net_growth', 'store_impressions', 'store_page_views', 'downloads', 'custom'].includes(metricType)) {
+					return fail(400, { error: `Invalid metric type for column "${colName}".` });
+				}
 				if (!['latest', 'sum', 'average', 'minimum', 'maximum'].includes(aggregation)) {
 					return fail(400, { error: `Invalid aggregation for column "${colName}".` });
 				}

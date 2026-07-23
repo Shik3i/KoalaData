@@ -1,10 +1,13 @@
 import { defineConfig } from '@playwright/test';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const testRoot = mkdtempSync(join(tmpdir(), 'koaladata-playwright-'));
+const testRoot = process.env.KOALADATA_PLAYWRIGHT_ROOT || mkdtempSync(join(tmpdir(), 'koaladata-playwright-'));
+mkdirSync(testRoot, { recursive: true });
 process.env.KOALADATA_PLAYWRIGHT_ROOT = testRoot;
+process.env.DATABASE_PATH = join(testRoot, 'test.db');
+process.env.DATA_DIRECTORY = join(testRoot, 'data');
 
 export default defineConfig({
 	use: {
@@ -15,8 +18,8 @@ export default defineConfig({
 		url: 'http://127.0.0.1:4173/api/health',
 		timeout: 180_000,
 		env: {
-			DATABASE_PATH: join(testRoot, 'test.db'),
-			DATA_DIRECTORY: join(testRoot, 'data'),
+			DATABASE_PATH: process.env.DATABASE_PATH,
+			DATA_DIRECTORY: process.env.DATA_DIRECTORY,
 			DISABLE_RATE_LIMIT: 'true',
 			NODE_ENV: 'test',
 			PORT: '4173',

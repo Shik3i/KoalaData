@@ -57,11 +57,14 @@
 									<form 
 										action="?/deleteSource" 
 										method="POST" 
-										use:enhance={() => {
+										use:enhance={({ cancel }) => {
 											const ok = confirm('Delete this unused data source? Sources with imports or metrics are protected from deletion.');
-											if (!ok) return;
+											if (!ok) {
+												cancel();
+												return;
+											}
 											return async ({ update }) => {
-												update();
+												await update();
 											};
 										}}
 									>
@@ -81,18 +84,21 @@
 			{#if isEditorOrAbove}
 				<section class="card settings-card">
 					<h2>Add Data Source</h2>
-					<p class="text-muted">Add a data source to categorize incoming CSV charts.</p>
-					<hr class="divider" />
-					<form 
-						action="?/addSource" 
-						method="POST" 
-						use:enhance={() => {
-							loading = true;
-							return async ({ update }) => {
-								loading = false;
-								update();
-							};
-						}}
+						<p class="text-muted">Add a data source to categorize incoming CSV charts.</p>
+						<hr class="divider" />
+						<form
+							action="?/addSource"
+							method="POST"
+							use:enhance={() => {
+								loading = true;
+								return async ({ update }) => {
+									try {
+										await update();
+									} finally {
+										loading = false;
+									}
+								};
+							}}
 					>
 						<div class="form-group">
 							<label for="name">Source Name</label>

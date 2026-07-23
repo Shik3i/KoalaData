@@ -96,7 +96,7 @@ docker pull ghcr.io/shik3i/koaladata:vX.Y.Z
 | `ORIGIN` | Public application origin used by SvelteKit security checks | `http://localhost:3000` |
 | `PORT` | Node.js listen port | `3000` |
 | `DATA_DIRECTORY` | Private uploads and project assets | `/data` in Compose |
-| `DATABASE_PATH` | SQLite database file | `/data/koaladata.db` in `.env.example` |
+| `DATABASE_PATH` | SQLite database file | `/data/data.db` in `.env.example` |
 | `BACKUP_DIRECTORY` | Destination for managed SQLite backups | `/backups` in Compose |
 | `KOALADATA_ADMIN_USERNAME` | Initial administrator username | `admin` |
 | `KOALADATA_ADMIN_PASSWORD` | Required initial production password | none |

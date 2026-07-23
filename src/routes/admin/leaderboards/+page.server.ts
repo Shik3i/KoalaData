@@ -34,13 +34,21 @@ export const actions: Actions = {
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
-		await db
+		const updated = await db
 			.update(projects)
 			.set({
 				leaderboardStatus: 'approved',
 				updatedAt: Math.floor(Date.now() / 1000)
 			})
-			.where(eq(projects.id, projectId));
+			.where(and(
+				eq(projects.id, projectId),
+				eq(projects.visibility, 'public'),
+				eq(projects.leaderboardOptIn, 1),
+				eq(projects.moderationStatus, 'active'),
+				isNull(projects.deletedAt)
+			))
+			.returning({ id: projects.id });
+		if (updated.length === 0) return fail(409, { error: 'Project is not eligible for leaderboard approval.' });
 
 		await logAuditEvent(
 			locals.user.id,
@@ -70,13 +78,15 @@ export const actions: Actions = {
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
-		await db
+		const updated = await db
 			.update(projects)
 			.set({
 				leaderboardStatus: 'rejected',
 				updatedAt: Math.floor(Date.now() / 1000)
 			})
-			.where(eq(projects.id, projectId));
+			.where(and(eq(projects.id, projectId), eq(projects.leaderboardOptIn, 1), isNull(projects.deletedAt)))
+			.returning({ id: projects.id });
+		if (updated.length === 0) return fail(404, { error: 'Leaderboard request not found.' });
 
 		await logAuditEvent(
 			locals.user.id,

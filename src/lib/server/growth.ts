@@ -178,6 +178,7 @@ async function computeLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 		let growth = 0;
 		let growthPercent = 0;
 		let hasValidData = false;
+		const validDataDates: string[] = [];
 
 		// Process active_users
 		const activeObs = group.activeUsersObs;
@@ -189,10 +190,11 @@ async function computeLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 			const diffStaleMs = nowTime - latestDate.getTime();
 			const diffStaleDays = diffStaleMs / (1000 * 60 * 60 * 24);
 
-			if (diffStaleDays <= STALENESS_CUTOFF_DAYS) {
+			if (diffStaleDays >= 0 && diffStaleDays <= STALENESS_CUTOFF_DAYS) {
 				const latestVal = latestObs.value;
 				activeUsers = latestVal;
 				hasValidData = true;
+				validDataDates.push(latestObs.date);
 
 				// Locate observation close to 30 days prior (tolerating irregular reporting intervals)
 				let pastVal = activeObs[0].value;
@@ -221,16 +223,18 @@ async function computeLeaderboard(): Promise<ProjectLeaderboardItem[]> {
 		// Process installs
 		const instObs = group.installsObs;
 		if (instObs.length > 0) {
-			installs = instObs[instObs.length - 1].value;
-			hasValidData = true;
+			const latestInstall = instObs[instObs.length - 1];
+			const installAgeDays = (nowTime - new Date(latestInstall.date).getTime()) / (1000 * 60 * 60 * 24);
+			if (installAgeDays >= 0 && installAgeDays <= STALENESS_CUTOFF_DAYS) {
+				installs = latestInstall.value;
+				hasValidData = true;
+				validDataDates.push(latestInstall.date);
+			}
 		}
 
 		if (hasValidData) {
 			const stats = projectStats.get(projectId)!;
-			const lastDataDate = [...activeObs, ...instObs]
-				.map((observation) => observation.date)
-				.sort()
-				.at(-1)!;
+			const lastDataDate = validDataDates.sort().at(-1)!;
 			items.push({
 				projectId,
 				name: group.name,

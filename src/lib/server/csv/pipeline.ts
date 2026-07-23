@@ -38,6 +38,7 @@ export function parseNumericValue(val: string): number {
 	const raw = String(val).trim();
 	const negative = /^\(.*\)$/.test(raw);
 	let cleaned = raw.replace(/[()\s\u00a0']/g, '').replace(/[^0-9,.-]/g, '');
+	if (!/[0-9]/.test(cleaned)) throw new Error(`Invalid number: ${val}`);
 	const commaPositions = [...cleaned.matchAll(/,/g)].map((match) => match.index ?? -1);
 	const dotPositions = [...cleaned.matchAll(/\./g)].map((match) => match.index ?? -1);
 
@@ -56,7 +57,7 @@ export function parseNumericValue(val: string): number {
 	}
 
 	const parsed = Number(cleaned);
-	if (isNaN(parsed)) {
+	if (!Number.isFinite(parsed)) {
 		throw new Error(`Invalid number: ${val}`);
 	}
 	return negative ? -Math.abs(parsed) : parsed;
@@ -306,6 +307,10 @@ export async function confirmImportDraft(
 	if (metricMappings.length === 0) {
 		throw new Error('At least one valid numeric metric column must be mapped.');
 	}
+	const mappingKeys = metricMappings.map((metric) => `${metric.metricType}\u0000${metric.name}\u0000${metric.dimensions}`);
+	if (new Set(mappingKeys).size !== mappingKeys.length) {
+		throw new Error('Multiple CSV columns map to the same metric and dimensions. Use distinct mappings.');
+	}
 
 	// 2. Setup final storage file path
 	const uploadsDir = path.join(dataDir, 'uploads');
@@ -518,6 +523,9 @@ export async function confirmImportDraft(
 					errorCount++;
 					warningCount++;
 				}
+			}
+			if (observationRows.length === 0) {
+				throw new Error('The CSV did not contain any valid observations for the selected mapping.');
 			}
 
 			// Write the import batch record

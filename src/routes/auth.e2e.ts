@@ -20,10 +20,15 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 			console.log('E2E PAGE LOG:', text);
 		});
 
-		// Auto-accept all browser confirm/alert dialogs (like rollback confirmation)
+		let dismissNextDialog = false;
 		page.on('dialog', async dialog => {
 			console.log('E2E DIALOG:', dialog.type(), dialog.message());
-			await dialog.accept();
+			if (dismissNextDialog) {
+				dismissNextDialog = false;
+				await dialog.dismiss();
+			} else {
+				await dialog.accept();
+			}
 		});
 		const serverErrors: string[] = [];
 		page.on('response', (response) => {
@@ -150,6 +155,7 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		// better-sqlite3 transaction used by the project settings action.
 		await page.click('a.tab-link[href$="/settings"]');
 		await page.waitForURL('/app/projects/*/settings');
+		await page.setViewportSize({ width: 320, height: 900 });
 		const infoTrigger = page.getByRole('button', { name: 'More information' }).first();
 		await infoTrigger.hover();
 		const tooltip = page.getByRole('tooltip');
@@ -163,17 +169,31 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 			expect(tooltipBox.x + tooltipBox.width).toBeLessThanOrEqual(viewport.width);
 			expect(tooltipBox.y + tooltipBox.height).toBeLessThanOrEqual(viewport.height);
 		}
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.selectOption('select[name="category"]', 'privacy');
 		await page.selectOption('select[name="pricingModel"]', 'free');
+		await page.fill('input[name="websiteUrl"]', 'https://example.com/e2e-extension');
 		await page.fill('input[name="repositoryUrl"]', 'https://github.com/example/e2e-extension');
+		await page.fill('input[name="storeUrl"]', 'https://chromewebstore.google.com/detail/example/abcdefghijklmnopabcdefghijklmnop');
 		await page.check('input[name="isOpenSource"]');
 		await page.locator('form[action="?/updateSettings"] button[type="submit"]').click();
 		await expect(page.locator('.alert-success')).toContainText('General settings updated.');
 		await expect(page.locator('input[name="name"]')).toHaveValue(projectName);
 		await expect(page.locator('input[name="shortDescription"]')).toHaveValue('E2E test description of this browser extension dashboard.');
 		await expect(page.locator('textarea[name="fullDescription"]')).toHaveValue('Detailed long description of metrics and compatibility guidelines.');
+		await expect(page.locator('select[name="category"]')).toHaveValue('privacy');
+		await expect(page.locator('input[name="websiteUrl"]')).toHaveValue('https://example.com/e2e-extension');
 		await expect(page.locator('input[name="repositoryUrl"]')).toHaveValue('https://github.com/example/e2e-extension');
+		await expect(page.locator('input[name="storeUrl"]')).toHaveValue('https://chromewebstore.google.com/detail/example/abcdefghijklmnopabcdefghijklmnop');
 		await expect(page.locator('select[name="pricingModel"]')).toHaveValue('free');
 		await expect(page.locator('input[name="isOpenSource"]')).toBeChecked();
+
+		// Cancelling a destructive enhanced form must not fall through to a POST.
+		dismissNextDialog = true;
+		await page.locator('form[action="?/deleteProject"] button[type="submit"]').click();
+		await expect(page).toHaveURL(/\/app\/projects\/[^/]+\/settings$/);
+		await expect(page.locator('input[name="name"]')).toHaveValue(projectName);
 
 		// 6. DATA SOURCE CREATION
 		console.log('--- ALL LINKS ON PROJECT OVERVIEW ---');
@@ -283,6 +303,8 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 
 		// 11. PRIVATE PROJECT DENIAL
 		await context.clearCookies(); // Log out
+		const privateOg = await page.goto(`/p/${projectSlug}/og.png`);
+		expect(privateOg?.status()).toBe(404);
 		await page.goto(`/p/${projectSlug}`);
 		// Private project returns 404
 		await expect(page.locator('body')).toContainText('Project not found');
@@ -323,6 +345,12 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.click('button[type="submit"]');
 		await page.waitForURL('/app');
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
+
+		// Complete the separate public-listing review before leaderboard approval.
+		await page.goto('/admin/projects');
+		const moderationRow = page.locator('tr', { hasText: projectName });
+		await moderationRow.locator('select[name="moderationStatus"]').selectOption('active');
+		await expect(page.locator('.alert-success')).toContainText('moderation status updated');
 
 		// Go to admin leaderboard page and approve
 		await page.goto('/admin/leaderboards');

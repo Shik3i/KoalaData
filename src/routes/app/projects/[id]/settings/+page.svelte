@@ -194,8 +194,11 @@
 						use:enhance={() => {
 							loading = true;
 							return async ({ update }) => {
-								loading = false;
-								update();
+								try {
+									await update();
+								} finally {
+									loading = false;
+								}
 							};
 						}}
 						class="logo-upload-form"
@@ -292,11 +295,14 @@
 					<form 
 						action="?/deleteProject" 
 						method="POST" 
-						use:enhance={() => {
+						use:enhance={({ cancel }) => {
 							const ok = confirm('WARNING: Are you sure you want to delete this project? This will hide the dashboard.');
-							if (!ok) return;
+							if (!ok) {
+								cancel();
+								return;
+							}
 							return async ({ update }) => {
-								update();
+								await update();
 							};
 						}}
 					>

@@ -66,8 +66,11 @@
 							use:enhance={() => {
 								loading = true;
 								return async ({ update }) => {
-									loading = false;
-									update();
+									try {
+										await update();
+									} finally {
+										loading = false;
+									}
 								};
 							}}
 						>
@@ -203,12 +206,15 @@
 													<form 
 														action="?/rollbackBatch" 
 														method="POST" 
-														use:enhance={() => {
-													const ok = confirm('Revert this import? Its observations will be excluded from active metrics while the audit record is preserved.');
-															if (!ok) return;
-															return async ({ update }) => {
-																update();
-															};
+													use:enhance={({ cancel }) => {
+														const ok = confirm('Revert this import? Its observations will be excluded from active metrics while the audit record is preserved.');
+														if (!ok) {
+															cancel();
+															return;
+														}
+														return async ({ update }) => {
+															await update();
+														};
 														}}
 													>
 														<input type="hidden" name="batchId" value={batch.id} />

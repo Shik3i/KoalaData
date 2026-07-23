@@ -83,8 +83,11 @@
 						use:enhance={() => {
 							loading = true;
 							return async ({ update }) => {
-								loading = false;
-								update();
+								try {
+									await update();
+								} finally {
+									loading = false;
+								}
 							};
 						}}
 					>
@@ -113,16 +116,23 @@
 					<form 
 						action="?/transferOwnership" 
 						method="POST" 
-						use:enhance={() => {
+						use:enhance={({ cancel }) => {
 							const ok = confirm('WARNING: Are you sure you want to transfer ownership of this project? This action is immediate.');
-							if (!ok) return;
+							if (!ok) {
+								cancel();
+								return;
+							}
 							loading = true;
 							return async ({ update }) => {
-								loading = false;
-								update();
+								try {
+									await update();
+								} finally {
+									loading = false;
+								}
 							};
 						}}
 					>
+						<input type="hidden" name="expectedOwnerId" value={data.project.ownerId} />
 						<div class="form-group">
 							<label for="newOwnerUsername">New Owner's Username</label>
 							<input 

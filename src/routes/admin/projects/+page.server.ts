@@ -45,7 +45,7 @@ export const actions: Actions = {
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
-		await db
+		const updated = await db
 			.update(projects)
 			.set({
 				moderationStatus,
@@ -54,7 +54,9 @@ export const actions: Actions = {
 				moderatedBy: locals.user.id,
 				updatedAt: Math.floor(Date.now() / 1000)
 			})
-			.where(eq(projects.id, projectId));
+			.where(eq(projects.id, projectId))
+			.returning({ id: projects.id });
+		if (updated.length === 0) return fail(404, { error: 'Project not found.' });
 
 		await logAuditEvent(
 			locals.user.id,
@@ -86,13 +88,15 @@ export const actions: Actions = {
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
-		await db
+		const updated = await db
 			.update(projects)
 			.set({
 				verificationStatus,
 				updatedAt: Math.floor(Date.now() / 1000)
 			})
-			.where(eq(projects.id, projectId));
+			.where(eq(projects.id, projectId))
+			.returning({ id: projects.id });
+		if (updated.length === 0) return fail(404, { error: 'Project not found.' });
 
 		await logAuditEvent(
 			locals.user.id,

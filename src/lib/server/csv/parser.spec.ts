@@ -57,4 +57,10 @@ describe('CSV Parser', () => {
 		const binaryData = Buffer.from([0x64, 0x61, 0x74, 0x65, 0x00, 0x01, 0x02]);
 		expect(() => parseCsv(binaryData)).toThrow('Binary file content detected');
 	});
+
+	it('rejects empty, header-only, and duplicate-header files', () => {
+		expect(() => parseCsv(Buffer.alloc(0))).toThrow('CSV file is empty');
+		expect(() => parseCsv(Buffer.from('date,value\n'))).toThrow('header but no data rows');
+		expect(() => parseCsv(Buffer.from('date,value,VALUE\n2026-07-22,1,2\n'))).toThrow('duplicate column headers');
+	});
 });

@@ -95,6 +95,12 @@ export function parseCsv(buffer: Buffer): ParsedCsv {
 			headers = records[1].map((h) => h.trim());
 			rows = records.slice(2);
 		}
+		if (rows.length === 0) throw new Error('CSV file contains a header but no data rows.');
+		if (headers.some((header) => header.length === 0)) throw new Error('CSV contains an empty column header.');
+		const normalizedHeaders = headers.map((header) => header.toLocaleLowerCase());
+		if (new Set(normalizedHeaders).size !== normalizedHeaders.length) {
+			throw new Error('CSV contains duplicate column headers. Rename them before importing.');
+		}
 
 		return {
 			delimiter,

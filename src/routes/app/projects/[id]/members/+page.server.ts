@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { projectMembers, projects, users } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { logAuditEvent } from '$lib/server/audit';
 import { isSqliteUniqueConstraint } from '$lib/server/db/errors';
@@ -155,10 +155,12 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const newOwnerUsername = data.get('newOwnerUsername')?.toString().trim() || '';
+		const expectedOwnerId = data.get('expectedOwnerId')?.toString() || '';
 
 		if (!newOwnerUsername) {
 			return fail(400, { error: 'Username is required.' });
 		}
+		if (!expectedOwnerId) return fail(400, { error: 'Current owner context is missing. Reload and try again.' });
 
 		// Find target user
 		const targetRecord = await db
@@ -180,8 +182,27 @@ export const actions: Actions = {
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
-		// Execute Transfer in Transaction
-		db.transaction((tx) => {
+		// Re-check ownership and target status in the same write transaction so
+		// parallel transfers cannot apply a stale owner snapshot.
+		const transfer = db.transaction((tx) => {
+			const currentProject = tx
+				.select({ ownerId: projects.ownerId })
+				.from(projects)
+				.where(and(eq(projects.id, projectId), isNull(projects.deletedAt)))
+				.get();
+			if (!currentProject) return 'missing' as const;
+			if (currentProject.ownerId !== expectedOwnerId) {
+				return 'stale' as const;
+			}
+			if (currentProject.ownerId === target.id) return 'same' as const;
+
+			const currentTarget = tx
+				.select({ status: users.status })
+				.from(users)
+				.where(eq(users.id, target.id))
+				.get();
+			if (!currentTarget || currentTarget.status !== 'active') return 'inactive' as const;
+
 			// 1. Remove new owner from project_members if they were an editor
 			tx
 				.delete(projectMembers)
@@ -190,14 +211,14 @@ export const actions: Actions = {
 
 			// 2. Add old owner as editor to keep their access, if they are not admin
 			// (Admin always has full access, but we can make them editor for consistency)
-			const oldOwnerId = project.ownerId;
+			const oldOwnerId = currentProject.ownerId;
 			tx.insert(projectMembers).values({
 				id: crypto.randomUUID(),
 				projectId,
 				userId: oldOwnerId,
 				role: 'editor',
 				createdAt: Math.floor(Date.now() / 1000)
-			}).run();
+			}).onConflictDoNothing().run();
 
 			// 3. Update project ownerId
 			tx
@@ -206,9 +227,15 @@ export const actions: Actions = {
 					ownerId: target.id,
 					updatedAt: Math.floor(Date.now() / 1000)
 				})
-				.where(eq(projects.id, projectId))
+				.where(and(eq(projects.id, projectId), eq(projects.ownerId, oldOwnerId), isNull(projects.deletedAt)))
 				.run();
+			return 'transferred' as const;
 		});
+
+		if (transfer === 'missing') return fail(404, { error: 'Project no longer exists.' });
+		if (transfer === 'stale') return fail(409, { error: 'Project ownership changed before this transfer completed. Reload and try again.' });
+		if (transfer === 'same') return fail(409, { error: 'User is already the owner.' });
+		if (transfer === 'inactive') return fail(409, { error: 'The selected user is no longer active.' });
 
 		await logAuditEvent(
 			locals.user.id,

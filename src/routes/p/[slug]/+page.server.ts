@@ -75,10 +75,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 					WHERE o.metric_id IN (${sql.join(metricIds.map((id) => sql`${id}`), sql`, `)})
 					  AND b.status = 'completed'
 					  AND b.reverted_at IS NULL
+				), effective_observations AS (
+					SELECT source_id, metric_id, date, value, dimensions, observation_id, completed_at
+					FROM ranked_observations
+					WHERE rn = 1
 				)
 				SELECT source_id, metric_id, date, value, dimensions, observation_id, completed_at
-				FROM ranked_observations
-				WHERE rn = 1
+				FROM effective_observations
+				WHERE date >= COALESCE(
+					(SELECT date(MAX(date), '-370 days') FROM effective_observations),
+					date
+				)
 				ORDER BY date ASC
 			`;
 

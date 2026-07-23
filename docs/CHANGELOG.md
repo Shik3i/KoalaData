@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.4.6 - 2026-07-23
+
+- Prevent cancelled enhanced forms from submitting destructive project, source, ownership, or rollback actions.
+- Harden parallel ownership transfers, logo replacement, import confirmation, and rollback behavior.
+- Protect project OG images with project visibility rules and reject invalid or empty CSV mappings.
+- Reuse a single prewarmed public-statistics snapshot, bound public chart history, and add production query indexes.
+- Verify discovery assets, responsive widths, tenant isolation, realistic warm TTFB, and isolated test databases.
+
+## v1.4.5 - 2026-07-22
+
+- Preserve every project settings field after a successful enhanced submit without a reload.
+
+## v1.4.4 - 2026-07-22
+
+- Refresh public ranking snapshots at startup and on a background schedule while serving stale data during refresh failures.
+
+## v1.4.3 - 2026-07-22
+
+- Cache public leaderboard and project-card aggregates with refresh deduplication and bounded cache growth.
+
+## v1.4.2 - 2026-07-22
+
+- Harden project workflows, import compensation, permissions, test-database isolation, URLs, tooltips, and public error states.
+
+## v1.4.1 - 2026-07-22
+
+- Add public SEO metadata, discovery files, legal content, responsive launch UX, version injection, and complete brand assets.
+
 ## v1.4.0 - 2026-07-22
 
 ### Reddit launch readiness

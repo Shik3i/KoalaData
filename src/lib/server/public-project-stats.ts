@@ -24,8 +24,8 @@ const emptyStats = (): PublicProjectStats => ({
 });
 
 const CACHE_TTL_MS = 30_000;
-const statsCache = new Map<string, { value: Map<string, PublicProjectStats>; expiresAt: number }>();
-const statsInFlight = new Map<string, Promise<Map<string, PublicProjectStats>>>();
+let statsSnapshot: { value: Map<string, PublicProjectStats>; expiresAt: number } | null = null;
+let statsInFlight: Promise<Map<string, PublicProjectStats>> | null = null;
 
 export function ratingStars(name: string, dimensions: string): number | null {
 	const { reportLabel, seriesLabel } = splitLegacyMetricName(name);
@@ -45,49 +45,55 @@ export function ratingStars(name: string, dimensions: string): number | null {
 
 export async function getPublicProjectStats(projectIds: string[]): Promise<Map<string, PublicProjectStats>> {
 	const uniqueIds = [...new Set(projectIds)].sort();
-	const cacheKey = uniqueIds.join(',');
 	const now = Date.now();
-	const cached = statsCache.get(cacheKey);
-	if (cached && now < cached.expiresAt) return cached.value;
-	if (cached) {
-		if (!statsInFlight.has(cacheKey)) {
-			void refreshPublicProjectStats(cacheKey, uniqueIds).catch((error) =>
+	if (statsSnapshot && now < statsSnapshot.expiresAt) {
+		return selectStats(statsSnapshot.value, uniqueIds);
+	}
+	if (statsSnapshot) {
+		if (!statsInFlight) {
+			void refreshPublicProjectStats().catch((error) =>
 				console.error('[Public Stats] Background refresh failed:', error)
 			);
 		}
-		return cached.value;
+		return selectStats(statsSnapshot.value, uniqueIds);
 	}
-	return refreshPublicProjectStats(cacheKey, uniqueIds);
+	return selectStats(await refreshPublicProjectStats(), uniqueIds);
 }
 
-function refreshPublicProjectStats(cacheKey: string, uniqueIds: string[]): Promise<Map<string, PublicProjectStats>> {
-	const existing = statsInFlight.get(cacheKey);
-	if (existing) return existing;
-	const refresh = computePublicProjectStats(uniqueIds)
+function selectStats(snapshot: Map<string, PublicProjectStats>, projectIds: string[]) {
+	return new Map(projectIds.map((id) => [id, snapshot.get(id) ?? emptyStats()]));
+}
+
+function refreshPublicProjectStats(): Promise<Map<string, PublicProjectStats>> {
+	if (statsInFlight) return statsInFlight;
+	statsInFlight = loadPublicProjectIds()
+		.then((ids) => computePublicProjectStats(ids))
 		.then((value) => {
-			const now = Date.now();
-			statsCache.set(cacheKey, { value, expiresAt: now + CACHE_TTL_MS });
-			while (statsCache.size > 50) statsCache.delete(statsCache.keys().next().value!);
+			statsSnapshot = { value, expiresAt: Date.now() + CACHE_TTL_MS };
 			return value;
 		})
-		.finally(() => statsInFlight.delete(cacheKey));
-	statsInFlight.set(cacheKey, refresh);
-	return refresh;
+		.finally(() => {
+			statsInFlight = null;
+		});
+	return statsInFlight;
 }
 
-export async function refreshAllPublicProjectStats(): Promise<void> {
+async function loadPublicProjectIds(): Promise<string[]> {
 	const rows = await db
 		.select({ id: projects.id })
 		.from(projects)
 		.where(
 			and(
-				eq(projects.visibility, 'public'),
-				isNull(projects.deletedAt),
-				eq(projects.moderationStatus, 'active')
-			)
-		);
-	const ids = rows.map((row) => row.id).sort();
-	await refreshPublicProjectStats(ids.join(','), ids);
+					eq(projects.visibility, 'public'),
+					isNull(projects.deletedAt),
+					eq(projects.moderationStatus, 'active')
+				)
+			);
+	return rows.map((row) => row.id).sort();
+}
+
+export async function refreshAllPublicProjectStats(): Promise<void> {
+	await refreshPublicProjectStats();
 }
 
 async function computePublicProjectStats(uniqueIds: string[]): Promise<Map<string, PublicProjectStats>> {

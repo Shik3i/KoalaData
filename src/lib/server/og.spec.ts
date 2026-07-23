@@ -76,4 +76,15 @@ describe('OG Image PNG Endpoint', () => {
 		expect(view.getUint32(16)).toBe(1200);
 		expect(view.getUint32(20)).toBe(630);
 	});
+
+	it('returns 404 for private projects unless the owner is authenticated', async () => {
+		await db.update(projects).set({ visibility: 'private' }).where(eq(projects.id, testProject.id));
+		await expect(GET({ params: { slug: testProject.slug }, locals: {} } as any)).rejects.toMatchObject({ status: 404 });
+
+		const response = await GET({
+			params: { slug: testProject.slug },
+			locals: { user: { id: testUser.id } }
+		} as any);
+		expect(response.status).toBe(200);
+	});
 });
