@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.1 - 2026-07-23
+
+- Fix vertical alignment of footer dot separators across viewports.
+- Display injected release version string dynamically in the footer GitHub repository link.
+
 ## v1.5.0 - 2026-07-23
 
 - Add interactive Drag & Drop CSV upload zone with file preview and size badges on project imports.
