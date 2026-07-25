@@ -22,17 +22,20 @@ ENV NODE_ENV=production
 ENV DATA_DIRECTORY=/data
 ENV DATABASE_PATH=/data/data.db
 ENV BACKUP_DIRECTORY=/backups
+ENV BODY_SIZE_LIMIT=64M
 
-# Create persistence directories for database and automated backups
-RUN mkdir -p /data /backups
+# Create persistence directories for database and operator-managed backups
+RUN mkdir -p /data /backups && chown -R node:node /data /backups
 
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/scripts ./scripts
-COPY --from=builder /app/migrations ./migrations
-COPY --from=builder /app/server.mjs ./server.mjs
+COPY --chown=node:node --from=builder /app/package*.json ./
+COPY --chown=node:node --from=builder /app/node_modules ./node_modules
+COPY --chown=node:node --from=builder /app/build ./build
+COPY --chown=node:node --from=builder /app/scripts ./scripts
+COPY --chown=node:node --from=builder /app/migrations ./migrations
+COPY --chown=node:node --from=builder /app/server.mjs ./server.mjs
 
 EXPOSE 3000
+
+USER node
 
 CMD ["node", "server.mjs"]

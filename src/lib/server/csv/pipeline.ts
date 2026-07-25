@@ -241,7 +241,8 @@ export async function confirmImportDraft(
 			dimensions?: Record<string, string>;
 		}>;
 	},
-	actorIp = '127.0.0.1'
+	actorIp = '127.0.0.1',
+	detectedImporter: 'manual' | 'chrome_auto' = 'manual'
 ) {
 	// 1. Fetch Draft details
 	const draftRecord = await db
@@ -431,6 +432,22 @@ export async function confirmImportDraft(
 	try {
 		// Run transactions synchronously for better-sqlite3 compatibility
 		db.transaction((tx) => {
+			const currentStorage = tx
+				.select({ val: sum(importBatches.fileSize) })
+				.from(importBatches)
+				.where(
+					and(
+						eq(importBatches.userId, userId),
+						isNull(importBatches.rawFileDeletedAt),
+						ne(importBatches.status, 'failed')
+					)
+				)
+				.get();
+			const storageBytes = Number(currentStorage?.val || 0);
+			if (storageBytes + draftStat.size > limits.maxStorageBytes) {
+				throw new Error(`CSV import size violates your storage quota of ${limits.maxStorageBytes / (1024 * 1024)}MB.`);
+			}
+
 			// Resolve or create Metric Definitions synchronously inside the transaction
 			for (const m of metricMappings) {
 				if (dbMetricsMap.has(m.columnName)) {
@@ -539,7 +556,7 @@ export async function confirmImportDraft(
 				storedFilename: finalFilename,
 				fileSize: draftStat.size,
 				checksum: crypto.createHash('sha256').update(fileBuffer).digest('hex'),
-				detectedImporter: 'manual',
+				detectedImporter,
 				mappingConfig: JSON.stringify(mappingConfig),
 				rowCount: parsed.rows.length,
 				warningCount,
@@ -603,7 +620,7 @@ export async function confirmImportDraft(
 			storedFilename: null, // Null since file is removed
 			fileSize: draftStat.size,
 			checksum: crypto.createHash('sha256').update(fileBuffer).digest('hex'),
-			detectedImporter: 'manual',
+			detectedImporter,
 			mappingConfig: JSON.stringify(mappingConfig),
 			rowCount: parsed.rows.length,
 			warningCount,

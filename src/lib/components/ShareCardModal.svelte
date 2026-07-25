@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import { tick } from 'svelte';
 
 	type ProjectData = {
 		id: string;
@@ -28,12 +29,22 @@
 	}>();
 
 	let canvasRef: HTMLCanvasElement | undefined = $state();
+	let modalRef: HTMLDivElement | undefined = $state();
 	let cardTheme = $state<'dark' | 'light'>('dark');
 	let downloading = $state(false);
 
 	function formatNum(val: number | null | undefined): string {
 		if (val === null || val === undefined || typeof val !== 'number' || Number.isNaN(val)) return '—';
 		return val.toLocaleString('en-US', { maximumFractionDigits: 0 });
+	}
+
+	function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+		if (ctx.measureText(text).width <= maxWidth) return text;
+		let shortened = text;
+		while (shortened.length > 1 && ctx.measureText(`${shortened}…`).width > maxWidth) {
+			shortened = shortened.slice(0, -1);
+		}
+		return `${shortened}…`;
 	}
 
 	function renderCanvas() {
@@ -85,13 +96,12 @@
 		// Project Title
 		ctx.font = '800 46px Inter, system-ui, sans-serif';
 		ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
-		ctx.fillText(project.name, 70, 155);
+		ctx.fillText(fitText(ctx, project.name, width - 140), 70, 155);
 
 		// Description
 		ctx.font = '400 20px Inter, system-ui, sans-serif';
 		ctx.fillStyle = isDark ? '#9ca3af' : '#64748b';
-		let desc = project.shortDescription || 'Chrome Web Store Analytics';
-		if (desc.length > 80) desc = desc.slice(0, 77) + '...';
+		const desc = fitText(ctx, project.shortDescription || 'Chrome Web Store Analytics', width - 140);
 		ctx.fillText(desc, 70, 195);
 
 		// KPI Grid (4 Cards)
@@ -133,7 +143,7 @@
 			// Metric Value
 			ctx.font = '800 34px Inter, system-ui, sans-serif';
 			ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
-			ctx.fillText(m.value, x + 20, cardY + 120);
+			ctx.fillText(fitText(ctx, m.value, cardW - 40), x + 20, cardY + 120);
 		});
 
 		// Footer Watermark
@@ -154,6 +164,45 @@
 		}
 	});
 
+	$effect(() => {
+		if (!isOpen) return;
+		const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		const previousOverflow = document.body.style.overflow;
+		document.body.style.overflow = 'hidden';
+		void tick().then(() => modalRef?.focus());
+
+		return () => {
+			document.body.style.overflow = previousOverflow;
+			previouslyFocused?.focus();
+		};
+	});
+
+	function handleModalKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			onClose?.();
+			return;
+		}
+		if (event.key !== 'Tab' || !modalRef) return;
+		const focusable = Array.from(modalRef.querySelectorAll<HTMLElement>(
+			'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+		));
+		if (focusable.length === 0) {
+			event.preventDefault();
+			modalRef.focus();
+			return;
+		}
+		const first = focusable[0];
+		const last = focusable[focusable.length - 1];
+		if (event.shiftKey && document.activeElement === first) {
+			event.preventDefault();
+			last.focus();
+		} else if (!event.shiftKey && document.activeElement === last) {
+			event.preventDefault();
+			first.focus();
+		}
+	}
+
 	function downloadPNG() {
 		if (!canvasRef) return;
 		downloading = true;
@@ -169,15 +218,15 @@
 </script>
 
 {#if isOpen}
-	<div class="modal-backdrop" onclick={onClose} onkeydown={(e) => { if (e.key === 'Escape') onClose?.(); }} role="presentation">
-		<div class="modal-card" onclick={(e) => e.stopPropagation()} tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+	<div class="modal-backdrop" onclick={(event) => { if (event.target === event.currentTarget) onClose?.(); }} onkeydown={handleModalKeydown} role="presentation">
+		<div bind:this={modalRef} class="modal-card" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
 			<header class="modal-header">
 				<h2 id="modal-title"><Icon name="sparkle" /> Shareable Stats Card Generator</h2>
 				<button type="button" class="close-btn" onclick={onClose} aria-label="Close modal"><Icon name="x" /></button>
 			</header>
 
 			<div class="modal-body">
-				<p class="text-muted">Export a high-resolution 1200x630 share card for Twitter/X, Reddit, or LinkedIn.</p>
+				<p id="modal-description" class="text-muted">Export a high-resolution 1200x630 share card for Twitter/X, Reddit, or LinkedIn.</p>
 
 				<div class="theme-picker">
 					<span>Card Style:</span>
@@ -186,7 +235,9 @@
 				</div>
 
 				<div class="canvas-preview-wrapper">
-					<canvas bind:this={canvasRef} class="share-canvas"></canvas>
+					<canvas bind:this={canvasRef} class="share-canvas" aria-label={`Preview of the ${project.name} statistics card`}>
+						Preview of the {project.name} statistics card.
+					</canvas>
 				</div>
 			</div>
 

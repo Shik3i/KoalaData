@@ -1,30 +1,34 @@
-/**
- * In-memory Token Bucket rate limiter.
- * Periodically prunes stale entries to prevent memory leaks.
- */
+import { client } from '../db';
 
-interface BucketEntry {
-	tokens: number;
-	lastUpdated: number;
-}
+const consumeToken = client.transaction((key: string, maxTokens: number, refillRatePerSec: number) => {
+	const now = Date.now() / 1000;
+	const record = client
+		.prepare('SELECT tokens, last_updated AS lastUpdated FROM rate_limit_records WHERE key = ?')
+		.get(key) as { tokens: number; lastUpdated: number } | undefined;
+	const availableTokens = record
+		? Math.min(maxTokens, record.tokens + Math.max(0, now - record.lastUpdated) * refillRatePerSec)
+		: maxTokens;
 
-const buckets = new Map<string, BucketEntry>();
-
-// Prune stale entries every 5 minutes
-const PRUNE_INTERVAL_MS = 5 * 60 * 1000;
-const ENTRY_TTL_MS = 30 * 60 * 1000;
-
-setInterval(() => {
-	const now = Math.floor(Date.now() / 1000);
-	for (const [key, entry] of buckets) {
-		if (now - entry.lastUpdated > ENTRY_TTL_MS / 1000) {
-			buckets.delete(key);
-		}
+	if (availableTokens < 1) {
+		client
+			.prepare('UPDATE rate_limit_records SET tokens = ?, last_updated = ? WHERE key = ?')
+			.run(availableTokens, now, key);
+		return false;
 	}
-}, PRUNE_INTERVAL_MS).unref();
+
+	client
+		.prepare(`
+			INSERT INTO rate_limit_records (key, tokens, last_updated)
+			VALUES (?, ?, ?)
+			ON CONFLICT(key) DO UPDATE SET tokens = excluded.tokens, last_updated = excluded.last_updated
+		`)
+		.run(key, availableTokens - 1, now);
+	return true;
+});
 
 /**
- * Check if a request exceeds rate limits using an in-memory Token Bucket algorithm.
+ * Check if a request exceeds limits using a database-backed token bucket.
+ * The immediate SQLite transaction keeps consumption atomic across processes.
  * Consumes 1 token per call. Returns true if allowed, false if rate-limited.
  */
 export async function checkRateLimit(
@@ -33,31 +37,9 @@ export async function checkRateLimit(
 	refillRatePerSec: number
 ): Promise<boolean> {
 	try {
-		const now = Math.floor(Date.now() / 1000);
-		const record = buckets.get(key);
-
-		if (record) {
-			const elapsed = now - record.lastUpdated;
-			const tokens = Math.min(maxTokens, record.tokens + elapsed * refillRatePerSec);
-
-			if (tokens < 1) {
-				return false;
-			}
-
-			buckets.set(key, {
-				tokens: tokens - 1,
-				lastUpdated: now
-			});
-		} else {
-			buckets.set(key, {
-				tokens: maxTokens - 1,
-				lastUpdated: now
-			});
-		}
-
-		return true;
+		return consumeToken.immediate(key, maxTokens, refillRatePerSec);
 	} catch (e) {
 		console.error('[Rate Limit] Error checking rate limit:', e);
-		return true;
+		return false;
 	}
 }

@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import db from '../db';
-import { users, projects, dataSources, importDrafts, metricDefinitions, metricObservations } from '../db/schema';
+import { users, projects, dataSources, importDrafts, metricDefinitions, metricObservations, userLimitOverrides } from '../db/schema';
 import { createImportDraft, confirmImportDraft, cleanupExpiredDrafts, getDraftFilePath, parseStoredFilename } from './pipeline';
 import { eq } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
+import { getUserLimits } from '../limits';
 
 describe('CSV Import Draft Lifecycle & Cleanup', () => {
 	let testUser: any;
@@ -191,5 +192,42 @@ describe('CSV Import Draft Lifecycle & Cleanup', () => {
 			{ region: 'Germany' },
 			{ region: 'France' }
 		]);
+	});
+
+	it('enforces storage quota atomically for concurrent confirmations', async () => {
+		const csv = Buffer.from('date,installs\n2026-07-10,1\n', 'utf-8');
+		const { usage } = await getUserLimits(testUser.id);
+		await db.insert(userLimitOverrides).values({
+			userId: testUser.id,
+			maxStorageBytes: usage.storageBytes + csv.length
+		}).onConflictDoUpdate({
+			target: userLimitOverrides.userId,
+			set: { maxStorageBytes: usage.storageBytes + csv.length }
+		});
+
+		const [firstDraft, secondDraft] = await Promise.all([
+			createImportDraft(testUser.id, testProject.id, testSource.id, 'quota-one.csv', csv),
+			createImportDraft(testUser.id, testProject.id, testSource.id, 'quota-two.csv', csv)
+		]);
+		const mapping = {
+			dateColumn: 'date',
+			dateFormat: 'YYYY-MM-DD',
+			metrics: [{
+				columnName: 'installs',
+				metricType: 'installs',
+				name: 'Installs',
+				unit: 'count',
+				aggregation: 'sum',
+				isCumulative: false
+			}]
+		};
+
+		const results = await Promise.allSettled([
+			confirmImportDraft(testUser.id, testUser.username, testProject.id, firstDraft, mapping),
+			confirmImportDraft(testUser.id, testUser.username, testProject.id, secondDraft, mapping)
+		]);
+		expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+		expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+		await db.delete(userLimitOverrides).where(eq(userLimitOverrides.userId, testUser.id));
 	});
 });

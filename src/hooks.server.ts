@@ -69,7 +69,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const clientIp = event.getClientAddress ? event.getClientAddress() : '127.0.0.1';
 
 	// 1. Rate Limiting check
-	const disableRateLimit = process.env.DISABLE_RATE_LIMIT === 'true' || process.env.NODE_ENV === 'test';
+	const isTestEnvironment = process.env.NODE_ENV === 'test';
+	const disableRateLimit = isTestEnvironment || process.env.DISABLE_RATE_LIMIT === 'true';
 	if (!disableRateLimit) {
 		if (pathname === '/login' && event.request.method === 'POST') {
 			const allowed = await checkRateLimit(`ip:${clientIp}:login`, 5, 5 / (15 * 60)); // 5 attempts per 15 mins
@@ -129,8 +130,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (event.locals.user.status === 'pending') {
 			throw redirect(302, '/login?error=pending_approval');
 		}
-		// Enforce password change requirement (skip in test environment to avoid breaking E2E flows using seeded admin)
-		if (event.locals.user.forcePasswordChange === 1 && process.env.DISABLE_RATE_LIMIT !== 'true' && pathname !== '/app/account/security' && !pathname.includes('/login?/logout')) {
+		// Enforce password change requirement (seeded E2E users are the only exception).
+		if (event.locals.user.forcePasswordChange === 1 && !isTestEnvironment && pathname !== '/app/account/security' && !pathname.includes('/login?/logout')) {
 			throw redirect(302, '/app/account/security?error=password_change_required');
 		}
 	}
@@ -142,8 +143,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (event.locals.user.status === 'pending') {
 			throw redirect(302, '/login?error=pending_approval');
 		}
-		// Enforce password change requirement for admin paths as well (skip in test environment)
-		if (event.locals.user.forcePasswordChange === 1 && process.env.DISABLE_RATE_LIMIT !== 'true') {
+		// Enforce password change requirement for admin paths as well.
+		if (event.locals.user.forcePasswordChange === 1 && !isTestEnvironment) {
 			throw redirect(302, '/app/account/security?error=password_change_required');
 		}
 	}

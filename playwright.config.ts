@@ -1,9 +1,22 @@
 import { defineConfig, devices } from '@playwright/test';
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const testRoot = process.env.KOALADATA_PLAYWRIGHT_ROOT || mkdtempSync(join(tmpdir(), 'koaladata-playwright-'));
+const tempDirectory = tmpdir();
+for (const entry of readdirSync(tempDirectory)) {
+	if (!entry.startsWith('koaladata-playwright-')) continue;
+	const candidate = join(tempDirectory, entry);
+	try {
+		if (Date.now() - statSync(candidate).mtimeMs > 60 * 60 * 1000) {
+			rmSync(candidate, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+		}
+	} catch {
+		// A running test process may still own the directory.
+	}
+}
+
+const testRoot = process.env.KOALADATA_PLAYWRIGHT_ROOT || mkdtempSync(join(tempDirectory, 'koaladata-playwright-'));
 mkdirSync(testRoot, { recursive: true });
 process.env.KOALADATA_PLAYWRIGHT_ROOT = testRoot;
 process.env.DATABASE_PATH = join(testRoot, 'test.db');

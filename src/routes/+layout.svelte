@@ -179,8 +179,8 @@
 				<span class="footer-dot" aria-hidden="true">•</span>
 				<a href="/privacy">Privacy</a>
 				<span class="footer-dot" aria-hidden="true">•</span>
-				<a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer">
-					GitHub{#if data.version && data.version !== 'unreleased'}&nbsp;<span class="version-tag">({data.version.startsWith('v') ? data.version : `v${data.version}`})</span>{/if}
+				<a href="https://github.com/Shik3i/KoalaData" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+					GitHub{#if data.version && data.version !== 'unreleased'}&nbsp;<span class="version-tag" aria-hidden="true">({data.version.startsWith('v') ? data.version : `v${data.version}`})</span>{/if}
 				</a>
 				<span class="footer-dot" aria-hidden="true">•</span>
 				<a href="https://support.koalastuff.net" target="_blank" rel="noopener noreferrer" class="support-link"><span aria-hidden="true">♥</span> Support KoalaData</a>
@@ -345,7 +345,7 @@
 	}
 	.footer-links .version-tag {
 		font-size: 0.78rem;
-		opacity: 0.8;
+		color: var(--text-primary);
 		font-weight: 500;
 	}
 	.footer-links .support-link {

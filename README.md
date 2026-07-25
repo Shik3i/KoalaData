@@ -97,6 +97,7 @@ docker pull ghcr.io/shik3i/koaladata:vX.Y.Z
 | `DATA_DIRECTORY` | Private uploads and project assets | `/data` in Compose |
 | `DATABASE_PATH` | SQLite database file | `/data/data.db` in `.env.example` |
 | `BACKUP_DIRECTORY` | Destination for managed SQLite backups | `/backups` in Compose |
+| `BODY_SIZE_LIMIT` | Maximum total HTTP request body; must exceed configured per-file upload limits | `64M` |
 | `KOALADATA_ADMIN_USERNAME` | Initial administrator username | `admin` |
 | `KOALADATA_ADMIN_PASSWORD` | Required initial production password | none |
 | `SESSION_MAX_AGE` | Session lifetime in seconds | `2592000` |
@@ -127,7 +128,7 @@ Create a consistent SQLite backup from the running container:
 docker compose exec app node scripts/backup.cjs
 ```
 
-Backups are written to the configured backup volume and snapshots older than seven days are pruned. To restore, stop the application, replace the configured database file with the selected backup, then restart the service.
+Backups are written to the configured backup volume and snapshots older than seven days are pruned. The application does not schedule this command itself; use a host timer or container scheduler for automatic backups. To restore, stop the application, replace the configured database file with the selected backup, then restart the service.
 
 ## Local development
 

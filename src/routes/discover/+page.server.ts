@@ -1,11 +1,12 @@
 import { db } from '$lib/server/db';
-import { projects } from '$lib/server/db/schema';
-import { eq, and, isNull, like, or, type SQL } from 'drizzle-orm';
+import { projects, publicProjectStats } from '$lib/server/db/schema';
+import { eq, and, isNull, like, or, count, asc, desc, type SQL } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 import { getPublicSiteSettings } from '$lib/server/settings';
 import { error } from '@sveltejs/kit';
-import { getPublicProjectStats } from '$lib/server/public-project-stats';
 import { isPricingModel } from '$lib/project-classification';
+
+const PAGE_SIZE = 24;
 
 export const load: PageServerLoad = async ({ url }) => {
 	if (!(await getPublicSiteSettings()).publicDiscoveryEnabled) error(404, 'Project discovery is disabled.');
@@ -16,6 +17,8 @@ export const load: PageServerLoad = async ({ url }) => {
 	const openSource = url.searchParams.get('openSource') === '1';
 	const requestedSort = url.searchParams.get('sort')?.trim() || 'name';
 	const sort = ['name', 'rating', 'users', 'installs', 'updated'].includes(requestedSort) ? requestedSort : 'name';
+	const requestedPage = Number.parseInt(url.searchParams.get('page') ?? '1', 10);
+	const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
 	const conditions: SQL<unknown>[] = [
 		eq(projects.visibility, 'public'),
@@ -37,18 +40,46 @@ export const load: PageServerLoad = async ({ url }) => {
 	if (pricing) conditions.push(eq(projects.pricingModel, pricing));
 	if (openSource) conditions.push(eq(projects.isOpenSource, 1));
 
-	const exploreList = await db
-		.select()
+	const totalResult = await db
+		.select({ value: count() })
 		.from(projects)
-		.where(and(...conditions))
-		.orderBy(projects.name);
+		.where(and(...conditions));
+	const total = totalResult[0]?.value ?? 0;
+	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+	const currentPage = Math.min(page, totalPages);
+	const order = sort === 'rating'
+		? desc(publicProjectStats.rating)
+		: sort === 'users'
+			? desc(publicProjectStats.activeUsers)
+			: sort === 'installs'
+				? desc(publicProjectStats.installs)
+				: sort === 'updated'
+					? desc(projects.updatedAt)
+					: asc(projects.name);
 
-	const stats = await getPublicProjectStats(exploreList.map((project) => project.id));
-	const exploreProjects = exploreList.map((project) => ({ ...project, ...stats.get(project.id)! }));
-	if (sort === 'rating') exploreProjects.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
-	else if (sort === 'users') exploreProjects.sort((a, b) => (b.activeUsers ?? -1) - (a.activeUsers ?? -1));
-	else if (sort === 'installs') exploreProjects.sort((a, b) => (b.installs ?? -1) - (a.installs ?? -1));
-	else if (sort === 'updated') exploreProjects.sort((a, b) => b.updatedAt - a.updatedAt);
+	const exploreProjects = await db
+		.select({
+			id: projects.id,
+			name: projects.name,
+			slug: projects.slug,
+			shortDescription: projects.shortDescription,
+			storeUrl: projects.storeUrl,
+			category: projects.category,
+			pricingModel: projects.pricingModel,
+			isOpenSource: projects.isOpenSource,
+			logoPath: projects.logoPath,
+			verificationStatus: projects.verificationStatus,
+			updatedAt: projects.updatedAt,
+			activeUsers: publicProjectStats.activeUsers,
+			installs: publicProjectStats.installs,
+			rating: publicProjectStats.rating
+		})
+		.from(projects)
+		.leftJoin(publicProjectStats, eq(publicProjectStats.projectId, projects.id))
+		.where(and(...conditions))
+		.orderBy(order, asc(projects.name))
+		.limit(PAGE_SIZE)
+		.offset((currentPage - 1) * PAGE_SIZE);
 
 	return {
 		exploreProjects,
@@ -56,6 +87,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		categoryFilter: category,
 		pricingFilter: pricing,
 		openSourceFilter: openSource,
-		sort
+		sort,
+		pagination: { page: currentPage, pageSize: PAGE_SIZE, total, totalPages }
 	};
 };

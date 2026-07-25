@@ -167,7 +167,26 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		}));
 
 	return {
-		project,
+		project: {
+			id: project.id,
+			name: project.name,
+			slug: project.slug,
+			shortDescription: project.shortDescription,
+			fullDescription: project.fullDescription,
+			websiteUrl: project.websiteUrl,
+			repositoryUrl: project.repositoryUrl,
+			storeUrl: project.storeUrl,
+			category: project.category,
+			pricingModel: project.pricingModel,
+			isOpenSource: project.isOpenSource,
+			logoPath: project.logoPath,
+			accentColor: project.accentColor,
+			visibility: project.visibility,
+			verificationStatus: project.verificationStatus,
+			moderationStatus: project.moderationStatus,
+			createdAt: project.createdAt,
+			updatedAt: project.updatedAt
+		},
 		metrics: compactMetrics,
 		breakdownGroups
 	};

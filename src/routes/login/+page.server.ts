@@ -7,6 +7,8 @@ import { safeInternalRedirect } from '$lib/server/redirects';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
+const DUMMY_PASSWORD_HASH = '$argon2id$v=19$m=15360,t=2,p=1$CxYhLDdCTVhjbnmEj5qlsA$uQX+phJLApXP8ViYd/8jS9m1uFjnAN+31cCmx/1BoZA';
+
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// Redirect to dashboard if already logged in
 	if (locals.user) {
@@ -60,7 +62,8 @@ export const actions: Actions = {
 			.limit(1);
 
 		if (userList.length === 0) {
-			// Generic error to prevent enumeration
+			// Match the expensive password path to reduce username timing leakage.
+			await verifyPassword(password, DUMMY_PASSWORD_HASH);
 			await logAuditEvent(null, username, 'login_failure', 'user', 'none', { reason: 'user_not_found' }, clientIp);
 			return fail(400, { error: 'Invalid username or password.' });
 		}
@@ -97,12 +100,11 @@ export const actions: Actions = {
 
 		// Set Session Cookie
 		const isProd = process.env.NODE_ENV === 'production';
-		const isTest = process.env.DISABLE_RATE_LIMIT === 'true' || process.env.NODE_ENV === 'test';
 		cookies.set('session', token, {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'lax',
-			secure: isProd && !isTest,
+			secure: isProd,
 			maxAge: sessionMaxAge
 		});
 

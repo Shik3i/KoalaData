@@ -13,6 +13,12 @@
 	function formatNumber(value: number | null): string {
 		return value === null ? '—' : value.toLocaleString();
 	}
+
+	function pageUrl(targetPage: number): string {
+		const params = new URLSearchParams(page.url.searchParams);
+		params.set('page', String(targetPage));
+		return `/discover?${params.toString()}`;
+	}
 </script>
 
 <Seo
@@ -122,6 +128,23 @@
 					</article>
 				{/each}
 			</div>
+			{#if data.pagination.totalPages > 1}
+				<nav class="pagination" aria-label="Extension result pages">
+					<a
+						class="btn btn-secondary btn-sm"
+						class:disabled={data.pagination.page <= 1}
+						aria-disabled={data.pagination.page <= 1}
+						href={pageUrl(Math.max(1, data.pagination.page - 1))}
+					>Previous</a>
+					<span class="text-muted">Page {data.pagination.page} of {data.pagination.totalPages} · {data.pagination.total} extensions</span>
+					<a
+						class="btn btn-secondary btn-sm"
+						class:disabled={data.pagination.page >= data.pagination.totalPages}
+						aria-disabled={data.pagination.page >= data.pagination.totalPages}
+						href={pageUrl(Math.min(data.pagination.totalPages, data.pagination.page + 1))}
+					>Next</a>
+				</nav>
+			{/if}
 		{/if}
 	</div>
 </div>
@@ -136,6 +159,8 @@
 	.open-source-filter { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; font-size: 0.85rem; font-weight: 650; }
 	.open-source-filter input { width: 1rem; height: 1rem; }
 	.explore-content { margin-top: 2rem; }
+	.pagination { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 1.5rem; }
+	.pagination .disabled { pointer-events: none; opacity: 0.55; }
 
 	.page-title {
 		margin-bottom: 0.25rem;
@@ -266,6 +291,7 @@
 		.explore-card { min-height: 0; padding: 1rem; }
 		.card-footer { flex-wrap: wrap; }
 		.empty-state { padding: 2rem 1rem; }
+		.pagination { flex-wrap: wrap; text-align: center; }
 	}
 	@media (max-width: 380px) {
 		.quick-stats { grid-template-columns: minmax(0, 1fr); }

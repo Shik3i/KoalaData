@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.5.3 - 2026-07-26
+
+- Align production request-body limits with CSV and logo upload limits.
+- Decouple test and rate-limit switches from secure cookies and mandatory password changes.
+- Persist token-bucket rate limits in SQLite and equalize unknown-user login verification timing.
+- Make final-administrator protection and import storage quotas atomic under concurrent requests.
+- Restrict Chrome automatic imports to recognized reports and record automatic versus manual import provenance.
+- Limit public project payloads to public fields and paginate server-side discovery queries.
+- Improve share-card dialog focus management, canvas labeling, long-text fitting, and footer contrast.
+- Harden Windows test cleanup, production shutdown, non-root containers, backup documentation, and tag release verification.
+
 ## v1.5.2 - 2026-07-23
 
 - Restore automatic background CSV import for high-confidence Chrome Web Store exports.

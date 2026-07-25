@@ -162,6 +162,27 @@ describe('User Management Service', () => {
 		).rejects.toThrow('Cannot demote, ban, or delete the final remaining active administrator.');
 	});
 
+	it('keeps one active administrator during concurrent demotions', async () => {
+		const secondAdminId = await registerUser('concurrent_admin', 'password123', 'open');
+		await promoteUser(adminUser.id, adminUser.username, secondAdminId);
+
+		const results = await Promise.allSettled([
+			demoteUser(adminUser.id, adminUser.username, adminUser.id),
+			demoteUser(adminUser.id, adminUser.username, secondAdminId)
+		]);
+		expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+		expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+
+		const activeAdmins = await db
+			.select()
+			.from(users)
+			.where(eq(users.role, 'admin'));
+		expect(activeAdmins.filter((user) => user.status === 'active' && user.deletedAt === null)).toHaveLength(1);
+
+		await db.update(users).set({ role: 'admin' }).where(eq(users.id, adminUser.id));
+		await db.update(users).set({ role: 'user' }).where(eq(users.id, secondAdminId));
+	});
+
 	it('should reject password resets for missing users', async () => {
 		await expect(
 			resetUserPassword(adminUser.id, adminUser.username, crypto.randomUUID(), 'password123', true)

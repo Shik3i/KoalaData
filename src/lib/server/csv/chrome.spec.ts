@@ -61,4 +61,20 @@ describe('Chrome Web Store CSV detection', () => {
 		expect(result.mappings.installs).toEqual({ column: 'Installationen', metricType: 'installs' });
 		expect(Object.values(result.mappings).filter((mapping) => mapping.metricType === 'custom')).toHaveLength(0);
 	});
+
+	it('does not treat an arbitrary date-and-number CSV as a known Chrome report', () => {
+		const result = detectChromeCsv(
+			['Date', 'Revenue'],
+			[
+				['2026-07-01', '125.50'],
+				['2026-07-02', '140.00']
+			]
+		);
+
+		expect(result.mappings.date).toEqual({ column: 'Date', metricType: 'date' });
+		expect(result.mappings['custom:1']).toEqual({ column: 'Revenue', metricType: 'custom' });
+		expect(Object.values(result.mappings).some((mapping) =>
+			mapping.metricType !== 'date' && mapping.metricType !== 'custom'
+		)).toBe(false);
+	});
 });

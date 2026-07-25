@@ -6,7 +6,7 @@ This document describes the design, database constraints, authentication session
 - **Web Framework**: SvelteKit and Svelte 5 (utilizing runes for state management).
 - **Styling**: Vanilla CSS with cohesive green/neutral design variables.
 - **ORM & Database**: Drizzle ORM managing a local SQLite database (driven by the synchronous `better-sqlite3` driver).
-- **Cryptography & Security**: `hash-wasm` providing Argon2id password hashes dynamically during runtime, session hashing with SHA-256, and token-bucket API rate limits.
+- **Cryptography & Security**: `hash-wasm` providing Argon2id password hashes dynamically during runtime, session hashing with SHA-256, and SQLite-backed atomic token-bucket rate limits shared by all application processes.
 - **Charts**: ECharts rendering client-side responsive SVG line graphs.
 
 ## 2. Database Design & Integrity
@@ -15,7 +15,7 @@ SQLite is configured on start to run in **Write-Ahead Logging (WAL) Mode** and e
 ### Key Constraints & Triggers
 - **Username Uniqueness**: Username uniqueness is checked and case-normalized. Only alphanumeric usernames are allowed, checked in application services to accommodate SQLite's lack of native regular expression constraints.
 - **Session Revokes**: Sessions are invalidated by hashing cookies (using SHA-256) and deleting matching tokens from the database. A banned or deleted user automatically has all sessions flushed via cascades.
-- **Final Active Admin Protection**: Demoting, banning, or deleting an administrator verifies that at least one other active administrator remains in the system.
+- **Final Active Admin Protection**: Demoting, banning, or deleting an administrator uses an immediate SQLite transaction so concurrent operations cannot remove the final active administrator.
 - **Single-Source Ownership**: Project ownership is tracked by a single field `projects.owner_id`. Editors are managed in the `project_members` table.
 - **Soft Deletion**: Projects and Users are soft-deleted by writing a `deleted_at` timestamp. Soft-deleted projects cannot be read by visitors. Banned projects throw a 404.
 
@@ -35,4 +35,4 @@ SQLite is configured on start to run in **Write-Ahead Logging (WAL) Mode** and e
 - `/data/project-assets/` - Uploaded project logo images (JPEG, PNG, WebP verified via magic bytes).
 - `/data/uploads/` - Confirmed CSV upload files.
 - `/data/uploads/drafts/` - Temporary CSV upload drafts.
-- `/backups/` - Scheduled automated SQLite databases online backups.
+- `/backups/` - Destination for operator-triggered consistent SQLite backups. Schedule `node scripts/backup.cjs` externally when automatic backups are required.

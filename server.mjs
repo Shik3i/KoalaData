@@ -40,13 +40,31 @@ const server = http.createServer((request, response) => {
 
 	handler(request, response);
 });
+const sockets = new Set();
+server.on('connection', (socket) => {
+	sockets.add(socket);
+	socket.on('close', () => sockets.delete(socket));
+});
 
 server.listen(port, host, () => {
 	console.log(`Listening on http://${host}:${port}`);
 });
 
+let shuttingDown = false;
 function shutdown() {
-	server.close(() => process.exit(0));
+	if (shuttingDown) return;
+	shuttingDown = true;
+	server.closeIdleConnections?.();
+	const forceTimer = setTimeout(() => {
+		for (const socket of sockets) socket.destroy();
+		server.closeAllConnections?.();
+		process.exit(1);
+	}, 10_000);
+	forceTimer.unref();
+	server.close(() => {
+		clearTimeout(forceTimer);
+		process.exit(0);
+	});
 }
 
 process.on('SIGINT', shutdown);

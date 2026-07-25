@@ -9,7 +9,11 @@ export default async function setup() {
 	process.env.DISABLE_RATE_LIMIT = 'true';
 	process.env.NODE_ENV = 'test';
 	const { runMigrations } = await import('../lib/server/db/migrate');
+	const { client } = await import('../lib/server/db');
 	runMigrations();
 
-	return () => rmSync(testRoot, { recursive: true, force: true });
+	return () => {
+		if (client.open) client.close();
+		rmSync(testRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+	};
 }

@@ -2,7 +2,7 @@ import { db } from '$lib/server/db';
 import { importBatches, dataSources, metricObservations, importDrafts } from '$lib/server/db/schema';
 import { eq, and, isNull, desc, count } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
-import { createImportDraft, confirmImportDraft, parseStoredFilename, getDraftFilePath } from '$lib/server/csv/pipeline';
+import { createImportDraft, confirmImportDraft, cleanupDraft, parseStoredFilename, getDraftFilePath } from '$lib/server/csv/pipeline';
 import { parseCsv } from '$lib/server/csv/parser';
 import { detectChromeCsv } from '$lib/server/csv/chrome';
 import { classifyChromeReportFilename } from '$lib/dashboard-metrics';
@@ -93,6 +93,14 @@ export const actions: Actions = {
 		if (files.length === 0) {
 			return fail(400, { error: 'Please upload at least one CSV file.' });
 		}
+		const source = await db
+			.select({ id: dataSources.id, sourceType: dataSources.sourceType })
+			.from(dataSources)
+			.where(and(eq(dataSources.id, sourceId), eq(dataSources.projectId, projectId)))
+			.limit(1);
+		if (source.length === 0) {
+			return fail(400, { error: 'The selected data source does not belong to this project.' });
+		}
 
 		let autoImportedCount = 0;
 		let manualCount = 0;
@@ -115,7 +123,9 @@ export const actions: Actions = {
 				);
 				const hasCustomMetric = Object.values(autoDetect.mappings).some((mapping) => mapping.metricType === 'custom');
 
-				const canAutoImport = autoDetect.mappings.date && (report || (hasStandardMetric && !hasCustomMetric) || autoDetect.confidence === 'high');
+				const canAutoImport = source[0].sourceType === 'chrome_web_store'
+					&& Boolean(autoDetect.mappings.date)
+					&& Boolean(report || (hasStandardMetric && !hasCustomMetric));
 
 				if (canAutoImport) {
 					const draftId = await createImportDraft(
@@ -133,7 +143,8 @@ export const actions: Actions = {
 							projectId,
 							draftId,
 							mappingConfig,
-							ip
+							ip,
+							'chrome_auto'
 						);
 						autoImportedCount++;
 					} else {
@@ -157,6 +168,11 @@ export const actions: Actions = {
 		}
 
 		if (errors.length > 0) {
+			if (autoImportedCount > 0 || manualCount > 0) {
+				throw redirect(302, `/app/projects/${projectId}/imports?error=${encodeURIComponent(
+					`Upload partially failed. ${autoImportedCount} files auto-imported, ${manualCount} files pending manual review. Errors: ${errors.join('; ')}`
+				)}`);
+			}
 			return fail(400, { 
 				error: `Upload partially failed. ${autoImportedCount} files auto-imported, ${manualCount} files pending manual review. Errors: ${errors.join('; ')}`
 			});
@@ -199,7 +215,11 @@ export const actions: Actions = {
 			try {
 				const { originalName, fileId } = parseStoredFilename(draft.storedFilename);
 				const draftFilePath = getDraftFilePath(dataDir, fileId);
-				if (!fs.existsSync(draftFilePath)) continue;
+				if (!fs.existsSync(draftFilePath)) {
+					await cleanupDraft(draft.id);
+					failedCount++;
+					continue;
+				}
 				const buffer = fs.readFileSync(draftFilePath);
 				const parsed = parseCsv(buffer);
 				const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
@@ -213,7 +233,8 @@ export const actions: Actions = {
 							projectId,
 							draft.id,
 							mappingConfig,
-							ip
+							ip,
+							'chrome_auto'
 						);
 						importedCount++;
 					} else {

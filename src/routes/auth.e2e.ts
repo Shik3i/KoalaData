@@ -229,23 +229,10 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.setInputFiles('input[type="file"]', filePayload1);
 		await page.click('button:has-text("Upload and Preview")');
 
-		// 8. PREVIEW & MANUAL MAPPING & CONFIRMED IMPORT
-		await page.waitForURL('/app/projects/*/imports/preview?*');
-		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
-		await expect(page.locator('.page-title')).toContainText('Map CSV Columns');
-		await expect(page.locator('.preview-table-card')).toBeVisible();
-
-		// Configure date and metrics mapping inputs
-		await page.selectOption('select[name="dateColumn"]', 'date');
-		await page.selectOption('select[name="dateFormat"]', 'YYYY-MM-DD');
-
-		// Click confirm and import
-		await page.click('button:has-text("Confirm and Import Observations")');
-
-		// Redirected back to history with success banner
+		// 8. HIGH-CONFIDENCE CHROME EXPORT AUTO-IMPORT
 		await page.waitForURL('/app/projects/*/imports?*');
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
-		await expect(page.locator('.alert-success')).toContainText('Imported 2 rows successfully');
+		await expect(page.locator('.alert-success')).toContainText('1 files imported successfully');
 
 		// 9. OVERLAPPING CSV UPLOAD
 		await page.selectOption('select[name="sourceId"]', { label: 'CWS Dashboard Live (chrome_web_store)' });
@@ -253,15 +240,9 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.setInputFiles('input[type="file"]', filePayload2);
 		await page.click('button:has-text("Upload and Preview")');
 
-		await page.waitForURL('/app/projects/*/imports/preview?*');
-		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
-		await page.selectOption('select[name="dateColumn"]', 'date');
-		await page.selectOption('select[name="dateFormat"]', 'YYYY-MM-DD');
-		await page.click('button:has-text("Confirm and Import Observations")');
-
 		await page.waitForURL('/app/projects/*/imports?*');
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
-		await expect(page.locator('.alert-success')).toContainText('Imported 1 rows successfully');
+		await expect(page.locator('.alert-success')).toContainText('1 files imported successfully');
 
 		// 10. PUBLIC DASHBOARD VERIFICATION & VISIBILITY CONTROLS
 		await page.goto(`/p/${projectSlug}`);

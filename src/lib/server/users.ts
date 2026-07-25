@@ -1,6 +1,6 @@
-import db from './db';
+import db, { client } from './db';
 import { users, sessions } from './db/schema';
-import { eq, and, ne, isNull } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { hashPassword, invalidateUserSessions } from './auth';
 import { logAuditEvent } from './audit';
 import { isSqliteUniqueConstraint } from './db/errors';
@@ -38,25 +38,38 @@ export function validateUsername(username: string): void {
 	}
 }
 
-/**
- * Helper to ensure we do not disable the final active administrator.
- */
-async function assertNotLastActiveAdmin(targetUserId: string) {
-	const activeAdmins = await db
-		.select()
-		.from(users)
-		.where(
-			and(
-				eq(users.role, 'admin'),
-				eq(users.status, 'active'),
-				isNull(users.deletedAt),
-				ne(users.id, targetUserId)
-			)
-		);
+type ProtectedUserMutation = 'ban' | 'demote' | 'delete';
 
-	if (activeAdmins.length === 0) {
-		throw new Error('Operation blocked: Cannot demote, ban, or delete the final remaining active administrator.');
+const mutateProtectedUser = client.transaction((targetUserId: string, mutation: ProtectedUserMutation, now: number) => {
+	const user = client
+		.prepare('SELECT id, role, status FROM users WHERE id = ?')
+		.get(targetUserId) as { id: string; role: 'user' | 'admin'; status: string } | undefined;
+	if (!user) throw new Error('User not found.');
+	if (mutation === 'demote' && user.role !== 'admin') throw new Error('User is not an admin.');
+
+	if (user.role === 'admin' && user.status === 'active') {
+		const otherAdmin = client.prepare(`
+			SELECT 1
+			FROM users
+			WHERE role = 'admin' AND status = 'active' AND deleted_at IS NULL AND id <> ?
+			LIMIT 1
+		`).get(targetUserId);
+		if (!otherAdmin) {
+			throw new Error('Operation blocked: Cannot demote, ban, or delete the final remaining active administrator.');
+		}
 	}
+
+	if (mutation === 'demote') {
+		client.prepare("UPDATE users SET role = 'user', updated_at = ? WHERE id = ?").run(now, targetUserId);
+	} else if (mutation === 'ban') {
+		client.prepare("UPDATE users SET status = 'banned', updated_at = ? WHERE id = ?").run(now, targetUserId);
+	} else {
+		client.prepare("UPDATE users SET status = 'deleted', deleted_at = ?, updated_at = ? WHERE id = ?").run(now, now, targetUserId);
+	}
+});
+
+function runProtectedUserMutation(targetUserId: string, mutation: ProtectedUserMutation) {
+	mutateProtectedUser.immediate(targetUserId, mutation, Math.floor(Date.now() / 1000));
 }
 
 /**
@@ -166,21 +179,7 @@ export async function rejectUser(adminId: string, adminUsername: string, targetU
  * Ban an active user account. Banned users have all active sessions revoked immediately.
  */
 export async function banUser(adminId: string, adminUsername: string, targetUserId: string, actorIp = '127.0.0.1') {
-	const user = await db.select().from(users).where(eq(users.id, targetUserId)).limit(1);
-	if (user.length === 0) throw new Error('User not found.');
-	
-	// Prevent banning the last admin
-	if (user[0].role === 'admin' && user[0].status === 'active') {
-		await assertNotLastActiveAdmin(targetUserId);
-	}
-
-	await db
-		.update(users)
-		.set({
-			status: 'banned',
-			updatedAt: Math.floor(Date.now() / 1000)
-		})
-		.where(eq(users.id, targetUserId));
+	runProtectedUserMutation(targetUserId, 'ban');
 
 	// Revoke sessions immediately
 	await invalidateUserSessions(targetUserId);
@@ -230,20 +229,7 @@ export async function promoteUser(adminId: string, adminUsername: string, target
  * Demote an administrator to a standard user.
  */
 export async function demoteUser(adminId: string, adminUsername: string, targetUserId: string, actorIp = '127.0.0.1') {
-	const user = await db.select().from(users).where(eq(users.id, targetUserId)).limit(1);
-	if (user.length === 0) throw new Error('User not found.');
-	if (user[0].role !== 'admin') throw new Error('User is not an admin.');
-
-	// Prevent demoting the last active admin
-	await assertNotLastActiveAdmin(targetUserId);
-
-	await db
-		.update(users)
-		.set({
-			role: 'user',
-			updatedAt: Math.floor(Date.now() / 1000)
-		})
-		.where(eq(users.id, targetUserId));
+	runProtectedUserMutation(targetUserId, 'demote');
 
 	await logAuditEvent(adminId, adminUsername, 'demote_user', 'user', targetUserId, {}, actorIp);
 }
@@ -252,22 +238,7 @@ export async function demoteUser(adminId: string, adminUsername: string, targetU
  * Soft delete a user account.
  */
 export async function deleteUser(adminId: string, adminUsername: string, targetUserId: string, actorIp = '127.0.0.1') {
-	const user = await db.select().from(users).where(eq(users.id, targetUserId)).limit(1);
-	if (user.length === 0) throw new Error('User not found.');
-
-	if (user[0].role === 'admin' && user[0].status === 'active') {
-		await assertNotLastActiveAdmin(targetUserId);
-	}
-
-	const now = Math.floor(Date.now() / 1000);
-	await db
-		.update(users)
-		.set({
-			status: 'deleted',
-			deletedAt: now,
-			updatedAt: now
-		})
-		.where(eq(users.id, targetUserId));
+	runProtectedUserMutation(targetUserId, 'delete');
 
 	// Revoke sessions immediately
 	await invalidateUserSessions(targetUserId);

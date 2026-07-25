@@ -12,6 +12,7 @@ services:
       - BACKUP_DIRECTORY=/backups
       - PORT=3000
       - ORIGIN=https://data.koalastuff.net
+      - BODY_SIZE_LIMIT=${BODY_SIZE_LIMIT:-64M}
       - KOALADATA_ADMIN_USERNAME=${KOALADATA_ADMIN_USERNAME:-admin}
       - KOALADATA_ADMIN_PASSWORD=${KOALADATA_ADMIN_PASSWORD:?Set KOALADATA_ADMIN_PASSWORD in .env}
     volumes:
