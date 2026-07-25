@@ -98,19 +98,21 @@
 										<form action="?/changeModeration" method="POST" use:enhance class="flex align-center gap-0.5">
 											<input type="hidden" name="projectId" value={project.id} />
 											<input class="reason-input" name="moderationReason" value={project.moderationReason || ''} placeholder="Reason when hidden/banned" aria-label="Moderation reason for {project.name}" />
-											<select name="moderationStatus" onchange={(e) => e.currentTarget.form?.requestSubmit()} style="margin-bottom: 0; padding: 0.25rem 0.5rem; font-size: 0.8rem; height: auto;">
+											<select name="moderationStatus" aria-label="Moderation status for {project.name}" style="margin-bottom: 0; padding: 0.25rem 0.5rem; font-size: 0.8rem; height: auto;">
 												<option value="active" selected={project.moderationStatus === 'active'}>Active</option>
 												<option value="hidden" selected={project.moderationStatus === 'hidden'}>Hidden</option>
 												<option value="banned" selected={project.moderationStatus === 'banned'}>Banned</option>
 											</select>
-									</form>
+											<button type="submit" class="btn btn-primary btn-sm">Update moderation</button>
+										</form>
 										<!-- Verification Form -->
 										<form action="?/changeVerification" method="POST" use:enhance class="flex align-center gap-0.5">
 											<input type="hidden" name="projectId" value={project.id} />
-											<select name="verificationStatus" onchange={(e) => e.currentTarget.form?.requestSubmit()} style="margin-bottom: 0; padding: 0.25rem 0.5rem; font-size: 0.8rem; height: auto;">
+											<select name="verificationStatus" aria-label="Verification status for {project.name}" style="margin-bottom: 0; padding: 0.25rem 0.5rem; font-size: 0.8rem; height: auto;">
 												<option value="unverified" selected={project.verificationStatus === 'unverified'}>Unverified</option>
 												<option value="verified" selected={project.verificationStatus === 'verified'}>Verified</option>
 											</select>
+											<button type="submit" class="btn btn-secondary btn-sm">Update verification</button>
 										</form>
 									{/if}
 									</div>
