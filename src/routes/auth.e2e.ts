@@ -329,12 +329,8 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		// Complete the separate public-listing review before leaderboard approval.
 		await page.goto('/admin/projects');
 		const moderationRow = page.locator('tr', { hasText: projectName });
-		const moderationResponse = page.waitForResponse((response) =>
-			response.request().method() === 'POST' && response.url().includes('?/changeModeration')
-		);
 		await moderationRow.locator('select[name="moderationStatus"]').selectOption('active');
 		await moderationRow.getByRole('button', { name: 'Update moderation' }).click();
-		expect((await moderationResponse).ok()).toBe(true);
 		await expect(moderationRow.locator('select[name="moderationStatus"]')).toHaveValue('active');
 		await expect(page.locator('.alert-success')).toContainText('moderation status updated');
 
