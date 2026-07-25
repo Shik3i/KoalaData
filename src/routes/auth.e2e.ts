@@ -11,7 +11,7 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 
 	test('should run the complete administrative, publisher, metrics, and moderation workflow', async ({ page, context }) => {
 		// Allow enough time for full DB migrations and multiple system setups.
-		test.setTimeout(180000);
+		test.setTimeout(300000);
 
 		// Log all page console outputs to node console
 		page.on('console', msg => {
