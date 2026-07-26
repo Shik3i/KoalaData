@@ -50,6 +50,13 @@
       "when": 1784768888399,
       "tag": "0006_request_path_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1785032622166,
+      "tag": "0007_giant_thunderball",
+      "breakpoints": true
     }
   ]
 }

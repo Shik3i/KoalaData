@@ -1,6 +1,14 @@
 # Changelog
 
-## v1.5.5 - 2026-07-26
+## v1.5.7 - 2026-07-26
+
+- Add manual Project Events & Milestones management with interactive timeline markers, category filters, and rich hover tooltips.
+- Add Smart Event Suggestions in maintainer view detecting version releases, publisher verification badges, and growth spikes for 1-click timeline import.
+- Harden event tooltips against XSS and sanitize inputs across metric charts.
+
+## v1.5.6 - 2026-07-26
+
+- Hardened security rate limiters and import pipeline boundaries.
 
 - Gate commits and container publishing on real fresh-volume and existing-volume startup tests.
 - Require a clean, pushed, version-matched commit with successful CI before the official release command can create and push a tag.

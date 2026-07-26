@@ -115,6 +115,31 @@
 					</ul>
 				{/if}
 			</div>
+
+			<!-- Events & Milestones Card -->
+			<div class="card events-card">
+				<div class="flex justify-between align-center card-header">
+					<h2><Icon name="flag" /> Events & Milestones</h2>
+					<a href="/app/projects/{project.id}/events" class="btn btn-secondary btn-sm">Manage</a>
+				</div>
+				<hr class="divider" />
+				{#if data.events.length === 0}
+					<p class="text-muted text-center py-2">No events created yet.</p>
+					<a href="/app/projects/{project.id}/events" class="btn btn-primary btn-sm btn-full"><Icon name="plus" /> Add Event</a>
+				{:else}
+					<ul class="events-list-overview">
+						{#each data.events.slice(0, 4) as event}
+							<li class="event-overview-item flex justify-between align-center py-1">
+								<div class="flex align-center gap-1 min-w-0">
+									<span>{event.icon || '📌'}</span>
+									<span class="text-truncate"><strong>{event.title}</strong></span>
+								</div>
+								<span class="text-muted text-xs">{event.date}</span>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
 		</div>
 	</div>
 </div>

@@ -20,6 +20,7 @@
 
 	let { data } = $props();
 	let project = $derived(data.project);
+	let projectEvents = $derived(data.projectEvents || []);
 	let dateFilter = $state('90');
 	let compareMode = $state(false);
 	let showMovingAverage = $state(false);
@@ -280,17 +281,17 @@
 			{#if installsMetric || uninstallsMetric}
 				<article class="card chart-card wide">
 					<header><div><h3>Daily Installs and Uninstalls</h3><p class="text-muted">{installsMetric?.sourceName ?? uninstallsMetric?.sourceName}</p></div><strong>{formatNumber(kpis.netInstalls)} net</strong></header>
-					<MetricChart title="{project.name}-installs-uninstalls" seriesList={installUninstallSeries} categoryLabels={comparisonLabels} showMovingAverage={showMovingAverage} {releaseMarkers} />
+					<MetricChart title="{project.name}-installs-uninstalls" seriesList={installUninstallSeries} categoryLabels={comparisonLabels} showMovingAverage={showMovingAverage} {releaseMarkers} {projectEvents} />
 				</article>
 			{/if}
 			{#if usersMetric}
-				<article class="card chart-card"><header><div><h3>Weekly Users</h3><p class="text-muted">Installed users, not activity telemetry</p></div><strong>{formatNumber(kpis.users ?? 0)}</strong></header><MetricChart title="{project.name}-weekly-users" observations={selectedUsers} {releaseMarkers} /></article>
+				<article class="card chart-card"><header><div><h3>Weekly Users</h3><p class="text-muted">Installed users, not activity telemetry</p></div><strong>{formatNumber(kpis.users ?? 0)}</strong></header><MetricChart title="{project.name}-weekly-users" observations={selectedUsers} {releaseMarkers} {projectEvents} /></article>
 			{/if}
 			{#if pageViewsMetric}
-				<article class="card chart-card"><header><div><h3>Store Page Views</h3><p class="text-muted">Listing demand</p></div><strong>{formatNumber(kpis.pageViews)}</strong></header><MetricChart title="{project.name}-store-page-views" observations={selectedPageViews} showMovingAverage={showMovingAverage} /></article>
+				<article class="card chart-card"><header><div><h3>Store Page Views</h3><p class="text-muted">Listing demand</p></div><strong>{formatNumber(kpis.pageViews)}</strong></header><MetricChart title="{project.name}-store-page-views" observations={selectedPageViews} showMovingAverage={showMovingAverage} {projectEvents} /></article>
 			{/if}
 			{#if impressionsMetric}
-				<article class="card chart-card"><header><div><h3>Store Impressions</h3><p class="text-muted">Store discovery</p></div><strong>{formatNumber(kpis.impressions)}</strong></header><MetricChart title="{project.name}-store-impressions" observations={selectedImpressions} showMovingAverage={showMovingAverage} /></article>
+				<article class="card chart-card"><header><div><h3>Store Impressions</h3><p class="text-muted">Store discovery</p></div><strong>{formatNumber(kpis.impressions)}</strong></header><MetricChart title="{project.name}-store-impressions" observations={selectedImpressions} showMovingAverage={showMovingAverage} {projectEvents} /></article>
 			{/if}
 		</div>
 
@@ -345,7 +346,7 @@
 					<span><span class="section-kicker">Additional data</span><span class="additional-title">Other imported metrics</span><span class="text-muted">Additional sources and unclassified custom data remain visible and are not discarded.</span></span>
 				</summary>
 				{#if additionalMetricsOpen}
-					<div class="trend-grid">{#each additionalMetrics as metric}<article class="card chart-card"><header><div><h3>{metricLabel(metric)}</h3><p class="text-muted">{metric.sourceName}</p></div><strong>{formatNumber(metricDisplayValue(metric, days) ?? 0)}</strong></header><MetricChart title="{project.name}-{metric.name}" observations={filterObservationsByCalendarDays(metric.observations, days)} /></article>{/each}</div>
+					<div class="trend-grid">{#each additionalMetrics as metric}<article class="card chart-card"><header><div><h3>{metricLabel(metric)}</h3><p class="text-muted">{metric.sourceName}</p></div><strong>{formatNumber(metricDisplayValue(metric, days) ?? 0)}</strong></header><MetricChart title="{project.name}-{metric.name}" observations={filterObservationsByCalendarDays(metric.observations, days)} {projectEvents} /></article>{/each}</div>
 				{/if}
 			</details>
 		</section>

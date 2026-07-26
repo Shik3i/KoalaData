@@ -16,6 +16,9 @@
 	import DatabaseIcon from 'phosphor-svelte/lib/DatabaseIcon';
 	import DesktopIcon from 'phosphor-svelte/lib/DesktopIcon';
 	import DeviceMobileIcon from 'phosphor-svelte/lib/DeviceMobileIcon';
+	import EyeIcon from 'phosphor-svelte/lib/EyeIcon';
+	import EyeSlashIcon from 'phosphor-svelte/lib/EyeSlashIcon';
+	import FlagIcon from 'phosphor-svelte/lib/FlagIcon';
 	import FolderOpenIcon from 'phosphor-svelte/lib/FolderOpenIcon';
 	import GearIcon from 'phosphor-svelte/lib/GearIcon';
 	import GlobeIcon from 'phosphor-svelte/lib/GlobeIcon';
@@ -24,11 +27,14 @@
 	import LockKeyIcon from 'phosphor-svelte/lib/LockKeyIcon';
 	import MoonIcon from 'phosphor-svelte/lib/MoonIcon';
 	import PawPrintIcon from 'phosphor-svelte/lib/PawPrintIcon';
+	import PencilIcon from 'phosphor-svelte/lib/PencilIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import SealCheckIcon from 'phosphor-svelte/lib/SealCheckIcon';
 	import SparkleIcon from 'phosphor-svelte/lib/SparkleIcon';
 	import StorefrontIcon from 'phosphor-svelte/lib/StorefrontIcon';
 	import SunIcon from 'phosphor-svelte/lib/SunIcon';
+	import TagIcon from 'phosphor-svelte/lib/TagIcon';
+	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import TrophyIcon from 'phosphor-svelte/lib/TrophyIcon';
 	import UserCircleIcon from 'phosphor-svelte/lib/UserCircleIcon';
 	import UserPlusIcon from 'phosphor-svelte/lib/UserPlusIcon';
@@ -55,6 +61,9 @@
 		database: DatabaseIcon,
 		desktop: DesktopIcon,
 		'device-mobile': DeviceMobileIcon,
+		eye: EyeIcon,
+		'eye-slash': EyeSlashIcon,
+		flag: FlagIcon,
 		'folder-open': FolderOpenIcon,
 		gear: GearIcon,
 		globe: GlobeIcon,
@@ -62,10 +71,13 @@
 		list: ListIcon,
 		'lock-key': LockKeyIcon,
 		'paw-print': PawPrintIcon,
+		pencil: PencilIcon,
 		plus: PlusIcon,
 		'seal-check': SealCheckIcon,
 		sparkle: SparkleIcon,
 		storefront: StorefrontIcon,
+		tag: TagIcon,
+		trash: TrashIcon,
 		trophy: TrophyIcon,
 		'user-circle': UserCircleIcon,
 		'user-plus': UserPlusIcon,

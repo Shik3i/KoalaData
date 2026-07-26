@@ -11,6 +11,14 @@
 	};
 
 	type ReleaseMarker = { date: string; version: string };
+	type ProjectEventItem = {
+		id: string;
+		date: string;
+		title: string;
+		description?: string | null;
+		category?: string;
+		icon?: string | null;
+	};
 
 	let {
 		title,
@@ -19,7 +27,8 @@
 		categoryLabels,
 		showMovingAverage = false,
 		showForecast = false,
-		releaseMarkers = []
+		releaseMarkers = [],
+		projectEvents = []
 	} = $props<{
 		title?: string;
 		observations?: Observation[];
@@ -28,10 +37,12 @@
 		showMovingAverage?: boolean;
 		showForecast?: boolean;
 		releaseMarkers?: ReleaseMarker[];
+		projectEvents?: ProjectEventItem[];
 	}>();
 
 	let exporting = $state(false);
 	let showReleaseMarkers = $state(false);
+	let showProjectEvents = $state(true);
 	let chartReady = $state(false);
 	let chartError = $state(false);
 	let hasData = $state(true);
@@ -41,6 +52,10 @@
 	function csvCell(value: string | number): string {
 		const text = String(value);
 		return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+	}
+
+	function escapeHtml(text: string): string {
+		return text.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m] || m));
 	}
 
 	function downloadBlob(blob: Blob, filename: string) {
@@ -272,35 +287,81 @@
 			}
 			}
 
+		const markLineData: any[] = [];
+
 		if (showReleaseMarkers && releaseMarkers && releaseMarkers.length > 0 && seriesOptions.length > 0) {
 			const dateSet = new Set(dates);
 			const validMarkers = releaseMarkers.filter((m: ReleaseMarker) => dateSet.has(m.date));
-			if (validMarkers.length > 0) {
-				seriesOptions[0].markLine = {
-					symbol: ['none', 'none'],
-					silent: true,
-					data: validMarkers.map((m: ReleaseMarker) => ({
-						xAxis: m.date,
-						label: {
-							formatter: `v${m.version}`,
-							position: 'insideEndTop',
-							color: isDark ? '#78d397' : '#2f6d47',
-							fontSize: 10,
-							fontWeight: 'bold',
-							backgroundColor: isDark ? '#1a241d' : '#f0f9f4',
-							padding: [2, 4],
-							borderRadius: 3,
-							borderColor: isDark ? '#2a382e' : '#bbf7d0',
-							borderWidth: 1
-						},
-						lineStyle: {
-							type: 'dashed',
-							color: isDark ? 'rgba(120, 211, 151, 0.65)' : 'rgba(47, 109, 71, 0.65)',
-							width: 1.5
-						}
-					}))
-				};
+			for (const m of validMarkers) {
+				markLineData.push({
+					xAxis: m.date,
+					label: {
+						formatter: `v${m.version}`,
+						position: 'insideEndTop',
+						color: isDark ? '#78d397' : '#2f6d47',
+						fontSize: 10,
+						fontWeight: 'bold',
+						backgroundColor: isDark ? '#1a241d' : '#f0f9f4',
+						padding: [2, 4],
+						borderRadius: 3,
+						borderColor: isDark ? '#2a382e' : '#bbf7d0',
+						borderWidth: 1
+					},
+					lineStyle: {
+						type: 'dashed',
+						color: isDark ? 'rgba(120, 211, 151, 0.65)' : 'rgba(47, 109, 71, 0.65)',
+						width: 1.5
+					}
+				});
 			}
+		}
+
+		if (showProjectEvents && projectEvents && projectEvents.length > 0 && seriesOptions.length > 0) {
+			const dateSet = new Set(dates);
+			const validEvents = projectEvents.filter((ev: ProjectEventItem) => dateSet.has(ev.date));
+			const eventsByDate = new Map<string, ProjectEventItem[]>();
+			for (const ev of validEvents) {
+				const list = eventsByDate.get(ev.date) || [];
+				list.push(ev);
+				eventsByDate.set(ev.date, list);
+			}
+
+			for (const [eventDate, evList] of eventsByDate.entries()) {
+				const firstEv = evList[0];
+				const iconStr = firstEv.icon || (firstEv.category === 'badge' ? '🏅' : firstEv.category === 'release' ? '🚀' : firstEv.category === 'marketing' ? '📢' : firstEv.category === 'incident' ? '⚠️' : '📌');
+				const labelText = evList.length === 1 
+					? `${iconStr} ${firstEv.title}` 
+					: `${iconStr} ${evList.length} Events (${firstEv.title}, ...)`;
+
+				markLineData.push({
+					xAxis: eventDate,
+					label: {
+						formatter: labelText,
+						position: 'insideEndTop',
+						color: isDark ? '#f0fdf4' : '#14532d',
+						fontSize: 10,
+						fontWeight: 'bold',
+						backgroundColor: isDark ? '#14291a' : '#dcfce7',
+						padding: [3, 6],
+						borderRadius: 4,
+						borderColor: isDark ? '#22543d' : '#86efac',
+						borderWidth: 1
+					},
+					lineStyle: {
+						type: 'dashed',
+						color: isDark ? 'rgba(74, 222, 128, 0.8)' : 'rgba(22, 163, 74, 0.8)',
+						width: 1.5
+					}
+				});
+			}
+		}
+
+		if (markLineData.length > 0 && seriesOptions.length > 0) {
+			seriesOptions[0].markLine = {
+				symbol: ['none', 'none'],
+				silent: true,
+				data: markLineData
+			};
 		}
 
 		const hasZoomSlider = dates.length > 30;
@@ -341,6 +402,32 @@
 				textStyle: {
 					color: isDark ? '#edf5ef' : '#1e293b',
 					fontSize: 12
+				},
+				formatter: (params: any) => {
+					if (!Array.isArray(params) || params.length === 0) return '';
+					const axisValue = params[0].axisValue;
+					let html = `<div style="font-weight: 600; margin-bottom: 4px;">${axisValue}</div>`;
+
+					if (showProjectEvents && projectEvents && projectEvents.length > 0) {
+						const dateEvents = projectEvents.filter((ev: ProjectEventItem) => ev.date === axisValue);
+						for (const ev of dateEvents) {
+							const iconStr = escapeHtml(ev.icon || '📌');
+							const titleStr = escapeHtml(ev.title);
+							const descStr = ev.description ? escapeHtml(ev.description) : null;
+							html += `<div style="margin-bottom: 6px; padding: 4px 6px; background: ${isDark ? 'rgba(74, 222, 128, 0.15)' : '#f0fdf4'}; border-radius: 4px; border: 1px solid ${isDark ? '#22543d' : '#bbf7d0'};">
+								<span style="font-size: 12px; font-weight: 600;">${iconStr} ${titleStr}</span>
+								${descStr ? `<div style="font-size: 11px; opacity: 0.85; margin-top: 2px;">${descStr}</div>` : ''}
+							</div>`;
+						}
+					}
+
+					for (const item of params) {
+						if (item.value === null || item.value === undefined) continue;
+						const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:8px;height:8px;background-color:${item.color};"></span>`;
+						const valStr = typeof item.value === 'number' ? item.value.toLocaleString() : item.value;
+						html += `<div style="font-size: 11px;">${colorDot} ${item.seriesName}: <strong>${valStr}</strong></div>`;
+					}
+					return html;
 				}
 			},
 			xAxis: {
@@ -410,6 +497,8 @@
 			void showMovingAverage;
 			void showForecast;
 			void showReleaseMarkers;
+			void showProjectEvents;
+			void projectEvents;
 			void initChart();
 		}
 	});
@@ -445,6 +534,18 @@
 
 <div class="chart-container-wrapper">
 	{#if hasData}<div class="chart-export-buttons" aria-label="Chart exports">
+		{#if projectEvents && projectEvents.length > 0}
+			<button 
+				type="button" 
+				class="export-btn" 
+				class:active={showProjectEvents}
+				onclick={() => { showProjectEvents = !showProjectEvents; }}
+				title="Toggle event markers on graph"
+				aria-label="Toggle event markers"
+			>
+				{showProjectEvents ? 'Events ON' : 'Events OFF'}
+			</button>
+		{/if}
 		{#if releaseMarkers && releaseMarkers.length > 0}
 			<button 
 				type="button" 

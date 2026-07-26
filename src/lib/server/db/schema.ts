@@ -238,3 +238,21 @@ export const rateLimitRecords = sqliteTable('rate_limit_records', {
 }, (table) => ({
 	updatedIdx: index('idx_rate_limit_records_updated').on(table.lastUpdated)
 }));
+
+// Project Events & Milestones
+export const projectEvents = sqliteTable('project_events', {
+	id: text('id').primaryKey(),
+	projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+	date: text('date').notNull(), // ISO YYYY-MM-DD
+	title: text('title').notNull(),
+	description: text('description'),
+	category: text('category', { enum: ['badge', 'release', 'marketing', 'incident', 'custom'] }).notNull().default('custom'),
+	icon: text('icon'),
+	isPublished: integer('is_published').notNull().default(1), // 0=draft, 1=published
+	createdById: text('created_by_id').references(() => users.id, { onDelete: 'set null' }),
+	createdAt: integer('created_at').notNull(),
+	updatedAt: integer('updated_at').notNull()
+}, (table) => ({
+	projectDateIdx: index('idx_project_events_project_date').on(table.projectId, table.date)
+}));
+

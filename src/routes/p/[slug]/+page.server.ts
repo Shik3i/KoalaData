@@ -2,6 +2,7 @@ import { db } from '$lib/server/db';
 import { projects, projectSlugRedirects, dataSources, metricDefinitions } from '$lib/server/db/schema';
 import { eq, and, isNull, inArray, sql } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
+import { listProjectEvents } from '$lib/server/project-events';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import {
@@ -166,6 +167,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			observations: metric.observations.map(({ date, value }) => ({ date, value }))
 		}));
 
+	const projectEvents = await listProjectEvents(project.id, { publishedOnly: true });
+
 	return {
 		project: {
 			id: project.id,
@@ -188,6 +191,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			updatedAt: project.updatedAt
 		},
 		metrics: compactMetrics,
-		breakdownGroups
+		breakdownGroups,
+		projectEvents
 	};
 };

@@ -69,6 +69,13 @@
 				<Icon name="clock-counter-clockwise" /> Import History
 			</a>
 			<a 
+				href="/app/projects/{project.id}/events" 
+				aria-current={page.url.pathname.includes('/events') ? 'page' : undefined}
+				class="tab-link {page.url.pathname.includes('/events') ? 'active' : ''}"
+			>
+				<Icon name="flag" /> Events
+			</a>
+			<a 
 				href="/app/projects/{project.id}/members" 
 				aria-current={page.url.pathname.includes('/members') ? 'page' : undefined}
 				class="tab-link {page.url.pathname.includes('/members') ? 'active' : ''}"
