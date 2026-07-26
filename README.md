@@ -132,7 +132,7 @@ Backups are written to the configured backup volume and snapshots older than sev
 
 ## Local development
 
-Requirements: Node.js 22 and npm.
+Requirements: Node.js 26 and npm.
 
 ```bash
 npm ci

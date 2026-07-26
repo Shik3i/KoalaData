@@ -12,7 +12,7 @@ Thank you for helping improve privacy-respecting extension analytics.
 
 ## Development setup
 
-Requirements: Node.js 22, npm, and optionally Docker.
+Requirements: Node.js 26, npm, and optionally Docker.
 
 ```bash
 npm ci

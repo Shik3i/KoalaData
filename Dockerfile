@@ -1,5 +1,5 @@
 # Stage 1: Build SvelteKit assets and compile production bundle
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 
 WORKDIR /app
 
@@ -7,14 +7,17 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++ gcc
 
 COPY package*.json ./
-RUN npm ci
+RUN npm install --global npm@12.0.1 \
+    && npm ci --ignore-scripts \
+    && npm install-scripts approve better-sqlite3 esbuild --no-allow-scripts-pin \
+    && npm rebuild better-sqlite3 esbuild
 
 COPY . .
 RUN npm run build
-RUN npm prune --production
+RUN npm prune --omit=dev --ignore-scripts
 
 # Stage 2: Production runtime image
-FROM node:22-alpine AS runner
+FROM node:26-alpine AS runner
 
 WORKDIR /app
 

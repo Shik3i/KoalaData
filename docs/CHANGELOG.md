@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.5.4 - 2026-07-26
+
+- Upgrade production and CI runtimes from Node.js 22 to Node.js 26.
+- Upgrade compatible npm dependencies, including Playwright 1.62, Svelte 5.56.8, better-sqlite3 13.0.1, and Node.js types 26.1.1.
+- Upgrade GitHub Actions checkout to v5 to remove the Node.js 20 runtime warning.
+
 ## v1.5.3 - 2026-07-26
 
 - Align production request-body limits with CSV and logo upload limits.
