@@ -1,7 +1,7 @@
 {
 	"name": "koaladata",
 	"private": true,
-	"version": "1.5.4",
+	"version": "1.5.5",
 	"type": "module",
 	"homepage": "https://data.koalastuff.net",
 	"repository": {
@@ -21,8 +21,10 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test:e2e": "node scripts/run-playwright.mjs",
 		"test:quality": "node scripts/run-playwright.mjs src/routes/ui-quality.e2e.ts",
+		"test:container-startup": "node scripts/test-container-startup.mjs",
 		"check:lighthouse": "node scripts/check-lighthouse.mjs",
 		"check:release-policy": "node scripts/check-release-policy.mjs",
+		"release:tag": "node scripts/release-tag.mjs",
 		"backup:verify": "node scripts/verify-backup.mjs",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:unit": "vitest --no-file-parallelism",

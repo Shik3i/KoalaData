@@ -35,4 +35,8 @@ echo -e "\n${BLUE}6. Building Docker release image...${NC}"
 docker build --tag koaladata:pre-release .
 docker image inspect koaladata:pre-release >/dev/null
 
+# 7. Real container startup and legacy-volume upgrade
+echo -e "\n${BLUE}7. Verifying fresh and upgraded container startup...${NC}"
+KOALADATA_TEST_IMAGE=koaladata:pre-release node scripts/test-container-startup.mjs
+
 echo -e "\n${GREEN}✓ All checks passed successfully! It is safe to tag and push.${NC}"

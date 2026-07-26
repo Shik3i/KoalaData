@@ -42,8 +42,16 @@ For dependency or deployment changes, also run:
 
 ```bash
 npm audit --audit-level=low
-docker build --tag koaladata:local .
+docker build --tag koaladata:pre-release .
+npm run test:container-startup
 ```
+
+Never create or push release tags directly. After the CI run for the exact
+commit passes, use `npm run release:tag -- vX.Y.Z`. The command refuses to tag
+a dirty, unpushed, non-`master`, version-mismatched, or non-green commit. CI
+starts the built image with both a fresh named volume and a simulated legacy
+root-owned volume. The tag workflow repeats the same gate before publishing to
+GHCR.
 
 ## Code expectations
 

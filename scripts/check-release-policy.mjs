@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 
 const workflowPath = '.github/workflows/publish-container.yml';
 const workflow = readFileSync(workflowPath, 'utf8');
+const ciWorkflowPath = '.github/workflows/ci.yml';
+const ciWorkflow = readFileSync(ciWorkflowPath, 'utf8');
 const forbidden = [
 	[/\bgh\s+release\s+(?:create|upload)\b/i, 'GitHub CLI release mutation'],
 	[/action-gh-release|upload-release-asset|create-release/i, 'GitHub Release action'],
@@ -14,6 +16,14 @@ const violations = forbidden
 
 if (!/^\s*contents:\s*read\s*$/m.test(workflow)) violations.push('missing contents: read permission');
 if (!/^\s*packages:\s*write\s*$/m.test(workflow)) violations.push('missing packages: write permission');
+for (const [path, contents] of [
+	[workflowPath, workflow],
+	[ciWorkflowPath, ciWorkflow]
+]) {
+	if (!contents.includes('node scripts/test-container-startup.mjs')) {
+		violations.push(`${path} missing container startup gate`);
+	}
+}
 
 if (violations.length > 0) {
 	console.error(`${workflowPath} violates the container-only publishing policy: ${violations.join(', ')}`);

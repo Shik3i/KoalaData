@@ -78,9 +78,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Compile Docker Image (Verify build validity)
+      - name: Build Docker release candidate
         uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
           push: false
+          load: true
+          tags: koaladata:ci-${{ github.sha }}
+
+      - name: Verify fresh and upgraded container startup
+        env:
+          KOALADATA_TEST_IMAGE: koaladata:ci-${{ github.sha }}
+        run: node scripts/test-container-startup.mjs

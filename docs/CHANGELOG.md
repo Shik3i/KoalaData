@@ -1,10 +1,16 @@
 # Changelog
 
+## v1.5.5 - 2026-07-26
+
+- Gate commits and container publishing on real fresh-volume and existing-volume startup tests.
+- Require a clean, pushed, version-matched commit with successful CI before the official release command can create and push a tag.
+
 ## v1.5.4 - 2026-07-26
 
 - Upgrade production and CI runtimes from Node.js 22 to Node.js 26.
 - Upgrade compatible npm dependencies, including Playwright 1.62, Svelte 5.56.8, better-sqlite3 13.0.1, and Node.js types 26.1.1.
 - Upgrade GitHub Actions checkout to v5 to remove the Node.js 20 runtime warning.
+- Repair legacy root-owned Docker volume permissions before dropping to the unprivileged application user.
 
 ## v1.5.3 - 2026-07-26
 
