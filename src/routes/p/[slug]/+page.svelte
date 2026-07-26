@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import InfoTip from '$lib/components/InfoTip.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -26,7 +25,7 @@
 	let showMovingAverage = $state(false);
 	let copied = $state(false);
 	let isShareModalOpen = $state(false);
-	let activeSection = $state('growth');
+	let additionalMetricsOpen = $state(false);
 	let days = $derived(dateFilter === 'all' ? null : Number(dateFilter));
 	let isIndexable = $derived(project.visibility === 'public' && project.moderationStatus === 'active');
 
@@ -198,17 +197,6 @@
 		return labels[metric.metricType] ?? metric.name;
 	}
 
-	onMount(() => {
-		const sections = Array.from(document.querySelectorAll<HTMLElement>('.dashboard-section[id]'));
-		const observer = new IntersectionObserver((entries) => {
-			const visible = entries
-				.filter((entry) => entry.isIntersecting)
-				.sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-			if (visible?.target.id) activeSection = visible.target.id;
-		}, { rootMargin: '-18% 0px -65% 0px', threshold: [0, 0.1, 0.35] });
-		sections.forEach((section) => observer.observe(section));
-		return () => observer.disconnect();
-	});
 </script>
 
 <Seo
@@ -260,7 +248,7 @@
 			<p class="text-muted data-note">Counts are grouped by their real meaning. Period totals are used for flows; current values are used for snapshots.</p>
 		</div>
 		<div class="filter-panel" aria-label="Analytics timeframe">
-			{#each [['7', '7D'], ['30', '30D'], ['90', '90D'], ['365', '1Y']] as option}
+			{#each [['7', '7D'], ['30', '30D'], ['90', '90D'], ['365', '1Y'], ['all', 'All']] as option}
 				<button class:active={dateFilter === option[0]} aria-pressed={dateFilter === option[0]} onclick={() => dateFilter = option[0]}>{option[1]}</button>
 			{/each}
 		</div>
@@ -276,7 +264,7 @@
 	</section>
 
 	<nav class="section-nav" aria-label="Analytics sections">
-		<a href="#growth" class:active={activeSection === 'growth'} aria-current={activeSection === 'growth' ? 'location' : undefined}>Growth</a>{#if acquisitionGroups.length || kpis.impressions > 0 || kpis.pageViews > 0}<a href="#acquisition" class:active={activeSection === 'acquisition'} aria-current={activeSection === 'acquisition' ? 'location' : undefined}>Acquisition</a>{/if}{#if audienceGroups.length}<a href="#audience" class:active={activeSection === 'audience'} aria-current={activeSection === 'audience' ? 'location' : undefined}>Audience</a>{/if}{#if retentionGroups.length}<a href="#retention" class:active={activeSection === 'retention'} aria-current={activeSection === 'retention' ? 'location' : undefined}>Retention</a>{/if}{#if qualityGroups.length}<a href="#quality" class:active={activeSection === 'quality'} aria-current={activeSection === 'quality' ? 'location' : undefined}>Ratings</a>{/if}
+		<a href="#growth">Growth</a>{#if acquisitionGroups.length || kpis.impressions > 0 || kpis.pageViews > 0}<a href="#acquisition">Acquisition</a>{/if}{#if audienceGroups.length}<a href="#audience">Audience</a>{/if}{#if retentionGroups.length}<a href="#retention">Retention</a>{/if}{#if qualityGroups.length}<a href="#quality">Ratings</a>{/if}
 	</nav>
 
 	<section id="growth" class="dashboard-section">
@@ -351,7 +339,16 @@
 	{/if}
 
 	{#if additionalMetrics.length}
-		<section class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Additional data</p><h2>Other imported metrics</h2><p class="text-muted">Additional sources and unclassified custom data remain visible and are not discarded.</p></div></div><div class="trend-grid">{#each additionalMetrics as metric}<article class="card chart-card"><header><div><h3>{metricLabel(metric)}</h3><p class="text-muted">{metric.sourceName}</p></div><strong>{formatNumber(metricDisplayValue(metric, days) ?? 0)}</strong></header><MetricChart title="{project.name}-{metric.name}" observations={filterObservationsByCalendarDays(metric.observations, days)} /></article>{/each}</div></section>
+		<section class="dashboard-section">
+			<details class="additional-metrics" bind:open={additionalMetricsOpen}>
+				<summary>
+					<span><span class="section-kicker">Additional data</span><span class="additional-title">Other imported metrics</span><span class="text-muted">Additional sources and unclassified custom data remain visible and are not discarded.</span></span>
+				</summary>
+				{#if additionalMetricsOpen}
+					<div class="trend-grid">{#each additionalMetrics as metric}<article class="card chart-card"><header><div><h3>{metricLabel(metric)}</h3><p class="text-muted">{metric.sourceName}</p></div><strong>{formatNumber(metricDisplayValue(metric, days) ?? 0)}</strong></header><MetricChart title="{project.name}-{metric.name}" observations={filterObservationsByCalendarDays(metric.observations, days)} /></article>{/each}</div>
+				{/if}
+			</details>
+		</section>
 	{/if}
 
 	<ShareCardModal
@@ -399,7 +396,13 @@
 	.section-nav { position: sticky; top: 0.75rem; z-index: 20; justify-self: center; display: flex; gap: 0.25rem; padding: 0.3rem; border: 1px solid var(--border-color); border-radius: 999px; background: color-mix(in srgb, var(--bg-surface) 92%, transparent); box-shadow: var(--shadow-sm); backdrop-filter: blur(12px); }
 	.section-nav a { min-height: 44px; display: inline-flex; align-items: center; padding: 0.4rem 0.75rem; border-radius: 999px; color: var(--text-muted); font-size: 0.78rem; font-weight: 700; }
 	.section-nav a:hover { background: var(--bg-inset); color: var(--text-base); text-decoration: none; }
-	.section-nav a.active { background: var(--primary); color: var(--text-inverse); text-decoration: none; }
+	.additional-metrics { border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--bg-surface); }
+	.additional-metrics summary { min-height: 44px; padding: 1.25rem; cursor: pointer; font-weight: 700; }
+	.additional-metrics summary > span { display: inline-grid; gap: 0.25rem; margin-left: 0.35rem; vertical-align: middle; }
+	.additional-metrics summary .section-kicker { margin: 0; }
+	.additional-title { font-size: 1.2rem; color: var(--text-base); }
+	.additional-metrics summary .text-muted { font-size: 0.85rem; font-weight: 400; }
+	.additional-metrics .trend-grid { padding: 0 1.25rem 1.25rem; }
 	.dashboard-section { display: grid; gap: 1.25rem; scroll-margin-top: 5rem; }
 	.analysis-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
 	.analysis-controls .active { background: var(--primary); color: var(--text-inverse); border-color: var(--primary); }

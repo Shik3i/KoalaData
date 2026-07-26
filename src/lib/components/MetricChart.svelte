@@ -43,17 +43,52 @@
 		return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 	}
 
-	function exportPNG() {
+	function downloadBlob(blob: Blob, filename: string) {
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = filename.replace(/[<>:"/\\|?*]/g, '-');
+		document.body.appendChild(link);
+		link.click();
+		window.setTimeout(() => {
+			link.remove();
+			URL.revokeObjectURL(url);
+		}, 1_000);
+	}
+
+	async function chartPngBlob(pixelRatio = 2): Promise<Blob> {
+		if (!chart) throw new Error('Chart is not ready.');
+		const svgUrl = chart.getDataURL({ type: 'svg', backgroundColor: '#fff' });
+		const image = new Image();
+		image.decoding = 'async';
+		await new Promise<void>((resolve, reject) => {
+			image.onload = () => resolve();
+			image.onerror = () => reject(new Error('Could not decode the chart SVG.'));
+			image.src = svgUrl;
+		});
+
+		const canvas = document.createElement('canvas');
+		canvas.width = Math.max(1, Math.round(chart.getWidth() * pixelRatio));
+		canvas.height = Math.max(1, Math.round(chart.getHeight() * pixelRatio));
+		const context = canvas.getContext('2d');
+		if (!context) throw new Error('Could not create the PNG canvas.');
+		context.fillStyle = '#fff';
+		context.fillRect(0, 0, canvas.width, canvas.height);
+		context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+		return new Promise<Blob>((resolve, reject) => {
+			canvas.toBlob((blob) => {
+				if (blob) resolve(blob);
+				else reject(new Error('Could not encode the chart as PNG.'));
+			}, 'image/png');
+		});
+	}
+
+	async function exportPNG() {
 		if (!chart) return;
 		exporting = true;
 		try {
-			const url = chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' });
-			const link = document.createElement('a');
-			link.href = url;
-			link.download = `${title || 'chart'}.png`;
-			document.body.appendChild(link);
-			link.click();
-			document.body.removeChild(link);
+			downloadBlob(await chartPngBlob(), `${title || 'chart'}.png`);
 		} finally {
 			exporting = false;
 		}
@@ -83,15 +118,8 @@
 			} else {
 				return;
 			}
-			const blob = new Blob([csv], { type: 'text/csv' });
-			const url = URL.createObjectURL(blob);
-			const link = document.createElement('a');
-			link.href = url;
-			link.download = `${title || 'chart'}.csv`;
-			document.body.appendChild(link);
-			link.click();
-			document.body.removeChild(link);
-			URL.revokeObjectURL(url);
+			const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' });
+			downloadBlob(blob, `${title || 'chart'}.csv`);
 		} finally {
 			exporting = false;
 		}

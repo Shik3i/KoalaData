@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import Database from 'better-sqlite3';
 import crypto from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 
 const PRIMARY_METRICS = [
 	['active_users', 'Weekly Users', 'average'],
@@ -53,6 +54,7 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 		...PRIMARY_METRICS.map(([metricType, name, aggregation]) => ({ id: crypto.randomUUID(), metricType, name, aggregation })),
 		...BREAKDOWN_METRICS.map((name) => ({ id: crypto.randomUUID(), metricType: 'custom', name, aggregation: 'sum' }))
 	];
+	const additionalMetric = { id: crypto.randomUUID(), metricType: 'custom', name: 'Unclassified fixture metric', aggregation: 'sum' };
 
 	try {
 		sqlite.transaction(() => {
@@ -89,6 +91,7 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 				metric.metricType === 'active_users' ? 1 : 0,
 				now
 			));
+			insertMetric.run(additionalMetric.id, sourceId, additionalMetric.metricType, additionalMetric.name, additionalMetric.aggregation, 0, now);
 			const insertBatch = sqlite.prepare(`
 				INSERT INTO import_batches (
 					id, project_id, source_id, user_id, original_filename, file_size, checksum,
@@ -171,6 +174,14 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto(`/p/${slug}`);
+		await expect(page.getByRole('button', { name: 'All', exact: true })).toBeVisible();
+		await page.getByRole('button', { name: 'All', exact: true }).click();
+		await expect(page.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true');
+		await page.getByRole('button', { name: '90D', exact: true }).click();
+		await expect(page.getByRole('button', { name: '90D', exact: true })).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.locator('.section-nav [aria-current]')).toHaveCount(0);
+		const additionalMetricsDetails = page.locator('details.additional-metrics');
+		await expect(additionalMetricsDetails).not.toHaveAttribute('open', '');
 		await expect(page.locator('[data-report="users-version"]')).toHaveCount(1);
 		await expect(page.locator('.chart-dom')).toHaveCount(5);
 		const pageViewChart = page.getByRole('img', { name: 'Performance fixture store page views trend chart' });
@@ -195,6 +206,24 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 		await page.mouse.wheel(0, 420);
 		await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(scrollBefore);
+
+		const pngDownloadPromise = page.waitForEvent('download');
+		await page.getByRole('button', { name: 'Download chart as PNG' }).first().click();
+		const pngDownload = await pngDownloadPromise;
+		const pngPath = await pngDownload.path();
+		expect(pngPath).not.toBeNull();
+		const png = await readFile(pngPath!);
+		expect([...png.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+		expect(png.subarray(-8, -4).toString('ascii')).toBe('IEND');
+
+		const csvDownloadPromise = page.waitForEvent('download');
+		await page.getByRole('button', { name: 'Download chart data as CSV' }).first().click();
+		const csvDownload = await csvDownloadPromise;
+		const csvPath = await csvDownload.path();
+		expect(csvPath).not.toBeNull();
+		const csv = await readFile(csvPath!, 'utf8');
+		expect(csv).toMatch(/^\uFEFFDate,Installs,Uninstalls\r?\n/);
+		expect(csv.trimEnd().split(/\r?\n/)).toHaveLength(91);
 
 		const logoStarted = performance.now();
 		await page.locator('.main-header .brand').click();
