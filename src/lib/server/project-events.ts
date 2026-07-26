@@ -5,6 +5,16 @@ import crypto from 'crypto';
 
 export type ProjectEventCategory = 'badge' | 'release' | 'marketing' | 'incident' | 'custom';
 
+export interface EventImpact {
+	status: 'calculated' | 'insufficient_data';
+	metricLabel: string;
+	preAvg: number;
+	postAvg: number;
+	percentChange: number | null;
+	netChange: number;
+	summaryText: string;
+}
+
 export interface ProjectEvent {
 	id: string;
 	projectId: string;
@@ -17,6 +27,7 @@ export interface ProjectEvent {
 	createdById: string | null;
 	createdAt: number;
 	updatedAt: number;
+	impact?: EventImpact;
 }
 
 export interface ProjectEventInput {
@@ -39,7 +50,107 @@ export interface EventSuggestion {
 }
 
 /**
- * List events for a project sorted by date ascending.
+ * Calculate 7-day pre vs post event metric impact.
+ */
+export async function calculateEventImpact(projectId: string, eventDate: string): Promise<EventImpact> {
+	const d = new Date(`${eventDate}T00:00:00Z`);
+	if (isNaN(d.getTime())) {
+		return {
+			status: 'insufficient_data',
+			metricLabel: 'Installs',
+			preAvg: 0,
+			postAvg: 0,
+			percentChange: null,
+			netChange: 0,
+			summaryText: 'Ungültiges Datum'
+		};
+	}
+
+	const preStart = new Date(d);
+	preStart.setDate(preStart.getDate() - 7);
+	const preEnd = new Date(d);
+	preEnd.setDate(preEnd.getDate() - 1);
+
+	const postStart = new Date(d);
+	const postEnd = new Date(d);
+	postEnd.setDate(postEnd.getDate() + 6);
+
+	const preStartStr = preStart.toISOString().split('T')[0];
+	const preEndStr = preEnd.toISOString().split('T')[0];
+	const postStartStr = postStart.toISOString().split('T')[0];
+	const postEndStr = postEnd.toISOString().split('T')[0];
+
+	try {
+		const impactQuery = sql`
+			SELECT o.date, SUM(o.value) as totalValue, m.metric_type as metricType
+			FROM metric_observations o
+			INNER JOIN metric_definitions m ON o.metric_id = m.id
+			INNER JOIN data_sources s ON o.source_id = s.id
+			INNER JOIN import_batches b ON o.import_batch_id = b.id
+			WHERE s.project_id = ${projectId}
+			  AND m.metric_type IN ('installs', 'active_users')
+			  AND b.status = 'completed'
+			  AND b.reverted_at IS NULL
+			  AND o.date >= ${preStartStr}
+			  AND o.date <= ${postEndStr}
+			GROUP BY o.date, m.metric_type
+			ORDER BY o.date ASC
+		`;
+
+		const rows = await db.all<{ date: string; totalValue: number; metricType: string }>(impactQuery);
+		const preRows = rows.filter((r) => r.date >= preStartStr && r.date <= preEndStr);
+		const postRows = rows.filter((r) => r.date >= postStartStr && r.date <= postEndStr);
+
+		const metricLabel = rows[0]?.metricType === 'active_users' ? 'Active Users' : 'Installs';
+
+		if (preRows.length < 2 || postRows.length < 2) {
+			return {
+				status: 'insufficient_data',
+				metricLabel,
+				preAvg: 0,
+				postAvg: 0,
+				percentChange: null,
+				netChange: 0,
+				summaryText: 'Auswertung ausstehend'
+			};
+		}
+
+		const preSum = preRows.reduce((acc, r) => acc + r.totalValue, 0);
+		const postSum = postRows.reduce((acc, r) => acc + r.totalValue, 0);
+		const preAvg = preSum / preRows.length;
+		const postAvg = postSum / postRows.length;
+		const netChange = Math.round(postSum - preSum);
+
+		const percentChange = preAvg > 0 ? ((postAvg - preAvg) / preAvg) * 100 : null;
+		const sign = percentChange !== null && percentChange >= 0 ? '+' : '';
+		const summaryText = percentChange !== null
+			? `${sign}${percentChange.toFixed(1)}% ${metricLabel}`
+			: `${netChange >= 0 ? '+' : ''}${netChange} ${metricLabel}`;
+
+		return {
+			status: 'calculated',
+			metricLabel,
+			preAvg: Math.round(preAvg * 10) / 10,
+			postAvg: Math.round(postAvg * 10) / 10,
+			percentChange: percentChange !== null ? Math.round(percentChange * 10) / 10 : null,
+			netChange,
+			summaryText
+		};
+	} catch (e) {
+		return {
+			status: 'insufficient_data',
+			metricLabel: 'Installs',
+			preAvg: 0,
+			postAvg: 0,
+			percentChange: null,
+			netChange: 0,
+			summaryText: 'Auswertung ausstehend'
+		};
+	}
+}
+
+/**
+ * List events for a project sorted by date ascending with calculated impact scores.
  */
 export async function listProjectEvents(
 	projectId: string,
@@ -56,19 +167,27 @@ export async function listProjectEvents(
 		.where(and(...conditions))
 		.orderBy(asc(projectEvents.date), asc(projectEvents.createdAt));
 
-	return rows.map((r) => ({
-		id: r.id,
-		projectId: r.projectId,
-		date: r.date,
-		title: r.title,
-		description: r.description,
-		category: r.category as ProjectEventCategory,
-		icon: r.icon,
-		isPublished: Boolean(r.isPublished),
-		createdById: r.createdById,
-		createdAt: r.createdAt,
-		updatedAt: r.updatedAt
-	}));
+	const events = await Promise.all(
+		rows.map(async (r) => {
+			const impact = await calculateEventImpact(projectId, r.date);
+			return {
+				id: r.id,
+				projectId: r.projectId,
+				date: r.date,
+				title: r.title,
+				description: r.description,
+				category: r.category as ProjectEventCategory,
+				icon: r.icon,
+				isPublished: Boolean(r.isPublished),
+				createdById: r.createdById,
+				createdAt: r.createdAt,
+				updatedAt: r.updatedAt,
+				impact
+			};
+		})
+	);
+
+	return events;
 }
 
 /**

@@ -230,10 +230,24 @@
 							<div class="flex align-center gap-1.5 flex-1 min-w-0">
 								<span class="event-badge-icon">{event.icon || categoryIcons[event.category] || '📌'}</span>
 								<div class="flex flex-col min-w-0">
-									<div class="flex align-center gap-1">
+									<div class="flex align-center gap-1 flex-wrap">
 										<strong class="event-item-title text-truncate">{event.title}</strong>
 										{#if !event.isPublished}
 											<span class="badge badge-sm badge-draft">Entwurf</span>
+										{/if}
+										{#if event.impact}
+											{#if event.impact.status === 'calculated'}
+												<span 
+													class="badge badge-sm {event.impact.percentChange !== null && event.impact.percentChange >= 0 ? 'badge-impact-positive' : 'badge-impact-negative'}"
+													title={`7-Tage Vorher (${event.impact.preAvg}/d) vs. Nachher (${event.impact.postAvg}/d) · Netto: ${event.impact.netChange >= 0 ? '+' : ''}${event.impact.netChange}`}
+												>
+													{event.impact.percentChange !== null && event.impact.percentChange >= 0 ? '📈' : '📉'} {event.impact.summaryText}
+												</span>
+											{:else}
+												<span class="badge badge-sm badge-impact-pending" title="Benötigt Daten vor und nach dem Event für die Auswertung">
+													⏳ Auswertung ausstehend
+												</span>
+											{/if}
 										{/if}
 									</div>
 									<span class="text-muted text-xs">{event.date} · {event.category}</span>
@@ -338,5 +352,20 @@
 		.grid-2-sm {
 			grid-template-columns: 1fr;
 		}
+	}
+	.badge-impact-positive {
+		background: rgba(34, 197, 94, 0.15);
+		color: #16a34a;
+		border: 1px solid rgba(34, 197, 94, 0.3);
+	}
+	.badge-impact-negative {
+		background: rgba(239, 68, 68, 0.15);
+		color: #dc2626;
+		border: 1px solid rgba(239, 68, 68, 0.3);
+	}
+	.badge-impact-pending {
+		background: rgba(148, 163, 184, 0.12);
+		color: var(--text-muted);
+		border: 1px dashed var(--border-color);
 	}
 </style>

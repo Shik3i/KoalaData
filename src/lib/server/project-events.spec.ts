@@ -104,4 +104,16 @@ describe('Project Events Service', () => {
 		const match = newSuggestions.find((s) => s.title === badgeSuggestion?.title);
 		expect(match).toBeUndefined();
 	});
+
+	it('calculates event impact or handles insufficient data gracefully', async () => {
+		const created = await createProjectEvent(testProjectId, testUserId, {
+			date: '2026-05-15',
+			title: 'Marketing Push',
+			category: 'marketing'
+		});
+
+		expect(created.impact).toBeDefined();
+		expect(created.impact?.status).toBe('insufficient_data');
+		expect(created.impact?.summaryText).toBe('Auswertung ausstehend');
+	});
 });

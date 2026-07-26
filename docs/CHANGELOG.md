@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.5.8 - 2026-07-26
+
+- Add Event Impact Score (Kausalitäts-Analyse) comparing 7-day pre- vs. post-event metric averages (Installs, Active Users).
+- Display interactive Event Impact Badges in event management view and impact summaries in metric chart tooltips.
+- Add unit tests for 7-day event impact calculation and data threshold fallbacks.
+
 ## v1.5.7 - 2026-07-26
 
 - Add manual Project Events & Milestones management with interactive timeline markers, category filters, and rich hover tooltips.
