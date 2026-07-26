@@ -237,16 +237,23 @@
 										{/if}
 										{#if event.impact}
 											{#if event.impact.status === 'calculated'}
-												<span 
-													class="badge badge-sm {event.impact.percentChange !== null && event.impact.percentChange >= 0 ? 'badge-impact-positive' : 'badge-impact-negative'}"
+												<button 
+													type="button"
+													class="badge badge-sm btn-unstyled {event.impact.percentChange !== null && event.impact.percentChange >= 0 ? 'badge-impact-positive' : 'badge-impact-negative'}"
 													title={`7-Tage Vorher (${event.impact.preAvg}/d) vs. Nachher (${event.impact.postAvg}/d) · Netto: ${event.impact.netChange >= 0 ? '+' : ''}${event.impact.netChange}`}
+													aria-label={`7-Tage Impact: ${event.impact.summaryText}`}
 												>
 													{event.impact.percentChange !== null && event.impact.percentChange >= 0 ? '📈' : '📉'} {event.impact.summaryText}
-												</span>
+												</button>
 											{:else}
-												<span class="badge badge-sm badge-impact-pending" title="Benötigt Daten vor und nach dem Event für die Auswertung">
+												<button 
+													type="button"
+													class="badge badge-sm btn-unstyled badge-impact-pending" 
+													title="Benötigt Daten vor und nach dem Event für die Auswertung"
+													aria-label="Impact Auswertung ausstehend"
+												>
 													⏳ Auswertung ausstehend
-												</span>
+												</button>
 											{/if}
 										{/if}
 									</div>
@@ -355,17 +362,31 @@
 	}
 	.badge-impact-positive {
 		background: rgba(34, 197, 94, 0.15);
-		color: #16a34a;
-		border: 1px solid rgba(34, 197, 94, 0.3);
+		color: #15803d;
+		border: 1px solid rgba(34, 197, 94, 0.35);
+	}
+	:global(.dark) .badge-impact-positive {
+		background: rgba(74, 222, 128, 0.15);
+		color: #4ade80;
+		border-color: rgba(74, 222, 128, 0.35);
 	}
 	.badge-impact-negative {
 		background: rgba(239, 68, 68, 0.15);
-		color: #dc2626;
-		border: 1px solid rgba(239, 68, 68, 0.3);
+		color: #b91c1c;
+		border: 1px solid rgba(239, 68, 68, 0.35);
+	}
+	:global(.dark) .badge-impact-negative {
+		background: rgba(248, 113, 113, 0.15);
+		color: #f87171;
+		border-color: rgba(248, 113, 113, 0.35);
 	}
 	.badge-impact-pending {
 		background: rgba(148, 163, 184, 0.12);
 		color: var(--text-muted);
 		border: 1px dashed var(--border-color);
+	}
+	.btn-unstyled {
+		font: inherit;
+		cursor: pointer;
 	}
 </style>

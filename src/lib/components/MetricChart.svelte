@@ -416,7 +416,7 @@
 							const titleStr = escapeHtml(ev.title);
 							const descStr = ev.description ? escapeHtml(ev.description) : null;
 							const impactStr = ev.impact?.status === 'calculated'
-								? `<div style="font-size: 11px; font-weight: 600; color: ${ev.impact.percentChange !== null && ev.impact.percentChange >= 0 ? (isDark ? '#4ade80' : '#16a34a') : '#ef4444'}; margin-top: 2px;">Impact (7d): ${escapeHtml(ev.impact.summaryText)}</div>`
+								? `<div style="font-size: 11px; font-weight: 600; color: ${ev.impact.percentChange !== null && ev.impact.percentChange >= 0 ? (isDark ? '#4ade80' : '#15803d') : (isDark ? '#f87171' : '#b91c1c')}; margin-top: 2px;">Impact (7d): ${escapeHtml(ev.impact.summaryText)}</div>`
 								: '';
 							html += `<div style="margin-bottom: 6px; padding: 4px 6px; background: ${isDark ? 'rgba(74, 222, 128, 0.15)' : '#f0fdf4'}; border-radius: 4px; border: 1px solid ${isDark ? '#22543d' : '#bbf7d0'};">
 								<span style="font-size: 12px; font-weight: 600;">${iconStr} ${titleStr}</span>

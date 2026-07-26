@@ -81,27 +81,45 @@ export async function calculateEventImpact(projectId: string, eventDate: string)
 	const postEndStr = postEnd.toISOString().split('T')[0];
 
 	try {
-		const impactQuery = sql`
-			SELECT o.date, SUM(o.value) as totalValue, m.metric_type as metricType
+		let metricTypeToQuery = 'installs';
+		let rows = await db.all<{ date: string; totalValue: number }>(sql`
+			SELECT o.date, SUM(o.value) as totalValue
 			FROM metric_observations o
 			INNER JOIN metric_definitions m ON o.metric_id = m.id
 			INNER JOIN data_sources s ON o.source_id = s.id
 			INNER JOIN import_batches b ON o.import_batch_id = b.id
 			WHERE s.project_id = ${projectId}
-			  AND m.metric_type IN ('installs', 'active_users')
+			  AND m.metric_type = 'installs'
 			  AND b.status = 'completed'
 			  AND b.reverted_at IS NULL
 			  AND o.date >= ${preStartStr}
 			  AND o.date <= ${postEndStr}
-			GROUP BY o.date, m.metric_type
+			GROUP BY o.date
 			ORDER BY o.date ASC
-		`;
+		`);
 
-		const rows = await db.all<{ date: string; totalValue: number; metricType: string }>(impactQuery);
+		if (rows.length === 0) {
+			metricTypeToQuery = 'active_users';
+			rows = await db.all<{ date: string; totalValue: number }>(sql`
+				SELECT o.date, SUM(o.value) as totalValue
+				FROM metric_observations o
+				INNER JOIN metric_definitions m ON o.metric_id = m.id
+				INNER JOIN data_sources s ON o.source_id = s.id
+				INNER JOIN import_batches b ON o.import_batch_id = b.id
+				WHERE s.project_id = ${projectId}
+				  AND m.metric_type = 'active_users'
+				  AND b.status = 'completed'
+				  AND b.reverted_at IS NULL
+				  AND o.date >= ${preStartStr}
+				  AND o.date <= ${postEndStr}
+				GROUP BY o.date
+				ORDER BY o.date ASC
+			`);
+		}
+
+		const metricLabel = metricTypeToQuery === 'active_users' ? 'Active Users' : 'Installs';
 		const preRows = rows.filter((r) => r.date >= preStartStr && r.date <= preEndStr);
 		const postRows = rows.filter((r) => r.date >= postStartStr && r.date <= postEndStr);
-
-		const metricLabel = rows[0]?.metricType === 'active_users' ? 'Active Users' : 'Installs';
 
 		if (preRows.length < 2 || postRows.length < 2) {
 			return {
