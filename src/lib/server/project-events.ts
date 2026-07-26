@@ -66,14 +66,11 @@ export async function calculateEventImpact(projectId: string, eventDate: string)
 		};
 	}
 
-	const preStart = new Date(d);
-	preStart.setDate(preStart.getDate() - 7);
-	const preEnd = new Date(d);
-	preEnd.setDate(preEnd.getDate() - 1);
+	const preStart = new Date(d.getTime() - 7 * 86400 * 1000);
+	const preEnd = new Date(d.getTime() - 1 * 86400 * 1000);
 
-	const postStart = new Date(d);
-	const postEnd = new Date(d);
-	postEnd.setDate(postEnd.getDate() + 6);
+	const postStart = new Date(d.getTime());
+	const postEnd = new Date(d.getTime() + 6 * 86400 * 1000);
 
 	const preStartStr = preStart.toISOString().split('T')[0];
 	const preEndStr = preEnd.toISOString().split('T')[0];

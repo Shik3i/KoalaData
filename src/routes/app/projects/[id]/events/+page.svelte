@@ -388,5 +388,9 @@
 	.btn-unstyled {
 		font: inherit;
 		cursor: pointer;
+		background: none;
+		border: none;
+		padding: 0;
+		text-align: inherit;
 	}
 </style>

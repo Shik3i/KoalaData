@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.9 - 2026-07-26
+
+- Harden Event Impact calculation with UTC millisecond Date arithmetic for 100% timezone-independent range queries.
+- Clean up unstyled button CSS overrides and resolve interactive element accessibility warnings.
+
 ## v1.5.8 - 2026-07-26
 
 - Add Event Impact Score (Kausalitäts-Analyse) comparing 7-day pre- vs. post-event metric averages (Installs, Active Users).
