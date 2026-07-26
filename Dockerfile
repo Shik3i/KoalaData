@@ -27,8 +27,12 @@ ENV DATABASE_PATH=/data/data.db
 ENV BACKUP_DIRECTORY=/backups
 ENV BODY_SIZE_LIMIT=64M
 
-# Create persistence directories for database and operator-managed backups
-RUN mkdir -p /data /backups && chown -R node:node /data /backups
+# Create persistence directories for database and operator-managed backups.
+# su-exec lets the entrypoint repair bind-mount ownership as root, then drop
+# privileges before starting the application.
+RUN apk add --no-cache su-exec \
+    && mkdir -p /data /backups \
+    && chown -R node:node /data /backups
 
 COPY --chown=node:node --from=builder /app/package*.json ./
 COPY --chown=node:node --from=builder /app/node_modules ./node_modules
@@ -36,9 +40,11 @@ COPY --chown=node:node --from=builder /app/build ./build
 COPY --chown=node:node --from=builder /app/scripts ./scripts
 COPY --chown=node:node --from=builder /app/migrations ./migrations
 COPY --chown=node:node --from=builder /app/server.mjs ./server.mjs
+COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 3000
 
-USER node
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 CMD ["node", "server.mjs"]
