@@ -13,11 +13,16 @@ on:
 
 permissions:
   # Container-only publication. This workflow must never create GitHub Releases.
+  actions: read
   contents: read
   packages: write
 
+concurrency:
+  group: publish-container
+  cancel-in-progress: false
+
 jobs:
-  verify:
+  release:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,73 +31,47 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: npm
-
-      - name: Upgrade npm
-        run: npm install --global npm@12.0.1
-
-      - name: Install dependencies
+      - name: Verify tag and successful commit CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG_INPUT: ${{ inputs.tag || github.ref_name }}
         run: |
-          npm ci --ignore-scripts
-          npm install-scripts approve better-sqlite3 esbuild --no-allow-scripts-pin
-          npm rebuild better-sqlite3 esbuild
+          if [[ ! "$RELEASE_TAG_INPUT" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: $RELEASE_TAG_INPUT" >&2
+            exit 1
+          fi
+
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          if [[ "$RELEASE_TAG_INPUT" != "v$PACKAGE_VERSION" ]]; then
+            echo "Release tag $RELEASE_TAG_INPUT does not match package.json version $PACKAGE_VERSION" >&2
+            exit 1
+          fi
+
+          TAGGED_COMMIT="$(git rev-parse HEAD)"
+          CI_RUN_ID="$(
+            gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow CI \
+              --commit "$TAGGED_COMMIT" \
+              --limit 10 \
+              --json status,conclusion,headSha,databaseId \
+              --jq "[.[] | select(.headSha == \"$TAGGED_COMMIT\" and .status == \"completed\" and .conclusion == \"success\")][0].databaseId // empty"
+          )"
+          if [[ -z "$CI_RUN_ID" ]]; then
+            echo "No successful completed CI run exists for $TAGGED_COMMIT" >&2
+            exit 1
+          fi
+
+          {
+            echo "RELEASE_TAG=$RELEASE_TAG_INPUT"
+            echo "TAGGED_COMMIT=$TAGGED_COMMIT"
+            echo "CI_RUN_ID=$CI_RUN_ID"
+          } >> "$GITHUB_ENV"
 
       - name: Verify source and release policy
         run: |
           git diff --check
           npm run check:release-policy
-          npm run check
-          npm run test:unit -- --run
-          npm run build
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      - name: Run browser integration tests
-        run: npm run test:e2e
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build tagged release candidate
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./Dockerfile
-          push: false
-          load: true
-          tags: koaladata:release-candidate-${{ github.sha }}
-
-      - name: Verify fresh and upgraded container startup
-        env:
-          KOALADATA_TEST_IMAGE: koaladata:release-candidate-${{ github.sha }}
-        run: node scripts/test-container-startup.mjs
-
-  publish:
-    needs: verify
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout tagged source
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.tag || github.ref }}
-
-      - name: Inject release version
-        env:
-          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: |
-          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Invalid release tag: $RELEASE_TAG" >&2
-            exit 1
-          fi
-          RELEASE_VERSION="${RELEASE_TAG#v}"
-          npm version "$RELEASE_VERSION" --no-git-tag-version --allow-same-version
-          test "$(node -p "require('./package.json').version")" = "$RELEASE_VERSION"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -109,15 +88,58 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/shik3i/koaladata
-          tags: |
-            type=raw,value=${{ inputs.tag || github.ref_name }}
-            type=raw,value=latest
+          tags: type=raw,value=${{ env.RELEASE_TAG }}
 
-      - name: Build and publish Docker image
+      - name: Build release candidate once
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ghcr.io/shik3i/koaladata:release-candidate
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=koaladata-container
+          cache-to: type=gha,mode=max,scope=koaladata-container
+
+      - name: Verify fresh and upgraded container startup
+        env:
+          KOALADATA_TEST_IMAGE: ghcr.io/shik3i/koaladata@${{ steps.build.outputs.digest }}
+        run: node scripts/test-container-startup.mjs
+
+      - name: Publish tested image and promote digest
+        env:
+          CANDIDATE_DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE: ghcr.io/shik3i/koaladata
+        run: |
+          VERSION_REF="$IMAGE:$RELEASE_TAG"
+          if [[ ! "$CANDIDATE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid release candidate digest: $CANDIDATE_DIGEST" >&2
+            exit 1
+          fi
+
+          docker buildx imagetools create \
+            --tag "$VERSION_REF" \
+            --tag "$IMAGE:latest" \
+            "$IMAGE@$CANDIDATE_DIGEST"
+
+          VERSION_DIGEST="$(
+            docker buildx imagetools inspect "$VERSION_REF" \
+              --format '{{json .Manifest}}' | jq -r '.digest'
+          )"
+          LATEST_DIGEST="$(
+            docker buildx imagetools inspect "$IMAGE:latest" \
+              --format '{{json .Manifest}}' | jq -r '.digest'
+          )"
+          if [[ "$VERSION_DIGEST" != "$CANDIDATE_DIGEST" || "$LATEST_DIGEST" != "$CANDIDATE_DIGEST" ]]; then
+            echo "Promoted digests do not match tested candidate $CANDIDATE_DIGEST" >&2
+            exit 1
+          fi
+
+          {
+            echo "### Published container"
+            echo "- Tag: \`$RELEASE_TAG\`"
+            echo "- Commit: \`$TAGGED_COMMIT\`"
+            echo "- Verified by CI run: \`$CI_RUN_ID\`"
+            echo "- Digest: \`$CANDIDATE_DIGEST\`"
+          } >> "$GITHUB_STEP_SUMMARY"

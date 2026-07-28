@@ -16,6 +16,7 @@ const violations = forbidden
 
 if (!/^\s*contents:\s*read\s*$/m.test(workflow)) violations.push('missing contents: read permission');
 if (!/^\s*packages:\s*write\s*$/m.test(workflow)) violations.push('missing packages: write permission');
+if (!/^\s*actions:\s*read\s*$/m.test(workflow)) violations.push('missing actions: read permission');
 for (const [path, contents] of [
 	[workflowPath, workflow],
 	[ciWorkflowPath, ciWorkflow]
@@ -23,6 +24,33 @@ for (const [path, contents] of [
 	if (!contents.includes('node scripts/test-container-startup.mjs')) {
 		violations.push(`${path} missing container startup gate`);
 	}
+	if (!contents.includes('cache-from: type=gha,scope=koaladata-container')) {
+		violations.push(`${path} missing shared container cache input`);
+	}
+	if (!contents.includes('cache-to: type=gha,mode=max,scope=koaladata-container')) {
+		violations.push(`${path} missing shared container cache output`);
+	}
+}
+
+const buildActionCount = workflow.match(/uses:\s*docker\/build-push-action@/g)?.length ?? 0;
+if (buildActionCount !== 1) violations.push(`expected one release image build, found ${buildActionCount}`);
+if (!/^\s*push:\s*true\s*$/m.test(workflow)) violations.push('release candidate must be pushed once by digest');
+if (!workflow.includes('tags: ghcr.io/shik3i/koaladata:release-candidate')) {
+	violations.push('release build must only push the non-production candidate tag');
+}
+if (!workflow.includes('KOALADATA_TEST_IMAGE: ghcr.io/shik3i/koaladata@${{ steps.build.outputs.digest }}')) {
+	violations.push('container startup gate must test the built candidate digest');
+}
+if (!workflow.includes('--workflow CI') || !workflow.includes('No successful completed CI run exists')) {
+	violations.push('missing successful commit CI verification');
+}
+if (!workflow.includes('docker buildx imagetools create')) {
+	violations.push('missing digest promotion for latest');
+}
+const startupGateIndex = workflow.indexOf('node scripts/test-container-startup.mjs');
+const digestPromotionIndex = workflow.indexOf('docker buildx imagetools create');
+if (startupGateIndex === -1 || digestPromotionIndex === -1 || startupGateIndex > digestPromotionIndex) {
+	violations.push('release tag promotion must follow the container startup gate');
 }
 
 if (violations.length > 0) {
