@@ -10,7 +10,7 @@
 
 [Live site](https://data.koalastuff.net) · [Explore dashboards](https://data.koalastuff.net/discover) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
-KoalaData imports aggregate CSV reports already available to Chrome Web Store publishers. Every file is previewed before it is committed, then presented as a responsive public, unlisted, or private dashboard.
+KoalaData imports aggregate CSV reports already available to Chrome Web Store publishers. Known reports are mapped automatically, while custom layouts require an explicit preview before they are committed and presented as a responsive public, unlisted, or private dashboard.
 
 ![KoalaData: shareable Chrome Web Store analytics](static/og-koaladata.png)
 

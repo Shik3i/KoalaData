@@ -2,13 +2,19 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 
 	let { data, form } = $props();
 
 	let loading = $state(false);
+	let resultPanel: HTMLElement | undefined = $state();
 	let isOwnerOrAdmin = $derived(data.membershipRole === 'owner' || data.membershipRole === 'admin');
 	let isEditorOrAbove = $derived(isOwnerOrAdmin || data.membershipRole === 'editor');
+	let uploadResult = $derived(page.url.searchParams.get('upload'));
+	let importedCount = $derived(Number(page.url.searchParams.get('imported') ?? 0));
+	let pendingCount = $derived(Number(page.url.searchParams.get('pending') ?? 0));
+	let skippedCount = $derived(Number(page.url.searchParams.get('skipped') ?? 0));
+	let hasUploadResult = $derived(uploadResult === 'complete' || uploadResult === 'partial' || uploadResult === 'duplicate');
 
 	let selectedSourceId = $state(untrack(() => data.sources.length === 1 ? data.sources[0].id : ''));
 	const selectedSource = $derived(data.sources.find((s) => s.id === selectedSourceId));
@@ -33,6 +39,12 @@
 	let fileInput: HTMLInputElement | undefined = $state();
 	let isDragging = $state(false);
 	let selectedFiles = $state<{ name: string; size: string }[]>([]);
+
+	$effect(() => {
+		if (hasUploadResult && resultPanel) {
+			tick().then(() => resultPanel?.focus());
+		}
+	});
 
 	function formatBytes(bytes: number): string {
 		if (bytes === 0) return '0 B';
@@ -72,10 +84,49 @@
 			selectedFiles = Array.from(target.files).map((f) => ({ name: f.name, size: formatBytes(f.size) }));
 		}
 	}
+
+	function clearSelectedFiles() {
+		selectedFiles = [];
+		if (fileInput) fileInput.value = '';
+	}
+
+	function filesLabel(count: number) {
+		return count === 1 ? 'file' : 'files';
+	}
 </script>
 
 <div class="project-imports-page">
-	{#if form?.success || page.url.searchParams.get('success')}
+	{#if hasUploadResult}
+		<section class="import-result import-result-{uploadResult}" bind:this={resultPanel} tabindex="-1" role="status" aria-live="polite" aria-labelledby="import-result-title">
+			<div class="result-icon"><Icon name={uploadResult === 'partial' ? 'warning' : 'seal-check'} /></div>
+			<div class="result-content">
+				<p class="result-kicker">{uploadResult === 'duplicate' ? 'Nothing imported twice' : uploadResult === 'partial' ? 'Import partially completed' : 'Import complete'}</p>
+				<h2 id="import-result-title">
+					{#if uploadResult === 'duplicate'}
+						{skippedCount} {filesLabel(skippedCount)} already imported
+					{:else}
+						{importedCount} {filesLabel(importedCount)} imported successfully
+					{/if}
+				</h2>
+				<p>
+					{#if uploadResult === 'duplicate'}
+						KoalaData recognized the same file content and skipped it. Your existing data was not duplicated.
+					{:else if pendingCount > 0}
+						{pendingCount} {filesLabel(pendingCount)} still need column mapping below. Imported files are already visible in the dashboard.
+					{:else}
+						The selected files are cleared and the new data is ready in your dashboard.
+					{/if}
+					{#if skippedCount > 0 && uploadResult !== 'duplicate'}
+						{skippedCount} already-imported {filesLabel(skippedCount)} were safely skipped.
+					{/if}
+				</p>
+				<div class="result-actions">
+					<a class="btn btn-primary" href="/p/{data.project.slug}"><Icon name="chart-line" /> View dashboard</a>
+					<button class="btn btn-secondary" type="button" onclick={() => fileInput?.click()}><Icon name="plus" /> Import more files</button>
+				</div>
+			</div>
+		</section>
+	{:else if form?.success || page.url.searchParams.get('success')}
 		<div class="alert alert-success" role="status">
 			{form?.success || page.url.searchParams.get('success')}
 		</div>
@@ -93,7 +144,7 @@
 			{#if isEditorOrAbove}
 				<section class="card settings-card">
 					<h2>Upload CSV Data</h2>
-					<p class="text-muted">Upload Chrome Web Store reports or custom CSV files. Every file is previewed before any data is committed.</p>
+					<p class="text-muted">Known Chrome Web Store reports import automatically. Unknown or custom CSV files open a mapping preview before anything is committed.</p>
 					<hr class="divider" />
 					
 					{#if data.sources.length === 0}
@@ -106,10 +157,15 @@
 							action="?/uploadCsv" 
 							method="POST" 
 							enctype="multipart/form-data"
-							use:enhance={() => {
+							use:enhance={({ cancel }) => {
+								if (loading) {
+									cancel();
+									return;
+								}
 								loading = true;
-								return async ({ update }) => {
+								return async ({ result, update }) => {
 									try {
+										if (result.type === 'redirect') clearSelectedFiles();
 										await update();
 									} finally {
 										loading = false;
@@ -153,7 +209,7 @@
 									<div class="dropzone-prompt">
 										<Icon name="cloud-arrow-up" />
 										<span><strong>Drag & drop CSV files here</strong> or <label for="file" class="dropzone-browse">browse files</label></span>
-										<small>Supports multiple .csv files</small>
+										<small>Multiple .csv files supported · duplicate files are skipped</small>
 									</div>
 									<input 
 										bind:this={fileInput}
@@ -169,19 +225,24 @@
 									/>
 									{#if selectedFiles.length > 0}
 										<div class="selected-files-preview">
-											<span class="preview-title"><Icon name="seal-check" /> {selectedFiles.length} file(s) selected:</span>
+											<span class="preview-title"><Icon name="seal-check" /> Ready to import: {selectedFiles.length} {filesLabel(selectedFiles.length)}</span>
 											<ul class="file-list-tags">
 												{#each selectedFiles as item}
-													<li><span class="file-name">{item.name}</span> <small class="file-size">({item.size})</small></li>
+													<li><span class="file-name">{item.name}</span> <small class="file-size">{item.size}</small></li>
 												{/each}
 											</ul>
+											<button class="clear-files" type="button" onclick={clearSelectedFiles} disabled={loading}>Clear selection</button>
 										</div>
 									{/if}
 								</div>
 							</div>
 
-							<button type="submit" class="btn btn-primary btn-full" disabled={loading}>
-								{loading ? 'Processing Files...' : 'Upload and Preview'}
+							<button type="submit" class="btn btn-primary btn-full" disabled={loading || selectedFiles.length === 0 || !selectedSourceId}>
+								{loading
+									? `Importing ${selectedFiles.length} ${filesLabel(selectedFiles.length)}…`
+									: selectedFiles.length > 0
+										? `Import ${selectedFiles.length} CSV ${filesLabel(selectedFiles.length)}`
+										: 'Select CSV files to continue'}
 							</button>
 						</form>
 					{/if}
@@ -248,20 +309,20 @@
 							<tbody>
 								{#each data.history as batch}
 									<tr>
-										<td>
+										<td data-label="File">
 											<strong class="filename" title={batch.originalFilename}>{batch.originalFilename}</strong>
 											<div class="text-muted" style="font-size: 0.75rem;">
 												Uploaded: {formatDate(batch.createdAt)}
 											</div>
 										</td>
-										<td>
+										<td data-label="Date bounds">
 											{#if batch.startDate && batch.endDate}
 												<code>{batch.startDate}</code> to <code>{batch.endDate}</code>
 											{:else}
 												<span class="text-muted">—</span>
 											{/if}
 										</td>
-										<td>
+										<td data-label="Diagnostics">
 											<div class="diagnostic-grid text-muted">
 												<span>Rows: <strong>{batch.rowCount}</strong></span>
 												<span>Duplicates: <strong>{batch.duplicateCount}</strong></span>
@@ -271,14 +332,14 @@
 												{/if}
 											</div>
 										</td>
-										<td>
+										<td data-label="Status">
 											{#if batch.revertedAt}
 												<span class="badge badge-reverted">Reverted</span>
 											{:else}
 												<span class="badge badge-status-{batch.status}">{batch.status}</span>
 											{/if}
 										</td>
-										<td>
+										<td data-label="Action">
 											{#if batch.status === 'completed' && !batch.revertedAt}
 												{#if isOwnerOrAdmin}
 													<form 
@@ -324,6 +385,39 @@
 </div>
 
 	<style>
+	.import-result {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
+		padding: 1.5rem;
+		border: 2px solid var(--success);
+		border-radius: var(--radius-lg);
+		background: linear-gradient(135deg, var(--success-bg), var(--bg-surface));
+		box-shadow: var(--shadow-md);
+		outline: none;
+	}
+	.import-result-partial { border-color: var(--warning); background: linear-gradient(135deg, var(--warning-bg), var(--bg-surface)); }
+	.result-icon {
+		display: grid;
+		place-items: center;
+		width: 3rem;
+		height: 3rem;
+		border-radius: 50%;
+		background: var(--success);
+		color: var(--text-inverse);
+		font-size: 1.6rem;
+	}
+	.import-result-partial .result-icon { background: var(--warning); }
+	.result-kicker { margin: 0 0 0.15rem; color: var(--success); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+	.import-result-partial .result-kicker { color: var(--warning); }
+	.result-content h2 { margin: 0 0 0.35rem; font-size: 1.35rem; }
+	.result-content > p:last-of-type { margin: 0; color: var(--text-muted); }
+	.result-actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1rem; }
+	@media (max-width: 560px) {
+		.import-result { grid-template-columns: 1fr; }
+		.result-actions .btn { width: 100%; }
+	}
 	.history-pagination { display: flex; align-items: center; justify-content: center; gap: 0.75rem; padding: 1rem; border-top: 1px solid var(--border-color); font-size: 0.8rem; }
 	.col-span-2 {
 		grid-column: span 2;
@@ -353,6 +447,50 @@
 
 	.table-wrapper {
 		overflow-x: auto;
+	}
+	@media (max-width: 720px) {
+		.table-wrapper { overflow: visible; padding: 0.75rem; }
+		table, tbody, tr, td { display: block; width: 100%; }
+		table { border: 0; }
+		thead {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			padding: 0;
+			margin: -1px;
+			overflow: hidden;
+			clip: rect(0, 0, 0, 0);
+			white-space: nowrap;
+			border: 0;
+		}
+		tbody { display: grid; gap: 0.75rem; }
+		tr {
+			padding: 0.35rem 0.8rem;
+			border: 1px solid var(--border-color);
+			border-radius: var(--radius-md);
+			background: var(--bg-surface);
+			box-shadow: var(--shadow-sm);
+		}
+		td {
+			display: grid;
+			grid-template-columns: minmax(6.5rem, 0.38fr) minmax(0, 1fr);
+			gap: 0.75rem;
+			align-items: start;
+			padding: 0.65rem 0;
+			border-bottom: 1px solid var(--border-color);
+			text-align: left;
+		}
+		td:last-child { border-bottom: 0; }
+		td::before {
+			content: attr(data-label);
+			color: var(--text-muted);
+			font-size: 0.72rem;
+			font-weight: 700;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+		}
+		td .filename { max-width: 100%; }
+		td form, td .btn { justify-self: start; }
 	}
 
 	table {
@@ -516,4 +654,17 @@
 		color: var(--text-muted);
 		margin-left: 0.5rem;
 	}
+	.clear-files {
+		margin-top: 0.65rem;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: var(--text-muted);
+		font: inherit;
+		font-weight: 600;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.clear-files:hover { color: var(--text-base); }
+	.clear-files:disabled { cursor: not-allowed; opacity: 0.6; }
 </style>

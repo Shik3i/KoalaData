@@ -35,13 +35,13 @@
 		</div>
 	</div>
 
-	{#if !data.onboarding.hasPublicListing}
+	{#if data.projects.length === 0 || data.onboarding.hasProject}
 		<section class="card onboarding-card" aria-labelledby="onboarding-title">
 			<div class="onboarding-heading">
 				<div>
-					<p class="onboarding-kicker">First dashboard</p>
-					<h2 id="onboarding-title">Publish your first extension report</h2>
-					<p>Follow the safe path from Chrome Web Store export to a reviewed public dashboard.</p>
+					<p class="onboarding-kicker">{data.onboarding.projectName ? `Next up · ${data.onboarding.projectName}` : 'First dashboard'}</p>
+					<h2 id="onboarding-title">{data.onboarding.projectName ? 'Finish this project setup' : 'Publish your first extension report'}</h2>
+					<p>Every step below belongs to {data.onboarding.projectName || 'your first project'}, so actions never jump between projects.</p>
 				</div>
 				<span class="onboarding-progress">{[data.onboarding.hasProject, data.onboarding.hasStoreConnection, data.onboarding.hasCompletedImport, data.onboarding.hasPublicListing].filter(Boolean).length}/4 complete</span>
 			</div>
@@ -58,7 +58,7 @@
 				</li>
 				<li class:complete={data.onboarding.hasCompletedImport}>
 					<span>{data.onboarding.hasCompletedImport ? '✓' : '3'}</span>
-					<div><strong>Review and import CSV reports</strong><small>Mappings are previewed before metrics are committed.</small></div>
+					<div><strong>Import CSV reports</strong><small>Known CWS reports import automatically; custom layouts open a mapping review.</small></div>
 					{#if data.onboarding.hasSource && !data.onboarding.hasCompletedImport}<a class="btn btn-secondary btn-sm" href="/app/projects/{data.onboarding.projectId}/imports">Upload</a>{/if}
 				</li>
 				<li class:complete={data.onboarding.hasPublicListing}>

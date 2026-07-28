@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.5.10 - 2026-07-28
+
+- Replace the easy-to-miss CSV import badge with a persistent completion panel, clear next actions, upload reset, duplicate-submit protection, and exact-file duplicate detection.
+- Keep dashboard onboarding project-specific so every checklist action targets the same incomplete project.
+- Replace the decorative project setup indicator with a validated three-step creation flow and final review.
+- Render import history as readable mobile cards and cover the full onboarding/import flow with regression tests.
+
 ## v1.5.9 - 2026-07-26
 
 - Harden Event Impact calculation with UTC millisecond Date arithmetic for 100% timezone-independent range queries.

@@ -140,10 +140,14 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		
 		await page.fill('input[name="name"]', projectName);
 		await page.selectOption('select[name="category"]', 'developer-tools');
+		await page.getByRole('button', { name: 'Continue to details' }).click();
+		await expect(page.getByRole('heading', { name: 'Describe the project' })).toBeVisible();
 		await page.selectOption('select[name="pricingModel"]', 'freemium');
-		await page.selectOption('select[name="visibility"]', 'public');
 		await page.fill('input[name="shortDescription"]', 'E2E test description of this browser extension dashboard.');
 		await page.fill('textarea[name="fullDescription"]', 'Detailed long description of metrics and compatibility guidelines.');
+		await page.getByRole('button', { name: 'Continue to visibility' }).click();
+		await expect(page.getByRole('heading', { name: 'Choose visibility' })).toBeVisible();
+		await page.selectOption('select[name="visibility"]', 'public');
 		await page.click('button:has-text("Create Project")');
 
 		// Redirected to project overview
@@ -215,9 +219,13 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 
 		await expect(page.locator('.alert-success')).toContainText('added successfully');
 		await expect(page.locator('.sources-list')).toContainText('CWS Dashboard Live');
+		await page.goto('/app');
+		await expect(page.locator('.onboarding-kicker')).toContainText(projectName);
+		const onboardingUpload = page.getByRole('link', { name: 'Upload', exact: true });
+		await expect(onboardingUpload).toHaveAttribute('href', /\/app\/projects\/[^/]+\/imports$/);
 
 		// 7. CSV UPLOAD (Initial Batch)
-		await page.click('a.tab-link[href$="/imports"]');
+		await onboardingUpload.click();
 		await page.waitForURL('/app/projects/*/imports');
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		
@@ -227,22 +235,48 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		// Set upload file
 		const filePayload1 = path.resolve('static/mock_e2e.csv');
 		await page.setInputFiles('input[type="file"]', filePayload1);
-		await page.click('button:has-text("Upload and Preview")');
+		await page.click('button:has-text("Import 1 CSV file")');
 
 		// 8. HIGH-CONFIDENCE CHROME EXPORT AUTO-IMPORT
 		await page.waitForURL('/app/projects/*/imports?*');
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
-		await expect(page.locator('.alert-success')).toContainText('1 files imported successfully');
+		await expect(page.locator('.import-result')).toContainText('1 file imported successfully');
+		await expect(page.getByRole('link', { name: 'View dashboard', exact: true })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Import more files' })).toBeVisible();
+		await expect(page.locator('.selected-files-preview')).toHaveCount(0);
+		await expect(page.locator('input[type="file"]')).toHaveValue('');
+		await expect(page.getByRole('button', { name: 'Select CSV files to continue' })).toBeDisabled();
+		await page.setViewportSize({ width: 390, height: 900 });
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+		const importAccessibility = await new AxeBuilder({ page }).analyze();
+		expect(importAccessibility.violations, 'CSV completion flow has accessibility violations').toEqual([]);
+		await page.setViewportSize({ width: 1280, height: 900 });
+
+		// Re-selecting the exact same CSV must not create duplicate observations.
+		await page.setInputFiles('input[type="file"]', filePayload1);
+		await page.click('button:has-text("Import 1 CSV file")');
+		await page.waitForURL('/app/projects/*/imports?*');
+		await expect(page.locator('.import-result')).toContainText('1 file already imported');
+		await expect(page.locator('tr', { hasText: 'mock_e2e.csv' })).toHaveCount(1);
 
 		// 9. OVERLAPPING CSV UPLOAD
 		await page.selectOption('select[name="sourceId"]', { label: 'CWS Dashboard Live (chrome_web_store)' });
 		const filePayload2 = path.resolve('static/mock_e2e_2.csv');
 		await page.setInputFiles('input[type="file"]', filePayload2);
-		await page.click('button:has-text("Upload and Preview")');
+		await page.click('button:has-text("Import 1 CSV file")');
 
 		await page.waitForURL('/app/projects/*/imports?*');
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
-		await expect(page.locator('.alert-success')).toContainText('1 files imported successfully');
+		await expect(page.locator('.import-result')).toContainText('1 file imported successfully');
+		await page.setViewportSize({ width: 390, height: 900 });
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+		const mobileHistory = await page.locator('tbody tr').first().evaluate((row) => ({
+			display: getComputedStyle(row).display,
+			labels: Array.from(row.querySelectorAll('td')).map((cell) => cell.getAttribute('data-label'))
+		}));
+		expect(mobileHistory.display).toBe('block');
+		expect(mobileHistory.labels).toEqual(['File', 'Date bounds', 'Diagnostics', 'Status', 'Action']);
+		await page.setViewportSize({ width: 1280, height: 900 });
 
 		// 10. PUBLIC DASHBOARD VERIFICATION & VISIBILITY CONTROLS
 		await page.goto(`/p/${projectSlug}`);

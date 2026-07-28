@@ -11,9 +11,26 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { refreshPublicProjectStats } from '$lib/server/public-project-stats';
 
 const HISTORY_PAGE_SIZE = 50;
+
+function buildUploadResultUrl(
+	projectId: string,
+	result: 'complete' | 'partial' | 'duplicate',
+	counts: { imported: number; pending: number; skipped: number },
+	error?: string
+) {
+	const params = new URLSearchParams({
+		upload: result,
+		imported: counts.imported.toString(),
+		pending: counts.pending.toString(),
+		skipped: counts.skipped.toString()
+	});
+	if (error) params.set('error', error);
+	return `/app/projects/${projectId}/imports?${params.toString()}`;
+}
 
 function buildMetricsForAutoImport(originalFilename: string, autoDetect: ReturnType<typeof detectChromeCsv>) {
 	if (!autoDetect?.mappings?.date?.column) return null;
@@ -104,6 +121,7 @@ export const actions: Actions = {
 
 		let autoImportedCount = 0;
 		let manualCount = 0;
+		let skippedCount = 0;
 		let lastManualDraftId = '';
 		const errors: string[] = [];
 
@@ -114,6 +132,22 @@ export const actions: Actions = {
 			try {
 				const arrayBuffer = await file.arrayBuffer();
 				const buffer = Buffer.from(arrayBuffer);
+				const checksum = crypto.createHash('sha256').update(buffer).digest('hex');
+				const existingBatch = await db
+					.select({ id: importBatches.id })
+					.from(importBatches)
+					.where(and(
+						eq(importBatches.projectId, projectId),
+						eq(importBatches.sourceId, sourceId),
+						eq(importBatches.checksum, checksum),
+						eq(importBatches.status, 'completed'),
+						isNull(importBatches.revertedAt)
+					))
+					.limit(1);
+				if (existingBatch.length > 0) {
+					skippedCount++;
+					continue;
+				}
 
 				const parsed = parseCsv(buffer);
 				const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
@@ -168,13 +202,17 @@ export const actions: Actions = {
 		}
 
 		if (errors.length > 0) {
+			const errorMessage = `Some files could not be processed: ${errors.join('; ')}`;
 			if (autoImportedCount > 0 || manualCount > 0) {
-				throw redirect(302, `/app/projects/${projectId}/imports?error=${encodeURIComponent(
-					`Upload partially failed. ${autoImportedCount} files auto-imported, ${manualCount} files pending manual review. Errors: ${errors.join('; ')}`
-				)}`);
+				throw redirect(302, buildUploadResultUrl(
+					projectId,
+					'partial',
+					{ imported: autoImportedCount, pending: manualCount, skipped: skippedCount },
+					errorMessage
+				));
 			}
 			return fail(400, { 
-				error: `Upload partially failed. ${autoImportedCount} files auto-imported, ${manualCount} files pending manual review. Errors: ${errors.join('; ')}`
+				error: errorMessage
 			});
 		}
 
@@ -183,12 +221,11 @@ export const actions: Actions = {
 			throw redirect(302, `/app/projects/${projectId}/imports/preview?draftId=${lastManualDraftId}`);
 		}
 
-		let message = `${autoImportedCount} files imported successfully.`;
-		if (manualCount > 0) {
-			message += ` ${manualCount} files require manual column mapping (see list below).`;
-		}
-
-		throw redirect(302, `/app/projects/${projectId}/imports?success=${encodeURIComponent(message)}`);
+		throw redirect(302, buildUploadResultUrl(
+			projectId,
+			autoImportedCount === 0 && manualCount === 0 && skippedCount > 0 ? 'duplicate' : 'complete',
+			{ imported: autoImportedCount, pending: manualCount, skipped: skippedCount }
+		));
 	},
 
 	confirmAllDrafts: async ({ params, locals, getClientAddress }) => {

@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 
-	const [memberships, recentImports, completedImport, limitState] = await Promise.all([
+	const [memberships, recentImports, limitState] = await Promise.all([
 		db.select({ projectId: projectMembers.projectId })
 			.from(projectMembers)
 			.where(eq(projectMembers.userId, userId)),
@@ -21,10 +21,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.where(eq(importBatches.userId, userId))
 			.orderBy(desc(importBatches.createdAt))
 			.limit(5),
-		db.select({ id: importBatches.id })
-			.from(importBatches)
-			.where(and(eq(importBatches.userId, userId), eq(importBatches.status, 'completed'), isNull(importBatches.revertedAt)))
-			.limit(1),
 		getUserLimits(userId)
 	]);
 	const memberProjectIds = memberships.map((membership) => membership.projectId);
@@ -38,13 +34,39 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.orderBy(projects.name);
 
 	const projectIds = userProjects.map((project) => project.id);
-	const sources = projectIds.length > 0
-		? await db.select().from(dataSources).where(inArray(dataSources.projectId, projectIds))
-		: [];
 	const ownedProjects = userProjects.filter((project) => project.ownerId === userId);
-	const firstProject = ownedProjects[0] ?? null;
-	const hasCompletedImport = completedImport.length > 0;
-	const hasPublicListing = ownedProjects.some((project) => project.visibility === 'public' && project.moderationStatus === 'active');
+	const ownedProjectIds = ownedProjects.map((project) => project.id);
+	const [sources, completedImports] = ownedProjectIds.length > 0
+		? await Promise.all([
+			db.select({ projectId: dataSources.projectId }).from(dataSources).where(inArray(dataSources.projectId, ownedProjectIds)),
+			db.select({ projectId: importBatches.projectId })
+				.from(importBatches)
+				.where(and(
+					inArray(importBatches.projectId, ownedProjectIds),
+					eq(importBatches.status, 'completed'),
+					isNull(importBatches.revertedAt)
+				))
+		])
+		: [[], []];
+	const sourceProjectIds = new Set(sources.map((source) => source.projectId));
+	const importedProjectIds = new Set(completedImports.map((batch) => batch.projectId));
+	const onboardingProjects = ownedProjects
+		.map((project) => {
+			const hasStoreConnection = Boolean(project.storeUrl);
+			const hasSource = sourceProjectIds.has(project.id);
+			const hasCompletedImport = importedProjectIds.has(project.id);
+			const hasPublicListing = project.visibility === 'public' && project.moderationStatus === 'active';
+			return {
+				project,
+				hasStoreConnection,
+				hasSource,
+				hasCompletedImport,
+				hasPublicListing,
+				progress: [hasStoreConnection, hasCompletedImport, hasPublicListing].filter(Boolean).length
+			};
+		})
+		.sort((a, b) => b.progress - a.progress || a.project.name.localeCompare(b.project.name));
+	const onboardingProject = onboardingProjects.find((entry) => !entry.hasPublicListing) ?? null;
 
 	const { limits, usage } = limitState;
 
@@ -55,13 +77,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		limits,
 		usage,
 		onboarding: {
-			hasProject: Boolean(firstProject),
-			hasStoreConnection: ownedProjects.some((project) => Boolean(project.storeUrl)),
-			hasSource: sources.some((source) => ownedProjects.some((project) => project.id === source.projectId)),
-			hasCompletedImport,
-			hasPublicListing,
-			projectId: firstProject?.id ?? null,
-			projectSlug: firstProject?.slug ?? null
+			hasProject: Boolean(onboardingProject),
+			hasStoreConnection: onboardingProject?.hasStoreConnection ?? false,
+			hasSource: onboardingProject?.hasSource ?? false,
+			hasCompletedImport: onboardingProject?.hasCompletedImport ?? false,
+			hasPublicListing: onboardingProject?.hasPublicListing ?? false,
+			projectId: onboardingProject?.project.id ?? null,
+			projectSlug: onboardingProject?.project.slug ?? null,
+			projectName: onboardingProject?.project.name ?? null
 		}
 	};
 };

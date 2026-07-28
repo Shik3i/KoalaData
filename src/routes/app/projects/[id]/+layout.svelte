@@ -66,7 +66,7 @@
 				aria-current={page.url.pathname.includes('/imports') ? 'page' : undefined}
 				class="tab-link {page.url.pathname.includes('/imports') ? 'active' : ''}"
 			>
-				<Icon name="clock-counter-clockwise" /> Import History
+				<Icon name="cloud-arrow-up" /> CSV Imports
 			</a>
 			<a 
 				href="/app/projects/{project.id}/events" 
