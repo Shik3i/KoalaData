@@ -40,6 +40,7 @@
 		exportDelta,
 		exportInsight,
 		exportProjectName,
+		exportProjectDescription,
 		exportLogoUrl,
 		exportTimeframe,
 		exportDataDate,
@@ -60,6 +61,7 @@
 		exportDelta?: string;
 		exportInsight?: string;
 		exportProjectName?: string;
+		exportProjectDescription?: string;
 		exportLogoUrl?: string;
 		exportTimeframe?: string;
 		exportDataDate?: string;
@@ -481,9 +483,15 @@
 			context.font = `750 ${portrait ? 19 : 17}px Inter, system-ui, sans-serif`;
 			context.fillStyle = colors.text;
 			context.fillText(fitCanvasText(context, exportProjectName || 'KoalaData', width * 0.42), identityX, contentY + 3);
-			context.font = `700 ${portrait ? 12 : 11}px Inter, system-ui, sans-serif`;
-			context.fillStyle = colors.primary;
-			context.fillText('PRIVACY-FIRST ANALYTICS', identityX, contentY + (portrait ? 31 : 27));
+			if (options.identitySubtitle) {
+				context.font = `600 ${portrait ? 14 : 12}px Inter, system-ui, sans-serif`;
+				context.fillStyle = colors.muted;
+				context.fillText(
+					fitCanvasText(context, options.identitySubtitle, width - margin - identityX),
+					identityX,
+					contentY + (portrait ? 31 : 27)
+				);
+			}
 			contentY += logoSize + (portrait ? 18 : 12);
 		}
 
@@ -1091,6 +1099,7 @@
 	data-export-heading={exportHeading}
 	data-export-subtitle={exportSubtitle}
 	data-export-value={exportValue}
+	data-export-project-description={exportProjectDescription}
 	data-export-moving-average={showMovingAverage}
 >
 	{#if hasData}<div class="chart-export-buttons" aria-label="Chart exports">
@@ -1138,6 +1147,7 @@
 	renderGif={renderSocialGif}
 	filename={`${chartExportSlug(title || exportHeading || 'chart')}-social`}
 	projectName={exportProjectName}
+	projectDescription={exportProjectDescription}
 	heading={exportHeading}
 	timeframe={exportTimeframe}
 	shareUrl={exportShareUrl}

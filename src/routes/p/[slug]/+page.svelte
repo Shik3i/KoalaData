@@ -332,6 +332,7 @@
 						exportDelta={netInstallsDelta}
 						exportInsight={`${kpis.netInstalls >= 0 ? '+' : ''}${formatNumber(kpis.netInstalls)} net installs in ${exportTimeframe.toLowerCase()}`}
 						exportProjectName={project.name}
+						exportProjectDescription={project.shortDescription}
 						{exportLogoUrl}
 						{exportTimeframe}
 						exportDataDate={lastUpdated ? formatDataDate(lastUpdated) : undefined}
@@ -355,6 +356,7 @@
 						exportDelta={usersDeltaLabel}
 						exportInsight={`Weekly users reached ${formatNumber(kpis.users ?? 0)}`}
 						exportProjectName={project.name}
+						exportProjectDescription={project.shortDescription}
 						{exportLogoUrl}
 						{exportTimeframe}
 						exportDataDate={lastUpdated ? formatDataDate(lastUpdated) : undefined}
@@ -376,6 +378,7 @@
 						exportDelta={pageViewsDelta}
 						exportInsight={`${formatNumber(kpis.pageViews)} store page views in ${exportTimeframe.toLowerCase()}`}
 						exportProjectName={project.name}
+						exportProjectDescription={project.shortDescription}
 						{exportLogoUrl}
 						{exportTimeframe}
 						exportDataDate={lastUpdated ? formatDataDate(lastUpdated) : undefined}
@@ -398,6 +401,7 @@
 						exportDelta={impressionsDelta}
 						exportInsight={`${formatNumber(kpis.impressions)} store impressions in ${exportTimeframe.toLowerCase()}`}
 						exportProjectName={project.name}
+						exportProjectDescription={project.shortDescription}
 						{exportLogoUrl}
 						{exportTimeframe}
 						exportDataDate={lastUpdated ? formatDataDate(lastUpdated) : undefined}
@@ -451,7 +455,7 @@
 	{/if}
 
 	{#if qualityGroups.length}
-		<section id="quality" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Quality</p><h2>Rating activity</h2><p class="text-muted">Daily rating events shown as a period total and as a star-by-star timeline.</p></div></div>{#each qualityGroups as group}<RatingAnalytics {group} {days} shareMeta={{ projectName: project.name, logoUrl: exportLogoUrl, timeframe: exportTimeframe, dataDate: lastUpdated ? formatDataDate(lastUpdated) : undefined, shareUrl: exportShareUrl }} />{/each}</section>
+		<section id="quality" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Quality</p><h2>Rating activity</h2><p class="text-muted">Daily rating events shown as a period total and as a star-by-star timeline.</p></div></div>{#each qualityGroups as group}<RatingAnalytics {group} {days} shareMeta={{ projectName: project.name, projectDescription: project.shortDescription, logoUrl: exportLogoUrl, timeframe: exportTimeframe, dataDate: lastUpdated ? formatDataDate(lastUpdated) : undefined, shareUrl: exportShareUrl }} />{/each}</section>
 	{/if}
 
 	{#if additionalMetrics.length}
@@ -474,6 +478,7 @@
 									exportDelta={metricExportDelta(metric)}
 									exportInsight={`${metricLabel(metric)}: ${formatNumber(metricDisplayValue(metric, days) ?? 0)}`}
 									exportProjectName={project.name}
+									exportProjectDescription={project.shortDescription}
 									{exportLogoUrl}
 									{exportTimeframe}
 									exportDataDate={lastUpdated ? formatDataDate(lastUpdated) : undefined}

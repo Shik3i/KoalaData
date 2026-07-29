@@ -9,6 +9,7 @@
 
 	type ShareMeta = {
 		projectName?: string;
+		projectDescription?: string;
 		logoUrl?: string;
 		timeframe?: string;
 		dataDate?: string;
@@ -82,6 +83,7 @@
 				exportValue={`${total.toLocaleString()} ratings`}
 				exportInsight={`${total.toLocaleString()} ratings received in ${(shareMeta.timeframe || 'the selected period').toLowerCase()}`}
 				exportProjectName={shareMeta.projectName}
+				exportProjectDescription={shareMeta.projectDescription}
 				exportLogoUrl={shareMeta.logoUrl}
 				exportTimeframe={shareMeta.timeframe}
 				exportDataDate={shareMeta.dataDate}

@@ -205,6 +205,10 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 		for (const card of await page.locator('.trend-grid > .chart-card').all()) {
 			const visibleValue = (await card.locator('header > strong').innerText()).trim();
 			await expect(card.locator('.chart-container-wrapper')).toHaveAttribute('data-export-value', visibleValue);
+			await expect(card.locator('.chart-container-wrapper')).toHaveAttribute(
+				'data-export-project-description',
+				'Realistic public performance fixture'
+			);
 		}
 		const scrollBefore = await page.evaluate(() => window.scrollY);
 		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -246,13 +250,15 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 		await expect(projectHeaderToggle).toBeChecked();
 		await expect(insightToggle).toBeChecked();
 		await expect(graphHeight).toHaveValue('58');
+		const projectSubtitle = shareDialog.getByPlaceholder('Watch together, anywhere');
+		await expect(projectSubtitle).toHaveValue('Realistic public performance fixture');
+		await projectSubtitle.fill('Built for developers');
 		await expect.poll(() => previewImage.getAttribute('src')).not.toBe(focusedPreview);
 
 		const balancedPreview = await previewImage.getAttribute('src');
 		const customCaption = 'Built in public — what should we measure next?';
 		await shareDialog.getByPlaceholder('Add context, a milestone or a question…').fill(customCaption);
 		await graphHeight.fill('76');
-		await projectHeaderToggle.uncheck();
 		await expect(shareDialog.getByText(customCaption, { exact: false })).toBeVisible();
 		await expect(graphHeight).toHaveValue('76');
 		await expect(shareDialog.getByRole('button', { name: /Balanced/ })).not.toHaveClass(/active/);

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.5.14 - 2026-07-29
+
+- Replace the misleading `PRIVACY-FIRST ANALYTICS` project-header label in chart exports with a project-specific subtitle.
+- Add an editable 60-character project-subtitle field to the share dialog, prefilled from the existing short description and optimized for a 3-5 word recap.
+- Pass the project recap through every public trend and ratings export, with browser regression coverage for initialization and live preview updates.
+
 ## v1.5.13 - 2026-07-29
 
 - Add graph-focused, balanced, and minimal share-export presets with a configurable 45-82% graph-height target.

@@ -13,6 +13,7 @@ export type ChartExportOptions = {
 	includeDetails: boolean;
 	includeBranding: boolean;
 	includeLogo: boolean;
+	identitySubtitle: string;
 	customText: string;
 	chartHeightPercent: number;
 };

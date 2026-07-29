@@ -16,6 +16,7 @@
 		renderGif,
 		filename,
 		projectName,
+		projectDescription,
 		heading,
 		timeframe,
 		shareUrl,
@@ -31,6 +32,7 @@
 		renderGif: (options: ChartExportOptions, onProgress: (progress: number) => void) => Promise<Blob>;
 		filename: string;
 		projectName?: string;
+		projectDescription?: string;
 		heading?: string;
 		timeframe?: string;
 		shareUrl?: string;
@@ -53,6 +55,8 @@
 	let includeDetails = $state(true);
 	let includeBranding = $state(true);
 	let includeLogo = $state(false);
+	let identitySubtitle = $state('');
+	let subtitleInitialized = $state(false);
 	let customText = $state('');
 	let chartHeightPercent = $state(68);
 	let layoutPreset = $state<'focus' | 'balanced' | 'minimal' | 'custom'>('focus');
@@ -69,6 +73,10 @@
 			includeMovingAverage = initialMovingAverage;
 			includeEvents = hasEvents;
 			includeLogo = hasLogo;
+			if (!subtitleInitialized) {
+				identitySubtitle = (projectDescription || '').slice(0, 60);
+				subtitleInitialized = true;
+			}
 		}
 		wasOpen = isOpen;
 	});
@@ -86,6 +94,7 @@
 			includeDetails,
 			includeBranding,
 			includeLogo: hasLogo && includeLogo,
+			identitySubtitle: identitySubtitle.trim(),
 			customText: customText.trim(),
 			chartHeightPercent
 		};
@@ -154,6 +163,7 @@
 		void includeDetails;
 		void includeBranding;
 		void includeLogo;
+		void identitySubtitle;
 		void customText;
 		void chartHeightPercent;
 		const generation = ++previewGeneration;
@@ -369,6 +379,19 @@
 							</div>
 						</fieldset>
 
+						<label class="custom-copy" class:disabled={!includeIdentity}>
+							<span>Project subtitle <span class="control-value" aria-hidden="true">{identitySubtitle.length}/60</span></span>
+							<input
+								type="text"
+								maxlength="60"
+								placeholder="Watch together, anywhere"
+								bind:value={identitySubtitle}
+								disabled={!includeIdentity}
+								oninput={markCustom}
+							/>
+							<small>Shown below the project name. Best kept to 3–5 words.</small>
+						</label>
+
 						<label class="custom-copy">
 							<span>Custom caption <span class="control-value" aria-hidden="true">{customText.length}/140</span></span>
 							<textarea
@@ -468,8 +491,9 @@
 	.controls { display: grid; gap: 1rem; max-height: 62vh; overflow-y: auto; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-inset); }
 	.controls > label, fieldset { display: grid; gap: 0.45rem; }
 	.controls label > span, legend { color: var(--text-muted); font-size: 0.72rem; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; }
-	select, textarea { width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.5rem 0.65rem; background: var(--bg-surface); color: var(--text-base); font: inherit; font-size: 0.82rem; }
+	select, textarea, input[type="text"] { width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.5rem 0.65rem; background: var(--bg-surface); color: var(--text-base); font: inherit; font-size: 0.82rem; }
 	select { min-height: 42px; }
+	input[type="text"] { min-height: 42px; }
 	textarea { min-height: 72px; resize: vertical; line-height: 1.45; }
 	fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 	.segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.3rem; }
@@ -484,6 +508,7 @@
 	.control-value { color: var(--primary); font: inherit; }
 	.range-control input { width: 100%; accent-color: var(--primary); }
 	.range-control small, .custom-copy small { color: var(--text-muted); font-size: 0.68rem; font-weight: 500; line-height: 1.35; }
+	.custom-copy.disabled { opacity: 0.52; }
 	.toggle-list { display: grid; gap: 0.25rem; }
 	.toggle-row { display: grid !important; grid-template-columns: auto 1fr; gap: 0.65rem !important; align-items: start; padding: 0.55rem; border-radius: var(--radius-sm); cursor: pointer; }
 	.toggle-row:hover { background: var(--bg-surface); }
