@@ -220,8 +220,15 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 		await expect(shareDialog.getByLabel('7-day average')).toBeChecked();
 		await expect(shareDialog.getByText('Performance fixture:', { exact: false })).toBeVisible();
 		await shareDialog.getByRole('button', { name: 'Dark' }).click();
-		await expect(shareDialog.locator('.preview-frame img')).toBeVisible();
+		const previewImage = shareDialog.locator('.preview-frame img');
+		await expect(previewImage).toBeVisible();
 		await expect(shareDialog.getByText('Rendering preview…')).toBeHidden();
+		await expect(previewImage).toHaveAttribute('src', /^data:image\/png;base64,/);
+		await expect.poll(() => previewImage.evaluate((image: HTMLImageElement) => ({
+			complete: image.complete,
+			width: image.naturalWidth,
+			height: image.naturalHeight
+		}))).toEqual({ complete: true, width: 1200, height: 628 });
 
 		const pngDownloadPromise = page.waitForEvent('download');
 		await shareDialog.getByRole('button', { name: 'Download PNG' }).click();

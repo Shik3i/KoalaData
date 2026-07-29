@@ -48,7 +48,7 @@
 	let includeEvents = $state(false);
 	let includeBranding = $state(true);
 	let includeLogo = $state(false);
-	let previewUrl = $state('');
+	let previewDataUrl = $state('');
 	let previewing = $state(false);
 	let action = $state<'png' | 'gif' | 'image' | 'text' | null>(null);
 	let actionProgress = $state(0);
@@ -76,9 +76,21 @@
 		};
 	}
 
-	function replacePreviewUrl(nextUrl: string) {
-		if (previewUrl) URL.revokeObjectURL(previewUrl);
-		previewUrl = nextUrl;
+	function blobToDataUrl(blob: Blob): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.addEventListener('load', () => {
+				if (typeof reader.result === 'string') {
+					resolve(reader.result);
+				} else {
+					reject(new Error('Preview could not be converted to a data URL.'));
+				}
+			}, { once: true });
+			reader.addEventListener('error', () => {
+				reject(reader.error ?? new Error('Preview could not be read.'));
+			}, { once: true });
+			reader.readAsDataURL(blob);
+		});
 	}
 
 	$effect(() => {
@@ -95,8 +107,9 @@
 		const timer = window.setTimeout(async () => {
 			try {
 				const blob = await renderPng(options());
+				const dataUrl = await blobToDataUrl(blob);
 				if (generation !== previewGeneration) return;
-				replacePreviewUrl(URL.createObjectURL(blob));
+				previewDataUrl = dataUrl;
 			} catch (error) {
 				if (generation === previewGeneration) {
 					statusMessage = error instanceof Error ? error.message : 'Preview could not be rendered.';
@@ -122,7 +135,6 @@
 
 	onDestroy(() => {
 		previewGeneration++;
-		if (previewUrl) URL.revokeObjectURL(previewUrl);
 	});
 
 	function handleModalKeydown(event: KeyboardEvent) {
@@ -274,8 +286,8 @@
 
 					<div class="preview-panel">
 						<div class="preview-frame" class:portrait={format === 'portrait'} class:square={format === 'square'}>
-							{#if previewUrl}
-								<img src={previewUrl} alt={`Preview of ${heading || 'chart'} social export`} />
+							{#if previewDataUrl}
+								<img src={previewDataUrl} alt={`Preview of ${heading || 'chart'} social export`} />
 							{/if}
 							{#if previewing}<div class="preview-loading" role="status">Rendering preview…</div>{/if}
 						</div>

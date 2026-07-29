@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.12 - 2026-07-29
+
+- Make chart-share previews compatible with the production Content Security Policy by rendering them as PNG data URLs instead of blocked blob URLs.
+- Verify that the preview source is CSP-safe and that the browser actually decodes the expected 1200x628 image.
+
 ## v1.5.11 - 2026-07-29
 
 - Add professional, theme-aware chart sharing with fixed social-media formats, project branding, KPI summaries, comparison context, data dates, and direct series labels.
