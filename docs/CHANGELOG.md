@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.5.15 - 2026-07-29
 
 - Automatically import official Firefox AMO `downloads-day-*.csv` and `usage-day-*.csv` reports, including their leading `#` metadata lines.
 - Show source-specific CSV export guidance for Chrome Web Store, Firefox Add-ons, and Microsoft Edge Add-ons instead of generating Chrome developer-console links for non-Chrome sources.
