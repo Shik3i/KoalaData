@@ -7,7 +7,19 @@
 		type BreakdownSummaryGroup
 	} from '$lib/dashboard-metrics';
 
-	let { group, days = 90 } = $props<{ group: BreakdownSummaryGroup; days: number | null }>();
+	type ShareMeta = {
+		projectName?: string;
+		logoUrl?: string;
+		timeframe?: string;
+		dataDate?: string;
+		shareUrl?: string;
+	};
+
+	let { group, days = 90, shareMeta = {} } = $props<{
+		group: BreakdownSummaryGroup;
+		days: number | null;
+		shareMeta?: ShareMeta;
+	}>();
 	let rows: BreakdownRow[] = $derived(group.periodRows[dashboardPeriodKey(days)]);
 	let timeline = $derived(filterBreakdownTimeline(group.timeline, days));
 	let total = $derived(rows.reduce((sum, row) => sum + row.value, 0));
@@ -61,7 +73,20 @@
 			<div><h3>Ratings over time</h3><p class="text-muted">Daily new ratings · one color per star</p></div>
 		</header>
 		{#if timeline.dates.length}
-			<MetricChart title="ratings-over-time" seriesList={timelineSeries} categoryLabels={timeline.dates} />
+			<MetricChart
+				title="ratings-over-time"
+				seriesList={timelineSeries}
+				categoryLabels={timeline.dates}
+				exportHeading="Ratings over time"
+				exportSubtitle="Daily new ratings · one color per star"
+				exportValue={`${total.toLocaleString()} ratings`}
+				exportInsight={`${total.toLocaleString()} ratings received in ${(shareMeta.timeframe || 'the selected period').toLowerCase()}`}
+				exportProjectName={shareMeta.projectName}
+				exportLogoUrl={shareMeta.logoUrl}
+				exportTimeframe={shareMeta.timeframe}
+				exportDataDate={shareMeta.dataDate}
+				exportShareUrl={shareMeta.shareUrl}
+			/>
 		{:else}
 			<p class="empty-rating text-muted">No rating history in this timeframe.</p>
 		{/if}

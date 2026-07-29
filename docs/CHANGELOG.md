@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.5.11 - 2026-07-29
+
+- Add professional, theme-aware chart sharing with fixed social-media formats, project branding, KPI summaries, comparison context, data dates, and direct series labels.
+- Include enabled 7-day averages, record points, project events, and release markers in exported chart images.
+- Add one-shot animated GIF exports that reveal each chart once and hold on the completed frame.
+- Add clipboard image/text actions, suggested post copy, export previews, accessibility controls, and browser-level PNG/GIF regression coverage.
+
 ## v1.5.10 - 2026-07-28
 
 - Replace the easy-to-miss CSV import badge with a persistent completion panel, clear next actions, upload reset, duplicate-submit protection, and exact-file duplicate detection.

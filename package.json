@@ -1,7 +1,7 @@
 {
 	"name": "koaladata",
 	"private": true,
-	"version": "1.5.10",
+	"version": "1.5.11",
 	"type": "module",
 	"homepage": "https://data.koalastuff.net",
 	"repository": {
@@ -63,6 +63,7 @@
 	},
 	"dependencies": {
 		"better-sqlite3": "^13.0.1",
-		"csv-parse": "^7.0.1"
+		"csv-parse": "^7.0.1",
+		"gifenc": "^1.0.3"
 	}
 }

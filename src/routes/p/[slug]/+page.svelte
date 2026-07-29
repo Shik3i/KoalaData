@@ -144,6 +144,9 @@
 	let lastUpdated = $derived(metrics
 		.flatMap((metric) => metric.observations)
 		.reduce<string | null>((latest, observation) => !latest || observation.date > latest ? observation.date : latest, null));
+	let exportTimeframe = $derived(days === null ? 'All available data' : `Last ${days} days`);
+	let exportLogoUrl = $derived(project.logoPath ? `/api/projects/${project.id}/logo` : undefined);
+	let exportShareUrl = $derived(`${page.url.origin}/p/${project.slug}`);
 
 	function compareSeries(metric: DashboardMetric | undefined, name: string, color: string) {
 		if (!metric) return [];
@@ -155,6 +158,44 @@
 			{ name: `${name} · current`, color, observations: current }
 		];
 	}
+
+	function previousMetricPeriod(metric: DashboardMetric | undefined): DashboardObservation[] {
+		if (!metric || days === null) return [];
+		const metricEndDate = latestDate(metric);
+		if (!metricEndDate) return [];
+		const endDate = shiftDate(metricEndDate, -days);
+		const startDate = shiftDate(endDate, -days + 1);
+		return metric.observations.filter((observation) => observation.date >= startDate && observation.date <= endDate);
+	}
+
+	function percentageDelta(current: number, previous: number | null): string | undefined {
+		if (previous === null || previous === 0) return undefined;
+		const percent = ((current - previous) / Math.abs(previous)) * 100;
+		return `${percent >= 0 ? '+' : ''}${percent.toFixed(1)}% vs previous period`;
+	}
+
+	function metricExportDelta(metric: DashboardMetric | undefined): string | undefined {
+		if (!metric) return undefined;
+		const previous = previousMetricPeriod(metric);
+		if (!previous.length) return undefined;
+		const previousValue = metric.aggregation === 'latest' || metric.metricType === 'active_users'
+			? previous.at(-1)?.value ?? null
+			: previous.reduce((sum, observation) => sum + observation.value, 0);
+		return percentageDelta(metricDisplayValue(metric, days) ?? 0, previousValue);
+	}
+
+	let previousNetInstalls = $derived.by(() => {
+		if (days === null) return null;
+		const installs = growthPeriod(installsMetric, 1, true).reduce((sum, observation) => sum + observation.value, 0);
+		const uninstalls = growthPeriod(uninstallsMetric, 1, true).reduce((sum, observation) => sum + observation.value, 0);
+		return installs - uninstalls;
+	});
+	let netInstallsDelta = $derived(percentageDelta(kpis.netInstalls, previousNetInstalls));
+	let pageViewsDelta = $derived(metricExportDelta(pageViewsMetric));
+	let impressionsDelta = $derived(metricExportDelta(impressionsMetric));
+	let usersDeltaLabel = $derived(kpis.usersDelta === null
+		? undefined
+		: `${kpis.usersDelta >= 0 ? '+' : ''}${formatNumber(kpis.usersDelta)} since previous snapshot`);
 
 	let installUninstallSeries = $derived([
 		...compareSeries(installsMetric, 'Installs', '#2d6645'),
@@ -281,17 +322,91 @@
 			{#if installsMetric || uninstallsMetric}
 				<article class="card chart-card wide">
 					<header><div><h3>Daily Installs and Uninstalls</h3><p class="text-muted">{installsMetric?.sourceName ?? uninstallsMetric?.sourceName}</p></div><strong>{formatNumber(kpis.netInstalls)} net</strong></header>
-					<MetricChart title="{project.name}-installs-uninstalls" seriesList={installUninstallSeries} categoryLabels={comparisonLabels} showMovingAverage={showMovingAverage} {releaseMarkers} {projectEvents} />
+					<MetricChart
+						title="{project.name}-installs-uninstalls"
+						seriesList={installUninstallSeries}
+						categoryLabels={comparisonLabels}
+						exportHeading="Daily Installs and Uninstalls"
+						exportSubtitle={installsMetric?.sourceName ?? uninstallsMetric?.sourceName}
+						exportValue={`${formatNumber(kpis.netInstalls)} net`}
+						exportDelta={netInstallsDelta}
+						exportInsight={`${kpis.netInstalls >= 0 ? '+' : ''}${formatNumber(kpis.netInstalls)} net installs in ${exportTimeframe.toLowerCase()}`}
+						exportProjectName={project.name}
+						{exportLogoUrl}
+						{exportTimeframe}
+						exportDataDate={lastUpdated ? formatDataDate(lastUpdated) : undefined}
+						{exportShareUrl}
+						allowMovingAverageExport
+						showMovingAverage={showMovingAverage}
+						{releaseMarkers}
+						{projectEvents}
+					/>
 				</article>
 			{/if}
 			{#if usersMetric}
-				<article class="card chart-card"><header><div><h3>Weekly Users</h3><p class="text-muted">Installed users, not activity telemetry</p></div><strong>{formatNumber(kpis.users ?? 0)}</strong></header><MetricChart title="{project.name}-weekly-users" observations={selectedUsers} {releaseMarkers} {projectEvents} /></article>
+				<article class="card chart-card">
+					<header><div><h3>Weekly Users</h3><p class="text-muted">Installed users, not activity telemetry</p></div><strong>{formatNumber(kpis.users ?? 0)}</strong></header>
+					<MetricChart
+						title="{project.name}-weekly-users"
+						observations={selectedUsers}
+						exportHeading="Weekly Users"
+						exportSubtitle="Installed users, not activity telemetry"
+						exportValue={formatNumber(kpis.users ?? 0)}
+						exportDelta={usersDeltaLabel}
+						exportInsight={`Weekly users reached ${formatNumber(kpis.users ?? 0)}`}
+						exportProjectName={project.name}
+						{exportLogoUrl}
+						{exportTimeframe}
+						exportDataDate={lastUpdated ? formatDataDate(lastUpdated) : undefined}
+						{exportShareUrl}
+						{releaseMarkers}
+						{projectEvents}
+					/>
+				</article>
 			{/if}
 			{#if pageViewsMetric}
-				<article class="card chart-card"><header><div><h3>Store Page Views</h3><p class="text-muted">Listing demand</p></div><strong>{formatNumber(kpis.pageViews)}</strong></header><MetricChart title="{project.name}-store-page-views" observations={selectedPageViews} showMovingAverage={showMovingAverage} {projectEvents} /></article>
+				<article class="card chart-card">
+					<header><div><h3>Store Page Views</h3><p class="text-muted">Listing demand</p></div><strong>{formatNumber(kpis.pageViews)}</strong></header>
+					<MetricChart
+						title="{project.name}-store-page-views"
+						observations={selectedPageViews}
+						exportHeading="Store Page Views"
+						exportSubtitle="Listing demand"
+						exportValue={formatNumber(kpis.pageViews)}
+						exportDelta={pageViewsDelta}
+						exportInsight={`${formatNumber(kpis.pageViews)} store page views in ${exportTimeframe.toLowerCase()}`}
+						exportProjectName={project.name}
+						{exportLogoUrl}
+						{exportTimeframe}
+						exportDataDate={lastUpdated ? formatDataDate(lastUpdated) : undefined}
+						{exportShareUrl}
+						allowMovingAverageExport
+						showMovingAverage={showMovingAverage}
+						{projectEvents}
+					/>
+				</article>
 			{/if}
 			{#if impressionsMetric}
-				<article class="card chart-card"><header><div><h3>Store Impressions</h3><p class="text-muted">Store discovery</p></div><strong>{formatNumber(kpis.impressions)}</strong></header><MetricChart title="{project.name}-store-impressions" observations={selectedImpressions} showMovingAverage={showMovingAverage} {projectEvents} /></article>
+				<article class="card chart-card">
+					<header><div><h3>Store Impressions</h3><p class="text-muted">Store discovery</p></div><strong>{formatNumber(kpis.impressions)}</strong></header>
+					<MetricChart
+						title="{project.name}-store-impressions"
+						observations={selectedImpressions}
+						exportHeading="Store Impressions"
+						exportSubtitle="Store discovery"
+						exportValue={formatNumber(kpis.impressions)}
+						exportDelta={impressionsDelta}
+						exportInsight={`${formatNumber(kpis.impressions)} store impressions in ${exportTimeframe.toLowerCase()}`}
+						exportProjectName={project.name}
+						{exportLogoUrl}
+						{exportTimeframe}
+						exportDataDate={lastUpdated ? formatDataDate(lastUpdated) : undefined}
+						{exportShareUrl}
+						allowMovingAverageExport
+						showMovingAverage={showMovingAverage}
+						{projectEvents}
+					/>
+				</article>
 			{/if}
 		</div>
 
@@ -336,7 +451,7 @@
 	{/if}
 
 	{#if qualityGroups.length}
-		<section id="quality" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Quality</p><h2>Rating activity</h2><p class="text-muted">Daily rating events shown as a period total and as a star-by-star timeline.</p></div></div>{#each qualityGroups as group}<RatingAnalytics {group} {days} />{/each}</section>
+		<section id="quality" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Quality</p><h2>Rating activity</h2><p class="text-muted">Daily rating events shown as a period total and as a star-by-star timeline.</p></div></div>{#each qualityGroups as group}<RatingAnalytics {group} {days} shareMeta={{ projectName: project.name, logoUrl: exportLogoUrl, timeframe: exportTimeframe, dataDate: lastUpdated ? formatDataDate(lastUpdated) : undefined, shareUrl: exportShareUrl }} />{/each}</section>
 	{/if}
 
 	{#if additionalMetrics.length}
@@ -346,7 +461,28 @@
 					<span><span class="section-kicker">Additional data</span><span class="additional-title">Other imported metrics</span><span class="text-muted">Additional sources and unclassified custom data remain visible and are not discarded.</span></span>
 				</summary>
 				{#if additionalMetricsOpen}
-					<div class="trend-grid">{#each additionalMetrics as metric}<article class="card chart-card"><header><div><h3>{metricLabel(metric)}</h3><p class="text-muted">{metric.sourceName}</p></div><strong>{formatNumber(metricDisplayValue(metric, days) ?? 0)}</strong></header><MetricChart title="{project.name}-{metric.name}" observations={filterObservationsByCalendarDays(metric.observations, days)} {projectEvents} /></article>{/each}</div>
+					<div class="trend-grid">
+						{#each additionalMetrics as metric}
+							<article class="card chart-card">
+								<header><div><h3>{metricLabel(metric)}</h3><p class="text-muted">{metric.sourceName}</p></div><strong>{formatNumber(metricDisplayValue(metric, days) ?? 0)}</strong></header>
+								<MetricChart
+									title="{project.name}-{metric.name}"
+									observations={filterObservationsByCalendarDays(metric.observations, days)}
+									exportHeading={metricLabel(metric)}
+									exportSubtitle={metric.sourceName}
+									exportValue={formatNumber(metricDisplayValue(metric, days) ?? 0)}
+									exportDelta={metricExportDelta(metric)}
+									exportInsight={`${metricLabel(metric)}: ${formatNumber(metricDisplayValue(metric, days) ?? 0)}`}
+									exportProjectName={project.name}
+									{exportLogoUrl}
+									{exportTimeframe}
+									exportDataDate={lastUpdated ? formatDataDate(lastUpdated) : undefined}
+									{exportShareUrl}
+									{projectEvents}
+								/>
+							</article>
+						{/each}
+					</div>
 				{/if}
 			</details>
 		</section>

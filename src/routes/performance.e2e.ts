@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import Database from 'better-sqlite3';
 import crypto from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
 const PRIMARY_METRICS = [
 	['active_users', 'Weekly Users', 'average'],
@@ -202,19 +202,59 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 		await chart.scrollIntoViewIfNeeded();
 		const box = await chart.boundingBox();
 		if (!box) throw new Error('Dashboard chart has no bounding box.');
+		for (const card of await page.locator('.trend-grid > .chart-card').all()) {
+			const visibleValue = (await card.locator('header > strong').innerText()).trim();
+			await expect(card.locator('.chart-container-wrapper')).toHaveAttribute('data-export-value', visibleValue);
+		}
 		const scrollBefore = await page.evaluate(() => window.scrollY);
 		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 		await page.mouse.wheel(0, 420);
 		await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(scrollBefore);
 
+		await page.getByRole('button', { name: '7-day average' }).click();
+		await expect(page.locator('.chart-container-wrapper').first()).toHaveAttribute('data-export-moving-average', 'true');
+		await expect(page.locator('.chart-dom').first()).toContainText('Installs · 7-day average');
+		await page.getByRole('button', { name: 'Share or download chart' }).first().click();
+		const shareDialog = page.getByRole('dialog', { name: 'Share chart' });
+		await expect(shareDialog).toBeVisible();
+		await expect(shareDialog.getByLabel('7-day average')).toBeChecked();
+		await expect(shareDialog.getByText('Performance fixture:', { exact: false })).toBeVisible();
+		await shareDialog.getByRole('button', { name: 'Dark' }).click();
+		await expect(shareDialog.locator('.preview-frame img')).toBeVisible();
+		await expect(shareDialog.getByText('Rendering preview…')).toBeHidden();
+
 		const pngDownloadPromise = page.waitForEvent('download');
-		await page.getByRole('button', { name: 'Download chart as PNG' }).first().click();
+		await shareDialog.getByRole('button', { name: 'Download PNG' }).click();
 		const pngDownload = await pngDownloadPromise;
 		const pngPath = await pngDownload.path();
 		expect(pngPath).not.toBeNull();
 		const png = await readFile(pngPath!);
 		expect([...png.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 		expect(png.subarray(-8, -4).toString('ascii')).toBe('IEND');
+		expect(png.readUInt32BE(16)).toBe(1200);
+		expect(png.readUInt32BE(20)).toBe(628);
+		await testInfo.attach('social-chart-dark.png', { body: png, contentType: 'image/png' });
+		if (process.env.KOALADATA_KEEP_EXPORT_ARTIFACTS === 'true') {
+			await mkdir('test-results', { recursive: true });
+			await writeFile('test-results/social-chart-dark.png', png);
+		}
+
+		const gifDownloadPromise = page.waitForEvent('download');
+		await shareDialog.getByRole('button', { name: 'Animated GIF' }).click();
+		const gifDownload = await gifDownloadPromise;
+		const gifPath = await gifDownload.path();
+		expect(gifPath).not.toBeNull();
+		const gif = await readFile(gifPath!);
+		expect(gif.subarray(0, 6).toString('ascii')).toBe('GIF89a');
+		expect(gif.at(-1)).toBe(0x3b);
+		expect(gif.readUInt16LE(6)).toBe(820);
+		expect(gif.readUInt16LE(8)).toBeGreaterThan(400);
+		await testInfo.attach('social-chart-build-once.gif', { body: gif, contentType: 'image/gif' });
+		if (process.env.KOALADATA_KEEP_EXPORT_ARTIFACTS === 'true') {
+			await writeFile('test-results/social-chart-build-once.gif', gif);
+		}
+		await shareDialog.getByRole('button', { name: 'Close share chart' }).click();
+		await expect(shareDialog).toBeHidden();
 
 		const csvDownloadPromise = page.waitForEvent('download');
 		await page.getByRole('button', { name: 'Download chart data as CSV' }).first().click();
