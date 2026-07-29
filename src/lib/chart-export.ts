@@ -6,8 +6,15 @@ export type ChartExportOptions = {
 	theme: ChartExportTheme;
 	includeMovingAverage: boolean;
 	includeEvents: boolean;
+	includeIdentity: boolean;
+	includeTitle: boolean;
+	includeValue: boolean;
+	includeInsight: boolean;
+	includeDetails: boolean;
 	includeBranding: boolean;
 	includeLogo: boolean;
+	customText: string;
+	chartHeightPercent: number;
 };
 
 export type ChartExportSize = {

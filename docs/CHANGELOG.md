@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.5.13 - 2026-07-29
+
+- Add graph-focused, balanced, and minimal share-export presets with a configurable 45-82% graph-height target.
+- Let users independently show or hide the project header, title, headline value, generated insight, data details, logo, and KoalaData footer.
+- Add a custom 140-character image caption that also customizes the suggested post text.
+- Reflow visible export content dynamically so hidden context gives the graph more room, with a sticky live preview and browser regression coverage.
+
 ## v1.5.12 - 2026-07-29
 
 - Make chart-share previews compatible with the production Content Security Policy by rendering them as PNG data URLs instead of blocked blob URLs.

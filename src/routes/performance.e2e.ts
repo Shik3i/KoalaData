@@ -219,6 +219,17 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 		await expect(shareDialog).toBeVisible();
 		await expect(shareDialog.getByLabel('7-day average')).toBeChecked();
 		await expect(shareDialog.getByText('Performance fixture:', { exact: false })).toBeVisible();
+		await expect(shareDialog.getByRole('button', { name: /Graph focus/ })).toHaveClass(/active/);
+		const graphHeight = shareDialog.getByRole('slider', { name: 'Graph height' });
+		await expect(graphHeight).toHaveValue('68');
+		const projectHeaderToggle = shareDialog.getByRole('checkbox', { name: /^Project header/ });
+		const insightToggle = shareDialog.getByRole('checkbox', { name: /^Insight/ });
+		await expect(projectHeaderToggle).not.toBeChecked();
+		await expect(shareDialog.getByRole('checkbox', { name: /^Chart title/ })).toBeChecked();
+		await expect(shareDialog.getByRole('checkbox', { name: /^Headline value/ })).toBeChecked();
+		await expect(insightToggle).not.toBeChecked();
+		await expect(shareDialog.getByRole('checkbox', { name: /^Data details/ })).toBeChecked();
+		await expect(shareDialog.getByRole('checkbox', { name: /^KoalaData footer/ })).toBeChecked();
 		await shareDialog.getByRole('button', { name: 'Dark' }).click();
 		const previewImage = shareDialog.locator('.preview-frame img');
 		await expect(previewImage).toBeVisible();
@@ -229,6 +240,24 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 			width: image.naturalWidth,
 			height: image.naturalHeight
 		}))).toEqual({ complete: true, width: 1200, height: 628 });
+		const focusedPreview = await previewImage.getAttribute('src');
+
+		await shareDialog.getByRole('button', { name: /Balanced/ }).click();
+		await expect(projectHeaderToggle).toBeChecked();
+		await expect(insightToggle).toBeChecked();
+		await expect(graphHeight).toHaveValue('58');
+		await expect.poll(() => previewImage.getAttribute('src')).not.toBe(focusedPreview);
+
+		const balancedPreview = await previewImage.getAttribute('src');
+		const customCaption = 'Built in public — what should we measure next?';
+		await shareDialog.getByPlaceholder('Add context, a milestone or a question…').fill(customCaption);
+		await graphHeight.fill('76');
+		await projectHeaderToggle.uncheck();
+		await expect(shareDialog.getByText(customCaption, { exact: false })).toBeVisible();
+		await expect(graphHeight).toHaveValue('76');
+		await expect(shareDialog.getByRole('button', { name: /Balanced/ })).not.toHaveClass(/active/);
+		await expect.poll(() => previewImage.getAttribute('src')).not.toBe(balancedPreview);
+		await expect(previewImage).toHaveAttribute('src', /^data:image\/png;base64,/);
 
 		const pngDownloadPromise = page.waitForEvent('download');
 		await shareDialog.getByRole('button', { name: 'Download PNG' }).click();

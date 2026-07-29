@@ -46,8 +46,16 @@
 	let format = $state<ChartExportFormat>('wide');
 	let includeMovingAverage = $state(false);
 	let includeEvents = $state(false);
+	let includeIdentity = $state(false);
+	let includeTitle = $state(true);
+	let includeValue = $state(true);
+	let includeInsight = $state(false);
+	let includeDetails = $state(true);
 	let includeBranding = $state(true);
 	let includeLogo = $state(false);
+	let customText = $state('');
+	let chartHeightPercent = $state(68);
+	let layoutPreset = $state<'focus' | 'balanced' | 'minimal' | 'custom'>('focus');
 	let previewDataUrl = $state('');
 	let previewing = $state(false);
 	let action = $state<'png' | 'gif' | 'image' | 'text' | null>(null);
@@ -71,9 +79,49 @@
 			format,
 			includeMovingAverage: hasMovingAverage && includeMovingAverage,
 			includeEvents: hasEvents && includeEvents,
+			includeIdentity,
+			includeTitle,
+			includeValue,
+			includeInsight,
+			includeDetails,
 			includeBranding,
-			includeLogo: hasLogo && includeLogo
+			includeLogo: hasLogo && includeLogo,
+			customText: customText.trim(),
+			chartHeightPercent
 		};
+	}
+
+	function applyLayoutPreset(preset: 'focus' | 'balanced' | 'minimal') {
+		layoutPreset = preset;
+		if (preset === 'focus') {
+			includeIdentity = false;
+			includeTitle = true;
+			includeValue = true;
+			includeInsight = false;
+			includeDetails = true;
+			includeBranding = true;
+			chartHeightPercent = 68;
+		} else if (preset === 'balanced') {
+			includeIdentity = true;
+			includeTitle = true;
+			includeValue = true;
+			includeInsight = true;
+			includeDetails = true;
+			includeBranding = true;
+			chartHeightPercent = 58;
+		} else {
+			includeIdentity = false;
+			includeTitle = true;
+			includeValue = true;
+			includeInsight = false;
+			includeDetails = false;
+			includeBranding = false;
+			chartHeightPercent = 78;
+		}
+	}
+
+	function markCustom() {
+		layoutPreset = 'custom';
 	}
 
 	function blobToDataUrl(blob: Blob): Promise<string> {
@@ -99,8 +147,15 @@
 		void format;
 		void includeMovingAverage;
 		void includeEvents;
+		void includeIdentity;
+		void includeTitle;
+		void includeValue;
+		void includeInsight;
+		void includeDetails;
 		void includeBranding;
 		void includeLogo;
+		void customText;
+		void chartHeightPercent;
 		const generation = ++previewGeneration;
 		previewing = true;
 		statusMessage = '';
@@ -145,7 +200,7 @@
 		}
 		if (event.key !== 'Tab' || !modalRef) return;
 		const focusable = Array.from(modalRef.querySelectorAll<HTMLElement>(
-			'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 		));
 		if (!focusable.length) return;
 		const first = focusable[0];
@@ -225,7 +280,13 @@
 		action = 'text';
 		statusMessage = '';
 		try {
-			await navigator.clipboard.writeText(buildChartShareText({ projectName, insight, heading, timeframe, shareUrl }));
+			await navigator.clipboard.writeText(buildChartShareText({
+				projectName,
+				insight: customText.trim() || insight,
+				heading,
+				timeframe,
+				shareUrl
+			}));
 			statusMessage = 'Post text copied to clipboard.';
 		} catch (error) {
 			statusMessage = error instanceof Error ? error.message : 'Post text could not be copied.';
@@ -270,6 +331,58 @@
 							</div>
 						</fieldset>
 
+						<fieldset>
+							<legend>Layout</legend>
+							<div class="preset-grid">
+								<button type="button" class:active={layoutPreset === 'focus'} onclick={() => applyLayoutPreset('focus')}><strong>Graph focus</strong><small>Largest useful plot</small></button>
+								<button type="button" class:active={layoutPreset === 'balanced'} onclick={() => applyLayoutPreset('balanced')}><strong>Balanced</strong><small>More context</small></button>
+								<button type="button" class:active={layoutPreset === 'minimal'} onclick={() => applyLayoutPreset('minimal')}><strong>Minimal</strong><small>Chart first</small></button>
+							</div>
+						</fieldset>
+
+						<label class="range-control">
+							<span>Graph height <span class="control-value" aria-hidden="true">{chartHeightPercent}%</span></span>
+							<input
+								type="range"
+								min="45"
+								max="82"
+								step="1"
+								bind:value={chartHeightPercent}
+								oninput={markCustom}
+								aria-label="Graph height"
+							/>
+							<small>Maximum target; visible text always keeps enough room.</small>
+						</label>
+
+						<fieldset>
+							<legend>Image content</legend>
+							<div class="toggle-list">
+								<label class="toggle-row"><input type="checkbox" bind:checked={includeIdentity} onchange={markCustom} /><span><strong>Project header</strong><small>Name and analytics label</small></span></label>
+								<label class="toggle-row"><input type="checkbox" bind:checked={includeTitle} onchange={markCustom} /><span><strong>Chart title</strong><small>Metric name above the graph</small></span></label>
+								<label class="toggle-row"><input type="checkbox" bind:checked={includeValue} onchange={markCustom} /><span><strong>Headline value</strong><small>Current value and change</small></span></label>
+								<label class="toggle-row"><input type="checkbox" bind:checked={includeInsight} onchange={markCustom} /><span><strong>Insight</strong><small>Automatically generated takeaway</small></span></label>
+								<label class="toggle-row"><input type="checkbox" bind:checked={includeDetails} onchange={markCustom} /><span><strong>Data details</strong><small>Timeframe, date and average label</small></span></label>
+								{#if hasLogo}
+									<label class="toggle-row" class:disabled={!includeIdentity}><input type="checkbox" bind:checked={includeLogo} disabled={!includeIdentity} onchange={markCustom} /><span><strong>Project logo</strong><small>Show next to the project header</small></span></label>
+								{/if}
+								<label class="toggle-row"><input type="checkbox" bind:checked={includeBranding} onchange={markCustom} /><span><strong>KoalaData footer</strong><small>Add source URL and privacy-first mark</small></span></label>
+							</div>
+						</fieldset>
+
+						<label class="custom-copy">
+							<span>Custom caption <span class="control-value" aria-hidden="true">{customText.length}/140</span></span>
+							<textarea
+								rows="3"
+								maxlength="140"
+								placeholder="Add context, a milestone or a question…"
+								bind:value={customText}
+								oninput={markCustom}
+							></textarea>
+							<small>Appears inside the image and replaces the generated insight in copied post text.</small>
+						</label>
+
+						<fieldset>
+							<legend>Chart overlays</legend>
 						<div class="toggle-list">
 							{#if hasMovingAverage}
 								<label class="toggle-row"><input type="checkbox" bind:checked={includeMovingAverage} /><span><strong>7-day average</strong><small>Emphasize the smoothed trend</small></span></label>
@@ -277,11 +390,8 @@
 							{#if hasEvents}
 								<label class="toggle-row"><input type="checkbox" bind:checked={includeEvents} /><span><strong>Events and releases</strong><small>Include selected timeline markers</small></span></label>
 							{/if}
-							{#if hasLogo}
-								<label class="toggle-row"><input type="checkbox" bind:checked={includeLogo} /><span><strong>Project logo</strong><small>Show project identity</small></span></label>
-							{/if}
-							<label class="toggle-row"><input type="checkbox" bind:checked={includeBranding} /><span><strong>KoalaData footer</strong><small>Add source URL and privacy-first mark</small></span></label>
 						</div>
+						</fieldset>
 					</div>
 
 					<div class="preview-panel">
@@ -293,7 +403,7 @@
 						</div>
 						<div class="share-copy">
 							<span>Suggested post</span>
-							<p>{buildChartShareText({ projectName, insight, heading, timeframe, shareUrl })}</p>
+							<p>{buildChartShareText({ projectName, insight: customText.trim() || insight, heading, timeframe, shareUrl })}</p>
 						</div>
 					</div>
 				</div>
@@ -355,21 +465,33 @@
 	.modal-body { display: grid; gap: 1rem; padding: 1.25rem; }
 	.modal-body > p { margin: 0; }
 	.workspace { display: grid; grid-template-columns: minmax(230px, 0.7fr) minmax(0, 1.7fr); gap: 1.25rem; align-items: start; }
-	.controls { display: grid; gap: 1rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-inset); }
+	.controls { display: grid; gap: 1rem; max-height: 62vh; overflow-y: auto; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-inset); }
 	.controls > label, fieldset { display: grid; gap: 0.45rem; }
 	.controls label > span, legend { color: var(--text-muted); font-size: 0.72rem; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; }
-	select { width: 100%; min-height: 42px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.5rem 0.65rem; background: var(--bg-surface); color: var(--text-base); font: inherit; font-size: 0.82rem; }
+	select, textarea { width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.5rem 0.65rem; background: var(--bg-surface); color: var(--text-base); font: inherit; font-size: 0.82rem; }
+	select { min-height: 42px; }
+	textarea { min-height: 72px; resize: vertical; line-height: 1.45; }
 	fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 	.segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.3rem; }
 	.segmented button { display: flex; justify-content: center; align-items: center; gap: 0.3rem; min-height: 38px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-muted); font: inherit; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
 	.segmented button.active { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--bg-surface)); color: var(--primary); }
+	.preset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.3rem; }
+	.preset-grid button { display: grid; gap: 0.12rem; min-height: 54px; padding: 0.45rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-muted); font: inherit; cursor: pointer; }
+	.preset-grid button.active { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--bg-surface)); color: var(--primary); }
+	.preset-grid strong { font-size: 0.72rem; }
+	.preset-grid small { font-size: 0.62rem; line-height: 1.25; }
+	.range-control > span, .custom-copy > span { display: flex; justify-content: space-between; gap: 0.5rem; }
+	.control-value { color: var(--primary); font: inherit; }
+	.range-control input { width: 100%; accent-color: var(--primary); }
+	.range-control small, .custom-copy small { color: var(--text-muted); font-size: 0.68rem; font-weight: 500; line-height: 1.35; }
 	.toggle-list { display: grid; gap: 0.25rem; }
 	.toggle-row { display: grid !important; grid-template-columns: auto 1fr; gap: 0.65rem !important; align-items: start; padding: 0.55rem; border-radius: var(--radius-sm); cursor: pointer; }
 	.toggle-row:hover { background: var(--bg-surface); }
+	.toggle-row.disabled { opacity: 0.52; cursor: not-allowed; }
 	.toggle-row input { width: 17px; height: 17px; margin-top: 0.12rem; accent-color: var(--primary); }
 	.toggle-row span { display: grid; gap: 0.15rem; color: var(--text-base) !important; font-size: 0.78rem !important; letter-spacing: 0 !important; text-transform: none !important; }
 	.toggle-row small { color: var(--text-muted); font-size: 0.68rem; font-weight: 500; line-height: 1.35; }
-	.preview-panel { min-width: 0; display: grid; gap: 0.75rem; }
+	.preview-panel { position: sticky; top: 82px; min-width: 0; display: grid; gap: 0.75rem; }
 	.preview-frame { position: relative; display: grid; place-items: center; min-height: 280px; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #080d09; }
 	.preview-frame img { display: block; width: 100%; height: auto; max-height: 58vh; object-fit: contain; }
 	.preview-frame.square img, .preview-frame.portrait img { width: auto; max-width: 100%; }
@@ -387,7 +509,7 @@
 		.modal-backdrop { padding: 0; }
 		.modal-card { max-height: 100vh; min-height: 100vh; border-radius: 0; }
 		.workspace { grid-template-columns: 1fr; }
-		.preview-panel { grid-row: 1; }
+		.preview-panel { position: static; grid-row: 1; }
 		.preview-frame { min-height: 210px; }
 		.modal-footer { align-items: stretch; flex-direction: column; }
 		.footer-actions { display: grid; grid-template-columns: repeat(2, 1fr); }

@@ -332,6 +332,33 @@
 		return text.length <= maxLength ? text : `${text.slice(0, Math.max(1, maxLength - 1))}…`;
 	}
 
+	function wrapCanvasText(
+		context: CanvasRenderingContext2D,
+		text: string,
+		maxWidth: number,
+		maxLines = 2
+	): string[] {
+		const words = text.trim().split(/\s+/).filter(Boolean);
+		const lines: string[] = [];
+		let current = '';
+		for (const word of words) {
+			const candidate = current ? `${current} ${word}` : word;
+			if (!current || context.measureText(candidate).width <= maxWidth) {
+				current = candidate;
+				continue;
+			}
+			lines.push(current);
+			current = word;
+			if (lines.length === maxLines - 1) break;
+		}
+		if (current && lines.length < maxLines) lines.push(current);
+		const consumed = lines.join(' ').split(/\s+/).length;
+		if (consumed < words.length && lines.length) {
+			lines[lines.length - 1] = fitCanvasText(context, `${lines[lines.length - 1]}…`, maxWidth);
+		}
+		return lines;
+	}
+
 	async function renderShareChartImage(
 		theme: 'light' | 'dark',
 		options: ChartExportOptions,
@@ -438,71 +465,101 @@
 		const margin = Math.round(width * 0.055);
 		const portrait = options.format === 'portrait';
 		const square = options.format === 'square';
-		const top = portrait ? 54 : 42;
+		const top = portrait ? 50 : square ? 46 : 36;
 		const logoSize = portrait ? 54 : 44;
-		let identityX = margin;
-		if (options.includeLogo && exportLogoUrl) {
-			const logo = await projectLogoImage();
-			if (logo) {
-				drawRoundedImage(context, logo, margin, top, logoSize, Math.round(logoSize * 0.28));
-				identityX += logoSize + 14;
+		let contentY = top;
+
+		if (options.includeIdentity) {
+			let identityX = margin;
+			if (options.includeLogo && exportLogoUrl) {
+				const logo = await projectLogoImage();
+				if (logo) {
+					drawRoundedImage(context, logo, margin, contentY, logoSize, Math.round(logoSize * 0.28));
+					identityX += logoSize + 14;
+				}
 			}
-		}
-		context.font = `750 ${portrait ? 19 : 17}px Inter, system-ui, sans-serif`;
-		context.fillStyle = colors.text;
-		context.fillText(fitCanvasText(context, exportProjectName || 'KoalaData', width * 0.42), identityX, top + 3);
-		context.font = `700 ${portrait ? 12 : 11}px Inter, system-ui, sans-serif`;
-		context.fillStyle = colors.primary;
-		context.fillText('PRIVACY-FIRST ANALYTICS', identityX, top + (portrait ? 31 : 27));
-
-		const headingY = portrait ? 138 : 112;
-		const valueWidth = Math.min(width * 0.36, portrait ? 340 : 380);
-		const headingWidth = width - margin * 2 - valueWidth - 28;
-		context.font = `800 ${portrait ? 43 : square ? 40 : 34}px Inter, system-ui, sans-serif`;
-		context.fillStyle = colors.text;
-		context.fillText(fitCanvasText(context, exportHeading || title || 'Metric trend', headingWidth), margin, headingY);
-
-		if (exportValue) {
-			context.textAlign = 'right';
-			context.font = `850 ${portrait ? 48 : square ? 46 : 40}px Inter, system-ui, sans-serif`;
+			context.font = `750 ${portrait ? 19 : 17}px Inter, system-ui, sans-serif`;
 			context.fillStyle = colors.text;
-			context.fillText(fitCanvasText(context, exportValue, valueWidth), width - margin, headingY - 3);
-			context.textAlign = 'left';
+			context.fillText(fitCanvasText(context, exportProjectName || 'KoalaData', width * 0.42), identityX, contentY + 3);
+			context.font = `700 ${portrait ? 12 : 11}px Inter, system-ui, sans-serif`;
+			context.fillStyle = colors.primary;
+			context.fillText('PRIVACY-FIRST ANALYTICS', identityX, contentY + (portrait ? 31 : 27));
+			contentY += logoSize + (portrait ? 18 : 12);
 		}
-		if (exportDelta) {
-			const positive = !exportDelta.trim().startsWith('-');
-			context.font = `750 ${portrait ? 15 : 13}px Inter, system-ui, sans-serif`;
-			const deltaWidth = context.measureText(exportDelta).width + 22;
-			const deltaX = width - margin - deltaWidth;
-			const deltaY = headingY + (portrait ? 58 : 49);
-			context.fillStyle = positive ? `${colors.positive}22` : `${colors.negative}22`;
+
+		if (options.includeTitle || options.includeValue) {
+			const valueWidth = options.includeValue ? Math.min(width * 0.36, portrait ? 340 : 380) : 0;
+			const headingWidth = options.includeTitle ? width - margin * 2 - valueWidth - (options.includeValue ? 28 : 0) : 0;
+			if (options.includeTitle) {
+				context.font = `800 ${portrait ? 43 : square ? 40 : 34}px Inter, system-ui, sans-serif`;
+				context.fillStyle = colors.text;
+				context.fillText(fitCanvasText(context, exportHeading || title || 'Metric trend', headingWidth), margin, contentY);
+			}
+			if (options.includeValue && exportValue) {
+				context.textAlign = 'right';
+				context.font = `850 ${portrait ? 48 : square ? 46 : 40}px Inter, system-ui, sans-serif`;
+				context.fillStyle = colors.text;
+				context.fillText(fitCanvasText(context, exportValue, valueWidth), width - margin, contentY - 3);
+				context.textAlign = 'left';
+			}
+			if (options.includeValue && exportDelta) {
+				const positive = !exportDelta.trim().startsWith('-');
+				context.font = `750 ${portrait ? 15 : 13}px Inter, system-ui, sans-serif`;
+				const deltaWidth = context.measureText(exportDelta).width + 22;
+				const deltaX = width - margin - deltaWidth;
+				const deltaY = contentY + (portrait ? 52 : 43);
+				context.fillStyle = positive ? `${colors.positive}22` : `${colors.negative}22`;
+				context.beginPath();
+				context.roundRect(deltaX, deltaY, deltaWidth, 28, 14);
+				context.fill();
+				context.fillStyle = positive ? colors.positive : colors.negative;
+				context.fillText(exportDelta, deltaX + 11, deltaY + 6);
+			}
+			contentY += portrait ? 78 : 62;
+		}
+
+		if (options.includeInsight && (exportInsight || exportSubtitle)) {
+			context.font = `650 ${portrait ? 19 : 16}px Inter, system-ui, sans-serif`;
+			context.fillStyle = exportValue?.trim().startsWith('-') ? colors.negative : colors.primary;
+			context.fillText(fitCanvasText(context, exportInsight || exportSubtitle || '', width - margin * 2), margin, contentY);
+			contentY += portrait ? 34 : 28;
+		}
+
+		if (options.customText) {
+			context.font = `600 ${portrait ? 17 : 15}px Inter, system-ui, sans-serif`;
+			const customLines = wrapCanvasText(context, options.customText, width - margin * 2 - 32, 2);
+			const lineHeight = portrait ? 24 : 21;
+			const calloutHeight = customLines.length * lineHeight + 20;
+			context.fillStyle = `${colors.primary}14`;
 			context.beginPath();
-			context.roundRect(deltaX, deltaY, deltaWidth, 28, 14);
+			context.roundRect(margin, contentY, width - margin * 2, calloutHeight, 12);
 			context.fill();
-			context.fillStyle = positive ? colors.positive : colors.negative;
-			context.fillText(exportDelta, deltaX + 11, deltaY + 6);
+			context.fillStyle = colors.primary;
+			context.fillRect(margin, contentY + 8, 4, calloutHeight - 16);
+			context.fillStyle = colors.text;
+			customLines.forEach((line, index) => context.fillText(line, margin + 20, contentY + 10 + index * lineHeight));
+			contentY += calloutHeight + 10;
 		}
 
-		const insightY = headingY + (portrait ? 72 : 58);
-		context.font = `650 ${portrait ? 19 : 16}px Inter, system-ui, sans-serif`;
-		context.fillStyle = exportValue?.trim().startsWith('-') ? colors.negative : colors.primary;
-		context.fillText(fitCanvasText(context, exportInsight || exportSubtitle || '', headingWidth), margin, insightY);
-
-		const chartTop = portrait ? 286 : square ? 250 : 230;
-		const footerHeight = options.includeBranding ? (portrait ? 94 : 70) : 32;
-		const chartX = margin;
-		const chartY = chartTop;
-		const chartWidth = width - margin * 2;
-		const chartHeight = Math.max(220, height - chartTop - footerHeight);
 		const detail = [
 			exportSubtitle,
 			exportTimeframe,
 			exportDataDate ? `Data through ${exportDataDate}` : '',
 			options.includeMovingAverage ? '7-day average' : ''
 		].filter(Boolean).join('  ·  ');
-		context.font = `600 ${portrait ? 15 : 13}px Inter, system-ui, sans-serif`;
-		context.fillStyle = colors.muted;
-		context.fillText(fitCanvasText(context, detail, chartWidth), margin, chartTop - 30);
+		if (options.includeDetails && detail) {
+			context.font = `600 ${portrait ? 15 : 13}px Inter, system-ui, sans-serif`;
+			context.fillStyle = colors.muted;
+			context.fillText(fitCanvasText(context, detail, width - margin * 2), margin, contentY);
+			contentY += portrait ? 32 : 27;
+		}
+
+		const footerHeight = options.includeBranding ? (portrait ? 82 : 62) : (portrait ? 34 : 28);
+		const desiredChartHeight = Math.round(height * Math.min(82, Math.max(45, options.chartHeightPercent)) / 100);
+		const chartX = margin;
+		const chartY = Math.max(contentY + (portrait ? 16 : 12), height - footerHeight - desiredChartHeight);
+		const chartWidth = width - margin * 2;
+		const chartHeight = Math.max(180, height - chartY - footerHeight);
 
 		context.fillStyle = colors.surface;
 		context.strokeStyle = colors.border;
@@ -527,7 +584,7 @@
 		context.restore();
 
 		if (options.includeBranding) {
-			const footerY = height - (portrait ? 58 : 44);
+			const footerY = height - (portrait ? 52 : 40);
 			context.font = `650 ${portrait ? 15 : 13}px Inter, system-ui, sans-serif`;
 			context.fillStyle = colors.muted;
 			context.fillText('Verified privacy-first analytics', margin, footerY);
