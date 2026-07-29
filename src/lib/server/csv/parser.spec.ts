@@ -42,6 +42,30 @@ describe('CSV Parser', () => {
 		expect(result.headers[0]).toBe('date');
 	});
 
+	it('skips leading AMO metadata comments before the CSV header', () => {
+		const csvData = [
+			'#    addons.mozilla.org Statistics for add-on KoalaSync#',
+			'#    Generated Wed Jul 29 21:24:55 2026 +0000',
+			'#    from https://addons.mozilla.org/en-US/firefox/addon/koalasync/statistics/downloads-day-20250729-20260728.csv',
+			'date,count',
+			'2026-07-28,2',
+			'2026-07-27,3'
+		].join('\r\n');
+
+		const result = parseCsv(Buffer.from(csvData));
+
+		expect(result.headers).toEqual(['date', 'count']);
+		expect(result.rows).toEqual([
+			['2026-07-28', '2'],
+			['2026-07-27', '3']
+		]);
+	});
+
+	it('does not strip hash-prefixed data after the header', () => {
+		const result = parseCsv(Buffer.from('date,label\n2026-07-28,#featured'));
+		expect(result.rows[0]).toEqual(['2026-07-28', '#featured']);
+	});
+
 	it('should parse UTF-16 files with a byte-order mark', () => {
 		const content = 'date;value\r\n2026-07-18;12';
 		const leBom = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(content, 'utf16le')]);

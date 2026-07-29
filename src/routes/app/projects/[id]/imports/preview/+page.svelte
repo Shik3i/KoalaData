@@ -87,7 +87,7 @@
 
 	{#if data.autoDetect.confidence === 'high' || data.report}
 		<div class="alert alert-success" role="status">
-			<Icon name="sparkle" /> <strong>Chrome Web Store format detected.</strong>
+			<Icon name="sparkle" /> <strong>{data.detectedSourceLabel ?? 'Known store'} format detected.</strong>
 			{#if data.report}
 				{data.report.title} uses <strong>{data.report.semantics === 'snapshot' ? 'latest-value snapshot' : 'period-total flow'}</strong> semantics.
 			{:else}
@@ -207,6 +207,7 @@
 											<option value="active_users">Weekly Users (installed-user snapshot)</option>
 											<option value="installs">Daily Installs</option>
 											<option value="uninstalls">Daily Uninstalls</option>
+											<option value="downloads">Downloads</option>
 											<option value="store_page_views">Store Page Views</option>
 											<option value="store_impressions">Store Impressions</option>
 											<option value="custom">Custom / Other Metric</option>

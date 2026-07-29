@@ -219,6 +219,21 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 
 		await expect(page.locator('.alert-success')).toContainText('added successfully');
 		await expect(page.locator('.sources-list')).toContainText('CWS Dashboard Live');
+
+		await page.fill('input[name="name"]', 'Firefox AMO Live');
+		await page.selectOption('select[name="sourceType"]', 'firefox_amo');
+		await page.selectOption('select[name="granularity"]', 'daily');
+		await page.fill('input[name="externalUrl"]', 'https://addons.mozilla.org/de/firefox/addon/koalasync/');
+		await page.click('button:has-text("Add Data Source")');
+		await expect(page.locator('.sources-list')).toContainText('Firefox AMO Live');
+
+		await page.fill('input[name="name"]', 'Edge Add-ons Live');
+		await page.selectOption('select[name="sourceType"]', 'edge_add_ons');
+		await page.selectOption('select[name="granularity"]', 'daily');
+		await page.fill('input[name="externalUrl"]', 'https://microsoftedge.microsoft.com/addons/detail/koalasync/abcdefghijklmnopabcdefghijklmnop');
+		await page.click('button:has-text("Add Data Source")');
+		await expect(page.locator('.sources-list')).toContainText('Edge Add-ons Live');
+
 		await page.goto('/app');
 		await expect(page.locator('.onboarding-kicker')).toContainText(projectName);
 		const onboardingUpload = page.getByRole('link', { name: 'Upload', exact: true });
@@ -230,6 +245,19 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.waitForTimeout(2000); // Allow SvelteKit client-side hydration to complete
 		
 		// Select target data source
+		await page.selectOption('select[name="sourceId"]', { label: 'Firefox AMO Live (firefox_amo)' });
+		await expect(page.getByText('Firefox Add-ons (AMO): Open')).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Open AMO Statistics' })).toHaveAttribute(
+			'href',
+			'https://addons.mozilla.org/en-US/firefox/addon/koalasync/statistics/'
+		);
+		await page.selectOption('select[name="sourceId"]', { label: 'Edge Add-ons Live (edge_add_ons)' });
+		await expect(page.getByText('Microsoft Edge Add-ons: Open')).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Open Edge Partner Center' })).toHaveAttribute(
+			'href',
+			'https://partner.microsoft.com/dashboard/microsoftedge/overview'
+		);
+		await expect(page.getByText('Chrome Web Store:', { exact: false })).toHaveCount(0);
 		await page.selectOption('select[name="sourceId"]', { label: 'CWS Dashboard Live (chrome_web_store)' });
 
 		// Set upload file
@@ -278,7 +306,32 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		expect(mobileHistory.labels).toEqual(['File', 'Date bounds', 'Diagnostics', 'Status', 'Action']);
 		await page.setViewportSize({ width: 1280, height: 900 });
 
-		// 10. PUBLIC DASHBOARD VERIFICATION & VISIBILITY CONTROLS
+		// 10. FIREFOX AMO COMMENTED CSV AUTO-IMPORT
+		await page.selectOption('select[name="sourceId"]', { label: 'Firefox AMO Live (firefox_amo)' });
+		const amoMetadata = [
+			'#    addons.mozilla.org Statistics for add-on KoalaSync#',
+			'#    Generated Wed Jul 29 21:24:55 2026 +0000',
+			'#    from https://addons.mozilla.org/en-US/firefox/addon/koalasync/statistics/report.csv'
+		].join('\n');
+		await page.setInputFiles('input[type="file"]', [
+			{
+				name: 'downloads-day-20250729-20260728.csv',
+				mimeType: 'text/csv',
+				buffer: Buffer.from(`${amoMetadata}\ndate,count\n2026-07-27,3\n2026-07-28,2\n`)
+			},
+			{
+				name: 'usage-day-20250729-20260728.csv',
+				mimeType: 'text/csv',
+				buffer: Buffer.from(`${amoMetadata}\ndate,count\n2026-07-27,59\n2026-07-28,60\n`)
+			}
+		]);
+		await page.click('button:has-text("Import 2 CSV files")');
+		await page.waitForURL('/app/projects/*/imports?*');
+		await expect(page.locator('.import-result')).toContainText('2 files imported successfully');
+		await expect(page.locator('tr', { hasText: 'downloads-day-20250729-20260728.csv' })).toHaveCount(1);
+		await expect(page.locator('tr', { hasText: 'usage-day-20250729-20260728.csv' })).toHaveCount(1);
+
+		// 11. PUBLIC DASHBOARD VERIFICATION & VISIBILITY CONTROLS
 		await page.goto(`/p/${projectSlug}`);
 		await expect(page.getByRole('heading', { level: 1 })).toContainText(projectName);
 		await expect(page.getByText('Free', { exact: true })).toBeVisible();
@@ -316,7 +369,7 @@ test.describe('KoalaData End-to-End System Integration Flow', () => {
 		await page.locator('button', { hasText: 'Save Visibility' }).click();
 		await expect(page.locator('.alert-success')).toContainText('visibility updated to private');
 
-		// 11. PRIVATE PROJECT DENIAL
+		// 12. PRIVATE PROJECT DENIAL
 		await context.clearCookies(); // Log out
 		const privateOg = await page.goto(`/p/${projectSlug}/og.png`);
 		expect(privateOg?.status()).toBe(404);

@@ -4,8 +4,7 @@ import { eq, and, isNull, desc, count } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { createImportDraft, confirmImportDraft, cleanupDraft, parseStoredFilename, getDraftFilePath } from '$lib/server/csv/pipeline';
 import { parseCsv } from '$lib/server/csv/parser';
-import { detectChromeCsv } from '$lib/server/csv/chrome';
-import { classifyChromeReportFilename } from '$lib/dashboard-metrics';
+import { getAutomaticImport } from '$lib/server/csv/auto';
 import { logAuditEvent } from '$lib/server/audit';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -30,32 +29,6 @@ function buildUploadResultUrl(
 	});
 	if (error) params.set('error', error);
 	return `/app/projects/${projectId}/imports?${params.toString()}`;
-}
-
-function buildMetricsForAutoImport(originalFilename: string, autoDetect: ReturnType<typeof detectChromeCsv>) {
-	if (!autoDetect?.mappings?.date?.column) return null;
-	const report = classifyChromeReportFilename(originalFilename);
-	const fileLabel = originalFilename.replace(/\.[^.]+$/, '').replace(/_[a-z0-9]{32}$/i, '').trim();
-	const metrics = [];
-	for (const [key, value] of Object.entries(autoDetect.mappings)) {
-		if (key !== 'date' && value?.column) {
-			metrics.push({
-				columnName: value.column,
-				metricType: value.metricType || 'custom',
-				name: value.metricType === 'custom' && report ? fileLabel : value.metricType === 'custom' ? `${fileLabel}: ${value.column}` : value.column,
-				unit: 'count',
-				aggregation: value.metricType === 'active_users' || report?.semantics === 'snapshot' ? 'latest' : 'sum',
-				isCumulative: false,
-				dimensions: value.metricType === 'custom' && report ? { [report.dimensionKey]: value.column } : undefined
-			});
-		}
-	}
-	if (metrics.length === 0) return null;
-	return {
-		dateColumn: autoDetect.mappings.date.column,
-		dateFormat: 'YYYY-MM-DD',
-		metrics
-	};
 }
 
 export const load: PageServerLoad = async ({ parent, locals, url }) => {
@@ -150,18 +123,9 @@ export const actions: Actions = {
 				}
 
 				const parsed = parseCsv(buffer);
-				const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
-				const report = classifyChromeReportFilename(file.name);
-				const hasStandardMetric = Object.values(autoDetect.mappings).some((mapping) =>
-					mapping.metricType !== 'date' && mapping.metricType !== 'custom'
-				);
-				const hasCustomMetric = Object.values(autoDetect.mappings).some((mapping) => mapping.metricType === 'custom');
+				const automaticImport = getAutomaticImport(source[0].sourceType, file.name, parsed);
 
-				const canAutoImport = source[0].sourceType === 'chrome_web_store'
-					&& Boolean(autoDetect.mappings.date)
-					&& Boolean(report || (hasStandardMetric && !hasCustomMetric));
-
-				if (canAutoImport) {
+				if (automaticImport) {
 					const draftId = await createImportDraft(
 						locals.user.id,
 						projectId,
@@ -169,22 +133,16 @@ export const actions: Actions = {
 						file.name,
 						buffer
 					);
-					const mappingConfig = buildMetricsForAutoImport(file.name, autoDetect);
-					if (mappingConfig) {
-						await confirmImportDraft(
-							locals.user.id,
-							locals.user.username,
-							projectId,
-							draftId,
-							mappingConfig,
-							ip,
-							'chrome_auto'
-						);
-						autoImportedCount++;
-					} else {
-						lastManualDraftId = draftId;
-						manualCount++;
-					}
+					await confirmImportDraft(
+						locals.user.id,
+						locals.user.username,
+						projectId,
+						draftId,
+						automaticImport.mappingConfig,
+						ip,
+						automaticImport.detectedImporter
+					);
+					autoImportedCount++;
 				} else {
 					const draftId = await createImportDraft(
 						locals.user.id,
@@ -239,6 +197,11 @@ export const actions: Actions = {
 		const userDrafts = await db.select().from(importDrafts).where(
 			and(eq(importDrafts.projectId, projectId), eq(importDrafts.userId, locals.user.id))
 		);
+		const projectSources = await db
+			.select({ id: dataSources.id, sourceType: dataSources.sourceType })
+			.from(dataSources)
+			.where(eq(dataSources.projectId, projectId));
+		const sourceTypes = new Map(projectSources.map((source) => [source.id, source.sourceType]));
 
 		if (userDrafts.length === 0) {
 			return fail(400, { error: 'No pending drafts to import.' });
@@ -259,27 +222,25 @@ export const actions: Actions = {
 				}
 				const buffer = fs.readFileSync(draftFilePath);
 				const parsed = parseCsv(buffer);
-				const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
+				const sourceType = sourceTypes.get(draft.sourceId);
+				const automaticImport = sourceType
+					? getAutomaticImport(sourceType, originalName, parsed)
+					: null;
 
-				if (autoDetect.mappings.date) {
-					const mappingConfig = buildMetricsForAutoImport(originalName, autoDetect);
-					if (mappingConfig) {
-						await confirmImportDraft(
-							locals.user.id,
-							locals.user.username,
-							projectId,
-							draft.id,
-							mappingConfig,
-							ip,
-							'chrome_auto'
-						);
-						importedCount++;
-					} else {
-						failedCount++;
-					}
-				} else {
+				if (!automaticImport) {
 					failedCount++;
+					continue;
 				}
+				await confirmImportDraft(
+					locals.user.id,
+					locals.user.username,
+					projectId,
+					draft.id,
+					automaticImport.mappingConfig,
+					ip,
+					automaticImport.detectedImporter
+				);
+				importedCount++;
 			} catch (e) {
 				failedCount++;
 			}

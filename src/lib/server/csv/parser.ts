@@ -43,6 +43,10 @@ export function parseCsv(buffer: Buffer): ParsedCsv {
 		}
 	}
 
+	// AMO statistics exports prepend metadata lines such as the add-on name,
+	// generation timestamp, and report URL. They are comments, not CSV headers.
+	content = content.replace(/^(?:[ \t]*#[^\r\n]*(?:\r?\n|$))+/, '');
+
 	// 3. Auto-detect delimiter from the first few lines, ignoring quoted content.
 	const sampleLines = content.split(/\r?\n/).slice(0, 5).join('\n');
 	let commaCount = 0;

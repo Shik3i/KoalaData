@@ -1,9 +1,10 @@
 import { db } from '$lib/server/db';
-import { importDrafts } from '$lib/server/db/schema';
+import { dataSources, importDrafts } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { parseCsv } from '$lib/server/csv/parser';
 import { detectChromeCsv } from '$lib/server/csv/chrome';
+import { detectFirefoxAmoCsv } from '$lib/server/csv/firefox';
 import { confirmImportDraft, getDraftFilePath, parseStoredFilename } from '$lib/server/csv/pipeline';
 import { classifyChromeReportFilename } from '$lib/dashboard-metrics';
 import { fail, redirect } from '@sveltejs/kit';
@@ -66,9 +67,36 @@ export const load: PageServerLoad = async ({ url, params, locals }) => {
 	const fileBuffer = fs.readFileSync(draftFilePath);
 	const parsed = parseCsv(fileBuffer);
 
-	// Try auto-detection of Chrome Web Store headers
-	const autoDetect = detectChromeCsv(parsed.headers, parsed.rows);
-	const report = classifyChromeReportFilename(originalFilename);
+	const source = await db
+		.select({ sourceType: dataSources.sourceType })
+		.from(dataSources)
+		.where(
+			and(
+				eq(dataSources.id, draft.sourceId),
+				eq(dataSources.projectId, projectId)
+			)
+		)
+		.limit(1);
+	if (source.length === 0) {
+		throw redirect(302, `/app/projects/${projectId}/imports?error=source_not_found`);
+	}
+
+	const sourceType = source[0].sourceType;
+	const autoDetect = sourceType === 'chrome_web_store'
+		? detectChromeCsv(parsed.headers, parsed.rows)
+		: sourceType === 'firefox_amo'
+			? detectFirefoxAmoCsv(originalFilename, parsed.headers)
+			: { confidence: 'low' as const, mappings: {} };
+	const report = sourceType === 'chrome_web_store'
+		? classifyChromeReportFilename(originalFilename)
+		: null;
+	const detectedSourceLabel = sourceType === 'chrome_web_store'
+		? 'Chrome Web Store'
+		: sourceType === 'firefox_amo'
+			? 'Firefox Add-ons (AMO)'
+			: sourceType === 'edge_add_ons'
+				? 'Microsoft Edge Add-ons'
+				: null;
 	const inconsistentRowCount = parsed.rows.filter((row) => row.length !== parsed.headers.length).length;
 
 	return {
@@ -87,7 +115,8 @@ export const load: PageServerLoad = async ({ url, params, locals }) => {
 		previewHeaders: parsed.headers,
 		previewRows: parsed.rows.slice(0, 5),
 		autoDetect,
-		report
+		report,
+		detectedSourceLabel
 	};
 };
 

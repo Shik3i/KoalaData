@@ -242,7 +242,7 @@ export async function confirmImportDraft(
 		}>;
 	},
 	actorIp = '127.0.0.1',
-	detectedImporter: 'manual' | 'chrome_auto' = 'manual'
+	detectedImporter: 'manual' | 'chrome_auto' | 'firefox_auto' = 'manual'
 ) {
 	// 1. Fetch Draft details
 	const draftRecord = await db

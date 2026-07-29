@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { tick, untrack } from 'svelte';
+	import { getImportGuidance } from '$lib/data-source-guidance';
 
 	let { data, form } = $props();
 
@@ -18,17 +19,9 @@
 
 	let selectedSourceId = $state(untrack(() => data.sources.length === 1 ? data.sources[0].id : ''));
 	const selectedSource = $derived(data.sources.find((s) => s.id === selectedSourceId));
-
-	function getExtensionId(url: string | null | undefined): string | null {
-		if (!url) return null;
-		const match = url.match(/[a-p]{32}/i);
-		return match ? match[0] : null;
-	}
-
-	const extensionId = $derived(selectedSource ? getExtensionId(selectedSource.externalUrl) : null);
-	const devConsoleUrl = $derived(
-		extensionId
-			? `https://chrome.google.com/u/1/webstore/devconsole/e2f2b549-b9e3-48c2-b562-d5b16058d995/${extensionId}/analytics/installs?hl=en`
+	const importGuidance = $derived(
+		selectedSource
+			? getImportGuidance(selectedSource.sourceType, selectedSource.externalUrl)
 			: null
 	);
 
@@ -144,7 +137,7 @@
 			{#if isEditorOrAbove}
 				<section class="card settings-card">
 					<h2>Upload CSV Data</h2>
-					<p class="text-muted">Known Chrome Web Store reports import automatically. Unknown or custom CSV files open a mapping preview before anything is committed.</p>
+					<p class="text-muted">Known store exports import automatically. Unknown or custom CSV files open a mapping preview before anything is committed.</p>
 					<hr class="divider" />
 					
 					{#if data.sources.length === 0}
@@ -183,17 +176,19 @@
 								</select>
 							</div>
 
-							{#if devConsoleUrl}
+							{#if importGuidance}
 								<div class="alert alert-info py-2" style="font-size: 0.8rem; margin-bottom: 1rem; border-color: var(--border-color);">
-									<Icon name="arrow-square-out" /> <strong>Chrome Web Store:</strong> Open the statistics dashboard and export the reports you want to publish.<br />
-									<a href={devConsoleUrl} target="_blank" rel="noopener noreferrer" style="font-weight: 600; text-decoration: underline; display: inline-block; margin-top: 0.25rem;">
-									Open CWS Stats Dashboard
-								</a>
-								<p class="locale-dashboard-note"><code>?hl=en</code> requests the English dashboard. This keeps CSV report names and headers consistent when your browser or Google account uses another language; localized exports are still supported.</p>
-							</div>
+									<Icon name="arrow-square-out" /> <strong>{importGuidance.title}:</strong> {importGuidance.description}<br />
+									<a href={importGuidance.url} target="_blank" rel="noopener noreferrer" style="font-weight: 600; text-decoration: underline; display: inline-block; margin-top: 0.25rem;">
+										{importGuidance.linkLabel}
+									</a>
+									<p class="locale-dashboard-note">{importGuidance.note}</p>
+								</div>
 							{/if}
 
-							<p class="locale-note">Automatic detection: English, German, French, Spanish, Portuguese, Italian, Dutch, Polish and Turkish. Other files remain available for manual mapping.</p>
+							{#if selectedSource?.sourceType === 'chrome_web_store'}
+								<p class="locale-note"><code>?hl=en</code> requests the English CWS dashboard. Localized exports in English, German, French, Spanish, Portuguese, Italian, Dutch, Polish and Turkish remain supported.</p>
+							{/if}
 
 							<div class="form-group">
 								<label for="file">CSV Files</label>
