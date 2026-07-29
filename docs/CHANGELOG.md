@@ -5,6 +5,7 @@
 - Automatically import official Firefox AMO `downloads-day-*.csv` and `usage-day-*.csv` reports, including their leading `#` metadata lines.
 - Show source-specific CSV export guidance for Chrome Web Store, Firefox Add-ons, and Microsoft Edge Add-ons instead of generating Chrome developer-console links for non-Chrome sources.
 - Link Microsoft Edge publishers to Partner Center extension analytics and keep unconfirmed Edge CSV layouts in explicit mapping review.
+- Raise the dark-mode contrast of negative-growth leaderboard badges above the WCAG AA threshold.
 
 ## v1.5.14 - 2026-07-29
 

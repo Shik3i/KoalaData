@@ -257,6 +257,7 @@
 	}
 	.growth-up-bg { background-color: var(--success-bg); color: var(--success); }
 	.growth-down-bg { background-color: var(--error-bg); color: var(--error); }
+	:global(html.dark) .growth-down-bg { color: #fb7185; }
 
 	.empty-state {
 		padding: 3rem;
