@@ -6,9 +6,12 @@ export type DashboardObservation = {
 	observationId?: string;
 };
 
+export type DashboardSourceType = 'chrome_web_store' | 'firefox_amo' | 'edge_add_ons' | 'generic_csv';
+
 export type DashboardMetric = {
 	sourceId?: string;
 	sourceName: string;
+	sourceType?: DashboardSourceType;
 	metricId: string;
 	metricType: string;
 	name: string;
@@ -38,6 +41,7 @@ export type BreakdownSeries = {
 export type BreakdownGroup = ChromeReportClassification & {
 	key: string;
 	sourceName: string;
+	sourceType?: DashboardSourceType;
 	series: BreakdownSeries[];
 };
 
@@ -63,6 +67,46 @@ export type BreakdownSummaryGroup = Omit<BreakdownGroup, 'series'> & {
 	periodRows: Record<DashboardPeriodKey, BreakdownRow[]>;
 	timeline: BreakdownTimeline | null;
 };
+
+export type DashboardSourceTab = {
+	key: DashboardSourceType;
+	label: string;
+	sourceNames: string[];
+};
+
+const DASHBOARD_SOURCE_TAB_ORDER: DashboardSourceType[] = [
+	'chrome_web_store',
+	'firefox_amo',
+	'edge_add_ons',
+	'generic_csv'
+];
+
+const DASHBOARD_SOURCE_LABELS: Record<DashboardSourceType, string> = {
+	chrome_web_store: 'Chrome Web Store',
+	firefox_amo: 'Firefox Add-ons',
+	edge_add_ons: 'Microsoft Edge Add-ons',
+	generic_csv: 'Other sources'
+};
+
+export function dashboardSourceLabel(sourceType: DashboardSourceType | null | undefined): string {
+	return sourceType ? DASHBOARD_SOURCE_LABELS[sourceType] : 'All data sources';
+}
+
+export function buildDashboardSourceTabs(metrics: DashboardMetric[]): DashboardSourceTab[] {
+	return DASHBOARD_SOURCE_TAB_ORDER.flatMap((key) => {
+		const sourceNames = [...new Set(metrics
+			.filter((metric) => (metric.sourceType ?? 'generic_csv') === key && metric.observations.length > 0)
+			.map((metric) => metric.sourceName))];
+		return sourceNames.length > 0
+			? [{ key, label: DASHBOARD_SOURCE_LABELS[key], sourceNames }]
+			: [];
+	});
+}
+
+export function filterMetricsBySourceType(metrics: DashboardMetric[], sourceType: DashboardSourceType | null): DashboardMetric[] {
+	if (!sourceType) return metrics;
+	return metrics.filter((metric) => (metric.sourceType ?? 'generic_csv') === sourceType);
+}
 
 const DIMENSION_LABELS: Record<string, string> = {
 	aktiviert: 'Enabled', deaktiviert: 'Disabled', sonstiges: 'Other',
@@ -154,7 +198,7 @@ export function buildBreakdownGroups(metrics: DashboardMetric[]): BreakdownGroup
 		const key = `${metric.sourceId ?? metric.sourceName}:${classification.id}`;
 		let group = groups.get(key);
 		if (!group) {
-			group = { ...classification, key, sourceName: metric.sourceName, series: [], seriesMaps: new Map() };
+			group = { ...classification, key, sourceName: metric.sourceName, sourceType: metric.sourceType, series: [], seriesMaps: new Map() };
 			groups.set(key, group);
 		}
 

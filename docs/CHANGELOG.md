@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.5.16 - 2026-08-12
+
+- Promote populated Chrome Web Store, Firefox Add-ons, Microsoft Edge Add-ons, and other data sources into selectable dashboard tabs.
+- Keep non-Chrome source metrics visible in the primary dashboard view and scope KPIs, trends, breakdowns, SEO labels, and exports to the selected source.
+- Add source-tab ordering and filtering regression coverage.
+
 ## v1.5.15 - 2026-07-29
 
 - Automatically import official Firefox AMO `downloads-day-*.csv` and `usage-day-*.csv` reports, including their leading `#` metadata lines.

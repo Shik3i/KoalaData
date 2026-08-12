@@ -11,10 +11,16 @@
 	import Seo from '$lib/components/Seo.svelte';
 	import { buildProjectSchemas } from '$lib/seo';
 	import {
+		buildDashboardSourceTabs,
+		classifyChromeReportLabel,
+		dashboardSourceLabel,
+		filterMetricsBySourceType,
 		filterObservationsByCalendarDays,
 		metricDisplayValue,
+		splitLegacyMetricName,
 		type DashboardMetric,
 		type DashboardObservation,
+		type DashboardSourceType,
 		type BreakdownSummaryGroup
 	} from '$lib/dashboard-metrics';
 
@@ -31,10 +37,20 @@
 	let isIndexable = $derived(project.visibility === 'public' && project.moderationStatus === 'active');
 
 	let metrics = $derived(data.metrics as DashboardMetric[]);
+	let sourceTabs = $derived(buildDashboardSourceTabs(metrics));
+	let activeSourceType = $state<DashboardSourceType | null>(null);
+	let selectedSourceType = $derived(sourceTabs.some((tab) => tab.key === activeSourceType)
+		? activeSourceType
+		: sourceTabs[0]?.key ?? null);
+	let selectedSourceLabel = $derived(dashboardSourceLabel(selectedSourceType));
+	let selectedMetrics = $derived(filterMetricsBySourceType(metrics, selectedSourceType));
 	let schemas = $derived(isIndexable
 		? buildProjectSchemas(page.url.origin, project, metrics.map((metric) => metricLabel(metric)))
 		: []);
-	let breakdownGroups = $derived(data.breakdownGroups as BreakdownSummaryGroup[]);
+	let allBreakdownGroups = $derived(data.breakdownGroups as BreakdownSummaryGroup[]);
+	let breakdownGroups = $derived(selectedSourceType
+		? allBreakdownGroups.filter((group) => (group.sourceType ?? 'generic_csv') === selectedSourceType)
+		: allBreakdownGroups);
 	let acquisitionGroups = $derived(breakdownGroups.filter((group) => group.section === 'acquisition'));
 	let audienceGroups = $derived(breakdownGroups.filter((group) => group.section === 'audience'));
 	let retentionGroups = $derived(breakdownGroups.filter((group) => group.section === 'retention'));
@@ -69,7 +85,7 @@
 	}
 
 	function primaryMetric(type: string): DashboardMetric | undefined {
-		return metrics
+		return selectedMetrics
 			.filter((metric) => metric.metricType === type)
 			.sort((a, b) => latestDate(b).localeCompare(latestDate(a)) || b.observations.length - a.observations.length)[0];
 	}
@@ -83,10 +99,17 @@
 		installsMetric?.metricId, uninstallsMetric?.metricId, usersMetric?.metricId,
 		impressionsMetric?.metricId, pageViewsMetric?.metricId
 	].filter(Boolean)));
-	let additionalMetrics = $derived(metrics.filter((metric) => {
+	let additionalMetrics = $derived(selectedMetrics.filter((metric) => {
 		if (metric.metricType === 'custom') return true;
 		return !primaryMetricIds.has(metric.metricId);
 	}));
+	let alternativeSourceMetrics = $derived(selectedSourceType && selectedSourceType !== 'chrome_web_store'
+		? selectedMetrics.filter((metric) => {
+			if (primaryMetricIds.has(metric.metricId)) return false;
+			if (metric.metricType !== 'custom') return true;
+			return !classifyChromeReportLabel(splitLegacyMetricName(metric.name).reportLabel);
+		})
+		: []);
 
 	function selectedObservations(metric: DashboardMetric | undefined): DashboardObservation[] {
 		return metric ? filterObservationsByCalendarDays(metric.observations, days) : [];
@@ -141,7 +164,7 @@
 		};
 	});
 
-	let lastUpdated = $derived(metrics
+	let lastUpdated = $derived(selectedMetrics
 		.flatMap((metric) => metric.observations)
 		.reduce<string | null>((latest, observation) => !latest || observation.date > latest ? observation.date : latest, null));
 	let exportTimeframe = $derived(days === null ? 'All available data' : `Last ${days} days`);
@@ -242,7 +265,7 @@
 </script>
 
 <Seo
-	title={`${project.name} Chrome Web Store Analytics | KoalaData`}
+	title={`${project.name} ${selectedSourceLabel} | KoalaData`}
 	description={project.shortDescription}
 	canonicalPath={`/p/${project.slug}`}
 	imagePath={`/p/${project.slug}/og.png`}
@@ -285,7 +308,7 @@
 
 	<section class="analytics-intro" aria-labelledby="analytics-title">
 		<div>
-			<p class="section-kicker">{project.verificationStatus === 'verified' ? 'Verified aggregate Chrome Web Store data' : 'Aggregate Chrome Web Store data'}</p>
+			<p class="section-kicker">{project.verificationStatus === 'verified' ? `Verified aggregate ${selectedSourceLabel} data` : `Aggregate ${selectedSourceLabel} data`}</p>
 			<h2 id="analytics-title">Growth at a glance</h2>
 			<p class="text-muted data-note">Counts are grouped by their real meaning. Period totals are used for flows; current values are used for snapshots.</p>
 		</div>
@@ -296,7 +319,34 @@
 		</div>
 	</section>
 
-	<section class="kpi-grid" aria-label="Key metrics">
+	{#if sourceTabs.length > 1}
+		<section class="source-switcher card" aria-labelledby="source-switcher-title">
+			<div class="source-switcher-heading">
+				<div>
+					<p class="section-kicker">Data sources</p>
+					<h2 id="source-switcher-title">Choose a platform</h2>
+					<p class="text-muted">Charts and breakdowns below show only the selected source.</p>
+				</div>
+			</div>
+			<div class="source-tabs" role="tablist" aria-label="Analytics data sources">
+				{#each sourceTabs as tab}
+					<button
+						type="button"
+						role="tab"
+						aria-selected={selectedSourceType === tab.key}
+						aria-controls="analytics-dashboard"
+						class:active={selectedSourceType === tab.key}
+						onclick={() => activeSourceType = tab.key}
+					>
+						<span>{tab.label}</span>
+						{#if tab.sourceNames.length > 0}<small>{tab.sourceNames.join(', ')}</small>{/if}
+					</button>
+				{/each}
+			</div>
+		</section>
+	{/if}
+
+	<section id="analytics-dashboard" class="kpi-grid" aria-label="Key metrics">
 		<article class="card kpi-card"><span>Weekly Users</span><strong>{kpis.users === null ? '—' : formatNumber(kpis.users)}</strong><small class:positive={kpis.usersDelta && kpis.usersDelta > 0} class:negative={kpis.usersDelta && kpis.usersDelta < 0}>{kpis.usersDelta === null ? 'Latest installed-user snapshot' : `${kpis.usersDelta > 0 ? '+' : ''}${formatNumber(kpis.usersDelta)} since previous snapshot`}</small></article>
 		<article class="card kpi-card"><span>Installs</span><strong>{formatNumber(kpis.installs)}</strong><small>New and returning installs in period</small></article>
 		<article class="card kpi-card"><span>Uninstalls</span><strong>{formatNumber(kpis.uninstalls)}</strong><small>Uninstalls in period</small></article>
@@ -412,6 +462,27 @@
 					/>
 				</article>
 			{/if}
+			{#each alternativeSourceMetrics as metric}
+				<article class="card chart-card">
+					<header><div><h3>{metricLabel(metric)}</h3><p class="text-muted">{metric.sourceName}</p></div><strong>{formatNumber(metricDisplayValue(metric, days) ?? 0)}</strong></header>
+					<MetricChart
+						title="{project.name}-{metric.name}"
+						observations={filterObservationsByCalendarDays(metric.observations, days)}
+						exportHeading={metricLabel(metric)}
+						exportSubtitle={metric.sourceName}
+						exportValue={formatNumber(metricDisplayValue(metric, days) ?? 0)}
+						exportDelta={metricExportDelta(metric)}
+						exportInsight={`${metricLabel(metric)}: ${formatNumber(metricDisplayValue(metric, days) ?? 0)}`}
+						exportProjectName={project.name}
+						exportProjectDescription={project.shortDescription}
+						{exportLogoUrl}
+						{exportTimeframe}
+						exportDataDate={lastUpdated ? formatDataDate(lastUpdated) : undefined}
+						{exportShareUrl}
+						{projectEvents}
+					/>
+				</article>
+			{/each}
 		</div>
 
 		{#if dayAnalysis.length}
@@ -458,7 +529,7 @@
 		<section id="quality" class="dashboard-section"><div class="section-heading"><div><p class="section-kicker">Quality</p><h2>Rating activity</h2><p class="text-muted">Daily rating events shown as a period total and as a star-by-star timeline.</p></div></div>{#each qualityGroups as group}<RatingAnalytics {group} {days} shareMeta={{ projectName: project.name, projectDescription: project.shortDescription, logoUrl: exportLogoUrl, timeframe: exportTimeframe, dataDate: lastUpdated ? formatDataDate(lastUpdated) : undefined, shareUrl: exportShareUrl }} />{/each}</section>
 	{/if}
 
-	{#if additionalMetrics.length}
+	{#if additionalMetrics.length && (!selectedSourceType || selectedSourceType === 'chrome_web_store')}
 		<section class="dashboard-section">
 			<details class="additional-metrics" bind:open={additionalMetricsOpen}>
 				<summary>
@@ -528,6 +599,14 @@
 	.filter-panel { display: flex; background: var(--bg-inset); padding: 0.25rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
 	.filter-panel button { border: 0; border-radius: 7px; background: transparent; color: var(--text-muted); min-height: 36px; padding: 0.35rem 0.7rem; font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
 	.filter-panel button.active { background: var(--primary); color: var(--text-inverse); box-shadow: var(--shadow-sm); }
+	.source-switcher { display: grid; gap: 1rem; padding: 1.15rem 1.25rem; }
+	.source-switcher-heading h2 { margin: 0; }
+	.source-switcher-heading p:last-child { margin: 0.35rem 0 0; font-size: 0.82rem; }
+	.source-tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+	.source-tabs button { display: grid; gap: 0.15rem; min-height: 52px; padding: 0.55rem 0.8rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-inset); color: var(--text-base); font: inherit; font-size: 0.82rem; font-weight: 750; text-align: left; cursor: pointer; }
+	.source-tabs button:hover { border-color: var(--primary); color: var(--text-base); }
+	.source-tabs button.active { border-color: var(--primary); background: var(--primary); color: var(--text-inverse); box-shadow: var(--shadow-sm); }
+	.source-tabs small { max-width: 22rem; overflow: hidden; color: inherit; font-size: 0.68rem; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 	.kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 	.kpi-card { padding: 1.15rem; min-height: 124px; display: flex; flex-direction: column; justify-content: space-between; }
 	.kpi-card > span { color: var(--text-muted); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
@@ -587,6 +666,9 @@
 		.section-nav a { white-space: nowrap; }
 		.filter-panel { width: 100%; overflow-x: auto; }
 		.filter-panel button { flex: 1; }
+		.source-switcher { padding: 1rem; }
+		.source-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 0.15rem; }
+		.source-tabs button { flex: 0 0 auto; }
 		.weekday-card header { flex-direction: column; }
 		.chart-card, .weekday-card { padding: 1rem; }
 		.chart-card header { flex-direction: column; gap: 0.35rem; }

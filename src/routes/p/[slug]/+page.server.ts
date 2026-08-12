@@ -140,6 +140,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				metricsWithData.push({
 					sourceId: src.id,
 					sourceName: src.name,
+					sourceType: src.sourceType,
 					metricId: def.id,
 					metricType: def.metricType,
 					name: def.name,

@@ -1,15 +1,47 @@
 import { describe, expect, it } from 'vitest';
 import {
 	buildBreakdownGroups,
+	buildDashboardSourceTabs,
 	calculateBreakdownRows,
 	calculateBreakdownTimeline,
 	classifyChromeReportFilename,
+	dashboardSourceLabel,
+	filterMetricsBySourceType,
 	filterObservationsByCalendarDays,
 	summarizeBreakdownGroups,
 	type DashboardMetric
 } from './dashboard-metrics';
 
 describe('dashboard metric semantics', () => {
+	it('exposes only populated source types as dashboard tabs', () => {
+		const metrics: DashboardMetric[] = [
+			{
+				sourceName: 'Chrome export', sourceType: 'chrome_web_store', metricId: 'chrome', metricType: 'installs',
+				name: 'Daily Installs', aggregation: 'sum', observations: [{ date: '2026-07-01', value: 4 }]
+			},
+			{
+				sourceName: 'Firefox export', sourceType: 'firefox_amo', metricId: 'firefox', metricType: 'downloads',
+				name: 'Downloads', aggregation: 'sum', observations: [{ date: '2026-07-01', value: 2 }]
+			},
+			{
+				sourceName: 'Empty Edge export', sourceType: 'edge_add_ons', metricId: 'edge-empty', metricType: 'custom',
+				name: 'Pending mapping', aggregation: 'sum', observations: []
+			},
+			{
+				sourceName: 'Other import', sourceType: 'generic_csv', metricId: 'other', metricType: 'custom',
+				name: 'Other metric', aggregation: 'sum', observations: [{ date: '2026-07-01', value: 1 }]
+			}
+		];
+
+		expect(buildDashboardSourceTabs(metrics).map((tab) => [tab.key, tab.label])).toEqual([
+			['chrome_web_store', 'Chrome Web Store'],
+			['firefox_amo', 'Firefox Add-ons'],
+			['generic_csv', 'Other sources']
+		]);
+		expect(filterMetricsBySourceType(metrics, 'firefox_amo').map((metric) => metric.metricId)).toEqual(['firefox']);
+		expect(dashboardSourceLabel(null)).toBe('All data sources');
+	});
+
 	it('classifies localized Chrome Web Store report filenames', () => {
 		expect(classifyChromeReportFilename('Installationen nach Region.csv')).toMatchObject({ id: 'installs-region', semantics: 'flow' });
 		expect(classifyChromeReportFilename('Wöchentliche Nutzer nach Region.csv')).toMatchObject({ id: 'weekly-users-region', semantics: 'snapshot' });
