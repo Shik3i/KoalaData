@@ -4,6 +4,7 @@ import db from './db';
 import { sessions, systemSettings, users } from './db/schema';
 import { eq, and, isNull, lte } from 'drizzle-orm';
 import { minimizeIpAddress, minimizeUserAgent } from './privacy';
+import { assertPasswordLength } from './passwords';
 
 
 // Hashing configuration (OWASP recommended defaults for lightweight setups)
@@ -28,6 +29,7 @@ export async function getSessionMaxAgeSeconds(): Promise<number> {
  * Returns a standard PHC format string.
  */
 export async function hashPassword(password: string): Promise<string> {
+	assertPasswordLength(password);
 	const salt = crypto.randomBytes(16);
 	return await argon2id({
 		password,

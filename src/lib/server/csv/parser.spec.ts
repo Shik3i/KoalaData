@@ -87,4 +87,12 @@ describe('CSV Parser', () => {
 		expect(() => parseCsv(Buffer.from('date,value\n'))).toThrow('header but no data rows');
 		expect(() => parseCsv(Buffer.from('date,value,VALUE\n2026-07-22,1,2\n'))).toThrow('duplicate column headers');
 	});
+
+	it('bounds column count and header length before mapping', () => {
+		const headers = Array.from({ length: 501 }, (_, index) => `column_${index}`);
+		expect(() => parseCsv(Buffer.from(`${headers.join(',')}\n${headers.map(() => '1').join(',')}`)))
+			.toThrow('more than 500 columns');
+		expect(() => parseCsv(Buffer.from(`${'x'.repeat(201)},value\n1,2`)))
+			.toThrow('headers cannot exceed 200 characters');
+	});
 });

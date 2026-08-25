@@ -7,6 +7,9 @@ export interface ParsedCsv {
 	rows: string[][];
 }
 
+const MAX_CSV_COLUMNS = 500;
+const MAX_CSV_HEADER_LENGTH = 200;
+
 /**
  * Pre-inspects a CSV file buffer for encoding, binary content, and delimiter.
  * Then parses the CSV content using the csv-parse library.
@@ -100,7 +103,13 @@ export function parseCsv(buffer: Buffer): ParsedCsv {
 			rows = records.slice(2);
 		}
 		if (rows.length === 0) throw new Error('CSV file contains a header but no data rows.');
+		if (headers.length > MAX_CSV_COLUMNS) {
+			throw new Error(`CSV contains more than ${MAX_CSV_COLUMNS} columns.`);
+		}
 		if (headers.some((header) => header.length === 0)) throw new Error('CSV contains an empty column header.');
+		if (headers.some((header) => header.length > MAX_CSV_HEADER_LENGTH)) {
+			throw new Error(`CSV column headers cannot exceed ${MAX_CSV_HEADER_LENGTH} characters.`);
+		}
 		const normalizedHeaders = headers.map((header) => header.toLocaleLowerCase());
 		if (new Set(normalizedHeaders).size !== normalizedHeaders.length) {
 			throw new Error('CSV contains duplicate column headers. Rename them before importing.');

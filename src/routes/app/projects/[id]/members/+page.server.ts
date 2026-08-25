@@ -1,11 +1,12 @@
 import { db } from '$lib/server/db';
 import { projectMembers, projects, users } from '$lib/server/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, count } from 'drizzle-orm';
 import { assertProjectAccess } from '$lib/server/permissions';
 import { logAuditEvent } from '$lib/server/audit';
 import { isSqliteUniqueConstraint } from '$lib/server/db/errors';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { getUserLimits } from '$lib/server/limits';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { project, membershipRole } = await parent();
@@ -125,13 +126,16 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const userId = data.get('userId')?.toString() || '';
+		if (!userId) return fail(400, { error: 'Editor ID is required.' });
 
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
 
-		await db
+		const removed = await db
 			.delete(projectMembers)
-			.where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)));
+			.where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)))
+			.run();
+		if (removed.changes === 0) return fail(404, { error: 'Editor membership not found.' });
 
 		await logAuditEvent(
 			locals.user.id,
@@ -178,6 +182,7 @@ export const actions: Actions = {
 		if (project.ownerId === target.id) {
 			return fail(400, { error: 'User is already the owner.' });
 		}
+		const { limits: targetLimits } = await getUserLimits(target.id);
 
 		let ip = '127.0.0.1';
 		try { ip = getClientAddress() || '127.0.0.1'; } catch(e) {}
@@ -202,6 +207,12 @@ export const actions: Actions = {
 				.where(eq(users.id, target.id))
 				.get();
 			if (!currentTarget || currentTarget.status !== 'active') return 'inactive' as const;
+			const targetProjectCount = tx
+				.select({ value: count() })
+				.from(projects)
+				.where(and(eq(projects.ownerId, target.id), isNull(projects.deletedAt)))
+				.get();
+			if ((targetProjectCount?.value ?? 0) >= targetLimits.maxProjects) return 'target_limit' as const;
 
 			// 1. Remove new owner from project_members if they were an editor
 			tx
@@ -230,12 +241,16 @@ export const actions: Actions = {
 				.where(and(eq(projects.id, projectId), eq(projects.ownerId, oldOwnerId), isNull(projects.deletedAt)))
 				.run();
 			return 'transferred' as const;
-		});
+		}, { behavior: 'immediate' });
 
 		if (transfer === 'missing') return fail(404, { error: 'Project no longer exists.' });
 		if (transfer === 'stale') return fail(409, { error: 'Project ownership changed before this transfer completed. Reload and try again.' });
 		if (transfer === 'same') return fail(409, { error: 'User is already the owner.' });
 		if (transfer === 'inactive') return fail(409, { error: 'The selected user is no longer active.' });
+		if (transfer === 'target_limit') {
+			const projectLabel = targetLimits.maxProjects === 1 ? 'project' : 'projects';
+			return fail(409, { error: `The selected user already owns the maximum of ${targetLimits.maxProjects} ${projectLabel}.` });
+		}
 
 		await logAuditEvent(
 			locals.user.id,

@@ -73,6 +73,7 @@
 					type={showPassword ? 'text' : 'password'}
 					id="password" 
 					name="password" 
+					maxlength="1024"
 					autocomplete="current-password"
 					placeholder="Enter your password" 
 					required 

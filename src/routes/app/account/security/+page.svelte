@@ -65,6 +65,7 @@
 							type="password" 
 							id="oldPassword" 
 							name="oldPassword" 
+							maxlength="1024"
 							autocomplete="current-password"
 							required 
 							disabled={loading}
@@ -77,6 +78,7 @@
 							type="password" 
 							id="newPassword" 
 							name="newPassword" 
+							maxlength="1024"
 							autocomplete="new-password"
 							placeholder="Minimum 8 characters"
 							required 

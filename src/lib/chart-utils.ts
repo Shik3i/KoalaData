@@ -1,4 +1,8 @@
-export function computeMovingAverage(data: (number | null)[], windowSize = 7): (number | null)[] {
+export function computeMovingAverage(
+	data: (number | null)[],
+	windowSize = 7,
+	ignoreNulls = false
+): (number | null)[] {
 	const result: (number | null)[] = [];
 	for (let i = 0; i < data.length; i++) {
 		if (i < windowSize - 1) {
@@ -7,13 +11,16 @@ export function computeMovingAverage(data: (number | null)[], windowSize = 7): (
 		}
 
 		const window = data.slice(i - windowSize + 1, i + 1);
-		if (window.some((value) => value === null)) {
+		if (!ignoreNulls && window.some((value) => value === null)) {
 			result.push(null);
 			continue;
 		}
-		let sum = 0;
-		for (const value of window) sum += value!;
-		result.push(sum / windowSize);
+		const values = ignoreNulls ? window.filter((value): value is number => value !== null) : window as number[];
+		if (values.length === 0) {
+			result.push(null);
+			continue;
+		}
+		result.push(values.reduce((sum, value) => sum + value, 0) / values.length);
 	}
 	return result;
 }
@@ -49,7 +56,8 @@ export type PreparedChartData = {
 
 export function prepareChartData(
 	series: { observations: ChartObservation[] }[],
-	categoryLabels?: string[]
+	categoryLabels?: string[],
+	ignoreZeroValues = false
 ): PreparedChartData {
 	const dates = categoryLabels?.length
 		? [...categoryLabels]
@@ -68,7 +76,9 @@ export function prepareChartData(
 	if (firstDataIndex === -1) return { dates: [], seriesValues: seriesValues.map(() => []) };
 	return {
 		dates: dates.slice(firstDataIndex),
-		seriesValues: seriesValues.map((values) => values.slice(firstDataIndex))
+		seriesValues: seriesValues.map((values) => values
+			.slice(firstDataIndex)
+			.map((value) => ignoreZeroValues && value === 0 ? null : value))
 	};
 }
 

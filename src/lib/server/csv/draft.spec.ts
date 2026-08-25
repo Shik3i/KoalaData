@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import db from '../db';
 import { users, projects, dataSources, importDrafts, metricDefinitions, metricObservations, userLimitOverrides } from '../db/schema';
-import { createImportDraft, confirmImportDraft, cleanupExpiredDrafts, getDraftFilePath, parseStoredFilename } from './pipeline';
+import { createImportDraft, confirmImportDraft, cleanupDraft, cleanupExpiredDrafts, getDraftFilePath, normalizeImportFilename, parseStoredFilename } from './pipeline';
 import { eq } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
@@ -78,6 +78,8 @@ describe('CSV Import Draft Lifecycle & Cleanup', () => {
 			fileId: '123e4567-e89b-12d3-a456-426614174000.tmp'
 		});
 		expect(() => getDraftFilePath('/tmp/data', '../secret.tmp')).toThrow('Import draft filename is invalid.');
+		expect(normalizeImportFilename('../reports/weekly\u0000users.csv')).toBe('weeklyusers.csv');
+		expect([...normalizeImportFilename(`${'x'.repeat(220)}.csv`)]).toHaveLength(180);
 	});
 
 	it('should create draft on disk, throw error when expired, and delete files on cleanup', async () => {
@@ -96,6 +98,8 @@ describe('CSV Import Draft Lifecycle & Cleanup', () => {
 		const draftRecord = (await db.select().from(importDrafts).where(eq(importDrafts.id, draftId)))[0];
 		expect(draftRecord).toBeDefined();
 		expect(draftRecord.rowCount).toBe(2);
+		expect(draftRecord.fileSize).toBe(buffer.length);
+		expect((await getUserLimits(testUser.id)).usage.storageBytes).toBeGreaterThanOrEqual(buffer.length);
 
 		const dataDir = process.env.DATA_DIRECTORY || './data';
 		const fileId = draftRecord.storedFilename.includes(':::') ? draftRecord.storedFilename.split(':::')[1] : draftRecord.storedFilename;
@@ -194,7 +198,7 @@ describe('CSV Import Draft Lifecycle & Cleanup', () => {
 		]);
 	});
 
-	it('enforces storage quota atomically for concurrent confirmations', async () => {
+	it('counts pending drafts against storage quota', async () => {
 		const csv = Buffer.from('date,installs\n2026-07-10,1\n', 'utf-8');
 		const { usage } = await getUserLimits(testUser.id);
 		await db.insert(userLimitOverrides).values({
@@ -205,29 +209,10 @@ describe('CSV Import Draft Lifecycle & Cleanup', () => {
 			set: { maxStorageBytes: usage.storageBytes + csv.length }
 		});
 
-		const [firstDraft, secondDraft] = await Promise.all([
-			createImportDraft(testUser.id, testProject.id, testSource.id, 'quota-one.csv', csv),
-			createImportDraft(testUser.id, testProject.id, testSource.id, 'quota-two.csv', csv)
-		]);
-		const mapping = {
-			dateColumn: 'date',
-			dateFormat: 'YYYY-MM-DD',
-			metrics: [{
-				columnName: 'installs',
-				metricType: 'installs',
-				name: 'Installs',
-				unit: 'count',
-				aggregation: 'sum',
-				isCumulative: false
-			}]
-		};
-
-		const results = await Promise.allSettled([
-			confirmImportDraft(testUser.id, testUser.username, testProject.id, firstDraft, mapping),
-			confirmImportDraft(testUser.id, testUser.username, testProject.id, secondDraft, mapping)
-		]);
-		expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
-		expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+		const firstDraft = await createImportDraft(testUser.id, testProject.id, testSource.id, 'quota-one.csv', csv);
+		await expect(createImportDraft(testUser.id, testProject.id, testSource.id, 'quota-two.csv', csv))
+			.rejects.toThrow('storage quota');
+		await cleanupDraft(firstDraft);
 		await db.delete(userLimitOverrides).where(eq(userLimitOverrides.userId, testUser.id));
 	});
 });

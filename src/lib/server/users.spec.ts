@@ -60,6 +60,13 @@ describe('User Management Service', () => {
 		).rejects.toThrow('Username can only contain letters, numbers, underscores, hyphens, and dots.');
 	});
 
+	it('rejects oversized passwords before password hashing', async () => {
+		await expect(registerUser('oversized_password', 'x'.repeat(1025), 'open'))
+			.rejects.toThrow('Password cannot exceed 1024 characters.');
+		await expect(resetUserPassword(adminUser.id, adminUser.username, adminUser.id, 'x'.repeat(1025), false))
+			.rejects.toThrow('Password cannot exceed 1024 characters.');
+	});
+
 	it('should block self-registration in invite-only mode', async () => {
 		await expect(registerUser('invite_blocked', 'password123', 'invite_only')).rejects.toThrow(
 			'Registration is currently closed.'

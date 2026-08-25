@@ -47,6 +47,7 @@
 		exportShareUrl,
 		allowMovingAverageExport = false,
 		showMovingAverage = false,
+		ignoreZeroValues = false,
 		showForecast = false,
 		releaseMarkers = [],
 		projectEvents = []
@@ -68,6 +69,7 @@
 		exportShareUrl?: string;
 		allowMovingAverageExport?: boolean;
 		showMovingAverage?: boolean;
+		ignoreZeroValues?: boolean;
 		showForecast?: boolean;
 		releaseMarkers?: ReleaseMarker[];
 		projectEvents?: ProjectEventItem[];
@@ -169,7 +171,7 @@
 		const inputSeries: SeriesData[] = seriesList?.length
 			? seriesList
 			: observations ? [{ name: exportHeading || 'Value', color: '', observations }] : [];
-		const prepared = prepareChartData(inputSeries, categoryLabels);
+		const prepared = prepareChartData(inputSeries, categoryLabels, ignoreZeroValues);
 		const averageEnabled = options.includeMovingAverage && prepared.dates.length >= 7;
 		const surface = isDark ? '#111a14' : '#ffffff';
 		const text = isDark ? '#edf5ef' : '#172019';
@@ -189,7 +191,7 @@
 				showSymbol: false,
 				symbol: 'circle',
 				symbolSize: 8,
-				connectNulls: false,
+				connectNulls: ignoreZeroValues,
 				color,
 				lineStyle: {
 					width: averageEnabled ? 2.5 : 3.5,
@@ -235,7 +237,7 @@
 			});
 
 			if (averageEnabled) {
-				const average = revealChartValues(computeMovingAverage(prepared.seriesValues[index]), progress);
+				const average = revealChartValues(computeMovingAverage(prepared.seriesValues[index], 7, ignoreZeroValues), progress);
 				chartSeries.push({
 					name: `${source.name} · 7-day average`,
 					type: 'line',
@@ -689,7 +691,7 @@
 		const inputSeries = seriesList?.length
 			? seriesList
 			: observations ? [{ name: 'Actual', color: '', observations }] : [];
-		const prepared = prepareChartData(inputSeries, categoryLabels);
+		const prepared = prepareChartData(inputSeries, categoryLabels, ignoreZeroValues);
 		hasData = prepared.dates.length > 0;
 		chartStartLabel = prepared.dates[0] ?? '';
 		if (!hasData) {
@@ -726,6 +728,7 @@
 						type: 'line',
 						smooth: true,
 						showSymbol: false,
+						connectNulls: ignoreZeroValues,
 						symbol: 'circle',
 						symbolSize: isCompact ? 4 : 7,
 						color: s.color,
@@ -742,7 +745,7 @@
 					if (showMovingAverage && values.length >= 7) {
 						result.push({
 							name: `${s.name} · 7-day average`,
-							data: computeMovingAverage(values),
+							data: computeMovingAverage(values, 7, ignoreZeroValues),
 							type: 'line',
 							smooth: true,
 							symbol: 'none',
@@ -765,6 +768,7 @@
 					type: 'line',
 					smooth: true,
 					showSymbol: false,
+					connectNulls: ignoreZeroValues,
 					symbol: 'circle',
 				symbolSize: isCompact ? 4 : 7,
 					color: mainColor,
@@ -784,7 +788,7 @@
 			];
 
 			if (showMovingAverage && values.length >= 7) {
-				const sma = computeMovingAverage(values);
+				const sma = computeMovingAverage(values, 7, ignoreZeroValues);
 				seriesOptions.push({
 					name: '7-Day Avg',
 					data: sma,
@@ -1057,6 +1061,7 @@
 		if (observations || seriesList) {
 			void categoryLabels;
 			void showMovingAverage;
+			void ignoreZeroValues;
 			void showForecast;
 			void showReleaseMarkers;
 			void showProjectEvents;
@@ -1101,6 +1106,7 @@
 	data-export-value={exportValue}
 	data-export-project-description={exportProjectDescription}
 	data-export-moving-average={showMovingAverage}
+	data-zero-values={ignoreZeroValues ? 'ignored' : 'shown'}
 >
 	{#if hasData}<div class="chart-export-buttons" aria-label="Chart exports">
 		{#if projectEvents && projectEvents.length > 0}

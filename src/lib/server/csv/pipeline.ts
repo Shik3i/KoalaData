@@ -10,6 +10,14 @@ import { getUserLimits } from '../limits';
 import { refreshPublicProjectStats } from '../public-project-stats';
 
 const DRAFTS_TTL_MS = 60 * 60 * 1000; // 1 hour
+const DATE_FORMATS = new Set(['YYYY-MM-DD', 'DD.MM.YYYY', 'MM/DD/YYYY', 'DD/MM/YYYY']);
+const METRIC_TYPES = new Set(['active_users', 'installs', 'uninstalls', 'net_growth', 'store_impressions', 'store_page_views', 'downloads', 'custom']);
+const METRIC_UNITS = new Set(['count', 'percentage', 'custom']);
+const METRIC_AGGREGATIONS = new Set(['latest', 'sum', 'average', 'minimum', 'maximum']);
+const MAX_METRIC_NAME_LENGTH = 120;
+const MAX_DIMENSION_ENTRIES = 20;
+const MAX_DIMENSION_VALUE_LENGTH = 120;
+const MAX_DIMENSIONS_JSON_LENGTH = 4096;
 
 export function parseStoredFilename(storedFilename: string): { originalName: string; fileId: string } {
 	const separatorIndex = storedFilename.lastIndexOf(':::');
@@ -20,6 +28,16 @@ export function parseStoredFilename(storedFilename: string): { originalName: str
 		};
 	}
 	return { originalName: storedFilename, fileId: storedFilename };
+}
+
+export function normalizeImportFilename(filename: string): string {
+	const basename = path.basename(filename.replaceAll('\\', '/'));
+	const cleaned = basename.replace(/[\u0000-\u001f\u007f]/g, '').trim() || 'upload.csv';
+	const characters = [...cleaned];
+	if (characters.length <= 180) return cleaned;
+	const extension = path.extname(cleaned).slice(0, 16);
+	const stemLength = Math.max(1, 180 - [...extension].length);
+	return `${characters.slice(0, stemLength).join('')}${extension}`;
 }
 
 export function getDraftFilePath(dataDir: string, fileId: string): string {
@@ -164,11 +182,14 @@ export async function createImportDraft(
 	if (source.length === 0) throw new Error('The selected data source does not belong to this project.');
 
 	// Fetch limits
-	const { limits } = await getUserLimits(userId);
+	const { limits, usage } = await getUserLimits(userId);
 
 	// Validate file size limit
 	if (buffer.length > limits.maxCsvSizeBytes) {
 		throw new Error(`CSV file size exceeds the limit of ${limits.maxCsvSizeBytes / (1024 * 1024)}MB.`);
+	}
+	if (usage.storageBytes + buffer.length > limits.maxStorageBytes) {
+		throw new Error(`CSV upload size violates your storage quota of ${limits.maxStorageBytes / (1024 * 1024)}MB.`);
 	}
 
 	// Parse CSV
@@ -188,7 +209,7 @@ export async function createImportDraft(
 
 	// Save temporary file
 	const draftFileId = crypto.randomUUID();
-	const storedFilename = `${originalFilename}:::${draftFileId}.tmp`;
+	const storedFilename = `${normalizeImportFilename(originalFilename)}:::${draftFileId}.tmp`;
 	const draftFilePath = path.join(draftsDir, `${draftFileId}.tmp`);
 	
 	fs.writeFileSync(draftFilePath, buffer);
@@ -199,19 +220,40 @@ export async function createImportDraft(
 	const expiresAt = now + Math.floor(DRAFTS_TTL_MS / 1000);
 
 	try {
-		await db.insert(importDrafts).values({
-			id: draftId,
-			userId,
-			projectId,
-			sourceId,
-			storedFilename,
-			detectedDelimiter: parsed.delimiter,
-			detectedEncoding: parsed.encoding,
-			headers: JSON.stringify(parsed.headers),
-			rowCount: parsed.rows.length,
-			createdAt: now,
-			expiresAt
-		});
+		db.transaction((tx) => {
+			const batchStorage = tx
+				.select({ val: sum(importBatches.fileSize) })
+				.from(importBatches)
+				.where(and(
+					eq(importBatches.userId, userId),
+					isNull(importBatches.rawFileDeletedAt),
+					ne(importBatches.status, 'failed')
+				))
+				.get();
+			const draftStorage = tx
+				.select({ val: sum(importDrafts.fileSize) })
+				.from(importDrafts)
+				.where(eq(importDrafts.userId, userId))
+				.get();
+			const storageBytes = Number(batchStorage?.val || 0) + Number(draftStorage?.val || 0);
+			if (storageBytes + buffer.length > limits.maxStorageBytes) {
+				throw new Error(`CSV upload size violates your storage quota of ${limits.maxStorageBytes / (1024 * 1024)}MB.`);
+			}
+			tx.insert(importDrafts).values({
+				id: draftId,
+				userId,
+				projectId,
+				sourceId,
+				storedFilename,
+				fileSize: buffer.length,
+				detectedDelimiter: parsed.delimiter,
+				detectedEncoding: parsed.encoding,
+				headers: JSON.stringify(parsed.headers),
+				rowCount: parsed.rows.length,
+				createdAt: now,
+				expiresAt
+			}).run();
+		}, { behavior: 'immediate' });
 	} catch (error) {
 		if (fs.existsSync(draftFilePath)) fs.unlinkSync(draftFilePath);
 		throw error;
@@ -287,7 +329,7 @@ export async function confirmImportDraft(
 	}
 
 	const draftStat = fs.statSync(draftFilePath);
-	if (usage.storageBytes + draftStat.size > limits.maxStorageBytes) {
+	if (usage.storageBytes > limits.maxStorageBytes) {
 		throw new Error(`CSV import size violates your storage quota of ${limits.maxStorageBytes / (1024 * 1024)}MB.`);
 	}
 
@@ -295,20 +337,35 @@ export async function confirmImportDraft(
 	const fileBuffer = fs.readFileSync(draftFilePath);
 	const parsed = parseCsv(fileBuffer);
 	const headers = parsed.headers;
+	if (!DATE_FORMATS.has(mappingConfig.dateFormat)) throw new Error('Select a supported date format.');
 	const dateColIdx = headers.indexOf(mappingConfig.dateColumn);
 	if (dateColIdx === -1) throw new Error(`Date column "${mappingConfig.dateColumn}" not found in CSV.`);
+	if (!Array.isArray(mappingConfig.metrics) || mappingConfig.metrics.length === 0 || mappingConfig.metrics.length > headers.length) {
+		throw new Error('Map at least one metric and no more than one per CSV column.');
+	}
 
 	const metricMappings = mappingConfig.metrics
 		.map((metric) => {
+			if (!METRIC_TYPES.has(metric.metricType)) throw new Error(`Invalid metric type for column "${metric.columnName}".`);
+			if (!METRIC_UNITS.has(metric.unit)) throw new Error(`Invalid metric unit for column "${metric.columnName}".`);
+			if (!METRIC_AGGREGATIONS.has(metric.aggregation)) throw new Error(`Invalid aggregation for column "${metric.columnName}".`);
+			const name = typeof metric.name === 'string' ? metric.name.trim() : '';
+			if (!name || name.length > MAX_METRIC_NAME_LENGTH) {
+				throw new Error(`Metric names must be between 1 and ${MAX_METRIC_NAME_LENGTH} characters.`);
+			}
+			if (!headers.includes(metric.columnName)) throw new Error(`Metric column "${metric.columnName}" not found in CSV.`);
+			const dimensionEntries = Object.entries(metric.dimensions ?? {});
+			if (dimensionEntries.length > MAX_DIMENSION_ENTRIES || dimensionEntries.some(([key, value]) =>
+				typeof value !== 'string' || !key || key.length > MAX_DIMENSION_VALUE_LENGTH || value.length > MAX_DIMENSION_VALUE_LENGTH
+			)) {
+				throw new Error('Metric dimensions exceed the supported size.');
+			}
 			const dimensions = JSON.stringify(
-				Object.fromEntries(Object.entries(metric.dimensions ?? {}).sort(([a], [b]) => a.localeCompare(b)))
+				Object.fromEntries(dimensionEntries.sort(([a], [b]) => a.localeCompare(b)))
 			);
-			return { ...metric, dimensions, columnIndex: headers.indexOf(metric.columnName) };
-		})
-		.filter((metric) => metric.columnIndex !== -1);
-	if (metricMappings.length === 0) {
-		throw new Error('At least one valid numeric metric column must be mapped.');
-	}
+			if (dimensions.length > MAX_DIMENSIONS_JSON_LENGTH) throw new Error('Metric dimensions exceed the supported size.');
+			return { ...metric, name, dimensions, columnIndex: headers.indexOf(metric.columnName) };
+		});
 	const mappingKeys = metricMappings.map((metric) => `${metric.metricType}\u0000${metric.name}\u0000${metric.dimensions}`);
 	if (new Set(mappingKeys).size !== mappingKeys.length) {
 		throw new Error('Multiple CSV columns map to the same metric and dimensions. Use distinct mappings.');
@@ -430,7 +487,7 @@ export async function confirmImportDraft(
 
 	// 6. Transaction Commitment & Compensating failures
 	try {
-		// Run transactions synchronously for better-sqlite3 compatibility
+		// Run transactions synchronously for better-sqlite3 compatibility.
 		db.transaction((tx) => {
 			const currentStorage = tx
 				.select({ val: sum(importBatches.fileSize) })
@@ -444,7 +501,12 @@ export async function confirmImportDraft(
 				)
 				.get();
 			const storageBytes = Number(currentStorage?.val || 0);
-			if (storageBytes + draftStat.size > limits.maxStorageBytes) {
+			const pendingStorage = tx
+				.select({ val: sum(importDrafts.fileSize) })
+				.from(importDrafts)
+				.where(eq(importDrafts.userId, userId))
+				.get();
+			if (storageBytes + Number(pendingStorage?.val || 0) + draftStat.size > limits.maxStorageBytes) {
 				throw new Error(`CSV import size violates your storage quota of ${limits.maxStorageBytes / (1024 * 1024)}MB.`);
 			}
 
@@ -578,9 +640,9 @@ export async function confirmImportDraft(
 					tx.insert(metricObservations).values(chunk).run();
 				}
 			}
-		});
+		}, { behavior: 'immediate' });
 
-			await logAuditEvent(
+		await logAuditEvent(
 			userId,
 			username,
 			'import_csv_success',

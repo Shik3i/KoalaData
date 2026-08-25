@@ -119,11 +119,13 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 				for (let day = 0; day < dayCount; day++) {
 					const date = new Date(fixtureEnd.getTime() - (dayCount - 1 - day) * 86_400_000).toISOString().slice(0, 10);
 					const batchIndex = day < Math.ceil(dayCount / 2) ? 0 : 1;
-					const value = metricIndex === 3 && day < pageViewStartDay
+					const value = metricIndex === 0 && [580, 585, 590].includes(day)
 						? 0
-						: metricIndex === 4 && day >= 510
+						: metricIndex === 3 && day < pageViewStartDay
 							? 0
-							: (metricIndex + 1) * ((day % 17) + 1);
+							: metricIndex === 4 && day >= 510
+								? 0
+								: (metricIndex + 1) * ((day % 17) + 1);
 					insertObservation.run(
 						`${projectId}-${metricIndex}-${day}`,
 						batchIds[batchIndex],
@@ -186,6 +188,16 @@ test('public requests stay compact and fast with realistic 50,000-observation im
 		await expect(page.locator('.chart-dom')).toHaveCount(5);
 		const pageViewChart = page.getByRole('img', { name: 'Performance fixture store page views trend chart' });
 		await expect(pageViewChart).toHaveAttribute('data-start-label', expectedPageViewStart);
+		const usersChart = page.getByRole('img', { name: 'Performance fixture weekly users trend chart' });
+		const zeroGlitchToggle = page.getByRole('button', { name: 'Ignore CWS zero glitches' });
+		await expect(zeroGlitchToggle).toHaveAttribute('aria-pressed', 'true');
+		await expect(usersChart.locator('..')).toHaveAttribute('data-zero-values', 'ignored');
+		await expect(pageViewChart.locator('..')).toHaveAttribute('data-zero-values', 'ignored');
+		await expect(page.getByRole('img', { name: 'Performance fixture installs uninstalls trend chart' }).locator('..')).toHaveAttribute('data-zero-values', 'shown');
+		await zeroGlitchToggle.click();
+		await expect(zeroGlitchToggle).toHaveAttribute('aria-pressed', 'false');
+		await expect(usersChart.locator('..')).toHaveAttribute('data-zero-values', 'shown');
+		await zeroGlitchToggle.click();
 		const impressionsChart = page.getByRole('img', { name: 'Performance fixture store impressions trend chart' });
 		await expect(impressionsChart).toHaveAttribute('data-has-data', 'false');
 		await expect(impressionsChart.locator('..').getByText('No data in selected timeframe.')).toBeVisible();

@@ -14,6 +14,7 @@ import crypto from 'crypto';
 import { refreshPublicProjectStats } from '$lib/server/public-project-stats';
 
 const HISTORY_PAGE_SIZE = 50;
+const MAX_FILES_PER_UPLOAD = 20;
 
 function buildUploadResultUrl(
 	projectId: string,
@@ -82,6 +83,9 @@ export const actions: Actions = {
 
 		if (files.length === 0) {
 			return fail(400, { error: 'Please upload at least one CSV file.' });
+		}
+		if (files.length > MAX_FILES_PER_UPLOAD) {
+			return fail(400, { error: `Upload no more than ${MAX_FILES_PER_UPLOAD} CSV files at once.` });
 		}
 		const source = await db
 			.select({ id: dataSources.id, sourceType: dataSources.sourceType })

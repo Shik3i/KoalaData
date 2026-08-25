@@ -1,5 +1,5 @@
 import db from './db';
-import { systemSettings, userLimitOverrides, projects, importBatches } from './db/schema';
+import { systemSettings, userLimitOverrides, projects, importBatches, importDrafts } from './db/schema';
 import { eq, and, isNull, sum, count, ne } from 'drizzle-orm';
 
 /**
@@ -49,19 +49,26 @@ export async function getUserLimits(userId: string) {
 		.where(and(eq(projects.ownerId, userId), isNull(projects.deletedAt)));
 	const currentProjectsCount = projectsCount[0]?.val || 0;
 
-	// 4. Query current storage usage (active CSV file sizes uploaded by this user)
-	const storageSum = await db
-		.select({ val: sum(importBatches.fileSize) })
-		.from(importBatches)
-		.where(
-			and(
-				eq(importBatches.userId, userId),
-				isNull(importBatches.rawFileDeletedAt),
-				ne(importBatches.status, 'failed')
-			)
-		);
-	
-	const currentStorageBytes = Number(storageSum[0]?.val || 0);
+	// 4. Query current storage usage. Drafts occupy the same private storage and
+	// must count immediately so repeated unconfirmed uploads cannot bypass quota.
+	const [batchStorage, draftStorage] = await Promise.all([
+		db
+			.select({ val: sum(importBatches.fileSize) })
+			.from(importBatches)
+			.where(
+				and(
+					eq(importBatches.userId, userId),
+					isNull(importBatches.rawFileDeletedAt),
+					ne(importBatches.status, 'failed')
+				)
+			),
+		db
+			.select({ val: sum(importDrafts.fileSize) })
+			.from(importDrafts)
+			.where(eq(importDrafts.userId, userId))
+	]);
+
+	const currentStorageBytes = Number(batchStorage[0]?.val || 0) + Number(draftStorage[0]?.val || 0);
 
 	return {
 		limits,

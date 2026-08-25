@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { dataSources, projects } from '$lib/server/db/schema';
+import { dataSources, projects, projectSlugRedirects } from '$lib/server/db/schema';
 import { generateUniqueSlug, slugify } from '$lib/server/slugs';
 import { isSqliteUniqueConstraint } from '$lib/server/db/errors';
 import { getUserLimits } from '$lib/server/limits';
@@ -100,6 +100,12 @@ export const actions: Actions = {
 		for (let attempt = 0; attempt < 3 && !created; attempt++) {
 			try {
 				const outcome = db.transaction((tx) => {
+					const redirectCollision = tx
+						.select({ oldSlug: projectSlugRedirects.oldSlug })
+						.from(projectSlugRedirects)
+						.where(eq(projectSlugRedirects.oldSlug, slug))
+						.get();
+					if (redirectCollision) return 'slug_conflict' as const;
 					const owned = tx
 						.select({ value: count() })
 						.from(projects)
@@ -143,9 +149,13 @@ export const actions: Actions = {
 						}).run();
 					}
 					return 'created' as const;
-				});
+				}, { behavior: 'immediate' });
 				if (outcome === 'limit') {
 					return fail(409, { error: `Project limit reached. You can only own up to ${limits.maxProjects} projects.` });
+				}
+				if (outcome === 'slug_conflict') {
+					slug = `${slugify(name) || 'project'}-${crypto.randomUUID().slice(0, 8)}`;
+					continue;
 				}
 				created = true;
 			} catch (error) {

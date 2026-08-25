@@ -6,6 +6,7 @@ import { logAuditEvent } from '$lib/server/audit';
 import { safeInternalRedirect } from '$lib/server/redirects';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { MAX_PASSWORD_LENGTH } from '$lib/server/passwords';
 
 const DUMMY_PASSWORD_HASH = '$argon2id$v=19$m=15360,t=2,p=1$CxYhLDdCTVhjbnmEj5qlsA$uQX+phJLApXP8ViYd/8jS9m1uFjnAN+31cCmx/1BoZA';
 
@@ -44,6 +45,7 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const username = data.get('username')?.toString().trim() || '';
 		const password = data.get('password')?.toString() || '';
+		const passwordCandidate = password.length <= MAX_PASSWORD_LENGTH ? password : 'invalid-password-candidate';
 		const redirectTo = safeInternalRedirect(data.get('redirectTo'));
 
 		let clientIp = '127.0.0.1';
@@ -63,7 +65,7 @@ export const actions: Actions = {
 
 		if (userList.length === 0) {
 			// Match the expensive password path to reduce username timing leakage.
-			await verifyPassword(password, DUMMY_PASSWORD_HASH);
+			await verifyPassword(passwordCandidate, DUMMY_PASSWORD_HASH);
 			await logAuditEvent(null, username, 'login_failure', 'user', 'none', { reason: 'user_not_found' }, clientIp);
 			return fail(400, { error: 'Invalid username or password.' });
 		}
@@ -71,7 +73,7 @@ export const actions: Actions = {
 		const user = userList[0];
 
 		// 2. Verify Password
-		const isValid = await verifyPassword(password, user.passwordHash);
+		const isValid = await verifyPassword(passwordCandidate, user.passwordHash);
 		if (!isValid) {
 			await logAuditEvent(user.id, user.username, 'login_failure', 'user', user.id, { reason: 'invalid_password' }, clientIp);
 			return fail(400, { error: 'Invalid username or password.' });

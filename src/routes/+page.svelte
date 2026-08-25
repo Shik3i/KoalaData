@@ -32,7 +32,11 @@
 				install, user, region, language, version and rating trends without adding tracking to your extension.
 			</p>
 			<div class="hero-actions">
-				{#if data.site.registrationMode !== 'invite_only'}
+				{#if data.user}
+					<a href="/app" class="btn btn-primary btn-lg">
+						Open publisher workspace <ArrowRightIcon class="app-icon" aria-hidden="true" />
+					</a>
+				{:else if data.site.registrationMode !== 'invite_only'}
 					<a href="/register" class="btn btn-primary btn-lg">
 						Publish my extension metrics <ArrowRightIcon class="app-icon" aria-hidden="true" />
 					</a>

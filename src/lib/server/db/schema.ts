@@ -153,6 +153,7 @@ export const importDrafts = sqliteTable('import_drafts', {
 	projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
 	sourceId: text('source_id').notNull().references(() => dataSources.id, { onDelete: 'cascade' }),
 	storedFilename: text('stored_filename').notNull(),
+	fileSize: integer('file_size').notNull().default(0),
 	detectedDelimiter: text('detected_delimiter').notNull(),
 	detectedEncoding: text('detected_encoding').notNull(),
 	headers: text('headers').notNull(), // JSON array
@@ -255,4 +256,3 @@ export const projectEvents = sqliteTable('project_events', {
 }, (table) => ({
 	projectDateIdx: index('idx_project_events_project_date').on(table.projectId, table.date)
 }));
-

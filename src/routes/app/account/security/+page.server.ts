@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword, invalidateSession, invalidateUserSessions
 import { logAuditEvent } from '$lib/server/audit';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { assertPasswordLength } from '$lib/server/passwords';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
 	if (!locals.user) {
@@ -44,8 +45,10 @@ export const actions: Actions = {
 		const oldPassword = data.get('oldPassword')?.toString() || '';
 		const newPassword = data.get('newPassword')?.toString() || '';
 
-		if (newPassword.length < 8) {
-			return fail(400, { error: 'New password must be at least 8 characters long.' });
+		try {
+			assertPasswordLength(newPassword, 'New password');
+		} catch (error) {
+			return fail(400, { error: error instanceof Error ? error.message : 'Invalid new password.' });
 		}
 
 		let clientIp = '127.0.0.1';

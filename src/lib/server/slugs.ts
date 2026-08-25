@@ -1,5 +1,5 @@
 import db from './db';
-import { projects } from './db/schema';
+import { projects, projectSlugRedirects } from './db/schema';
 import { eq } from 'drizzle-orm';
 
 const RESERVED_SLUGS = new Set([
@@ -42,13 +42,13 @@ export async function generateUniqueSlug(name: string): Promise<string> {
 			continue;
 		}
 
-		const existing = await db
-			.select()
-			.from(projects)
-			.where(eq(projects.slug, slug))
-			.limit(1);
+		const [existingProject, existingRedirect] = await Promise.all([
+			db.select({ id: projects.id }).from(projects).where(eq(projects.slug, slug)).limit(1),
+			db.select({ oldSlug: projectSlugRedirects.oldSlug }).from(projectSlugRedirects)
+				.where(eq(projectSlugRedirects.oldSlug, slug)).limit(1)
+		]);
 
-		if (existing.length === 0) {
+		if (existingProject.length === 0 && existingRedirect.length === 0) {
 			return slug;
 		}
 
@@ -67,20 +67,13 @@ export async function isSlugAvailable(slug: string, excludeProjectId?: string): 
 		return false;
 	}
 
-	const query = db
-		.select()
-		.from(projects)
-		.where(eq(projects.slug, cleanSlug));
-		
-	const results = await query;
-	
-	if (results.length === 0) {
-		return true;
-	}
-	
-	if (excludeProjectId && results[0].id === excludeProjectId) {
-		return true;
-	}
+	const [projectsWithSlug, redirectsWithSlug] = await Promise.all([
+		db.select({ id: projects.id }).from(projects).where(eq(projects.slug, cleanSlug)),
+		db.select({ projectId: projectSlugRedirects.projectId }).from(projectSlugRedirects)
+			.where(eq(projectSlugRedirects.oldSlug, cleanSlug))
+	]);
 
-	return false;
+	const projectAvailable = projectsWithSlug.length === 0 || projectsWithSlug.every((project) => project.id === excludeProjectId);
+	const redirectAvailable = redirectsWithSlug.length === 0 || redirectsWithSlug.every((entry) => entry.projectId === excludeProjectId);
+	return projectAvailable && redirectAvailable;
 }

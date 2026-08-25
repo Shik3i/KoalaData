@@ -155,6 +155,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set('Permissions-Policy', 'camera=(), geolocation=(), microphone=()');
+	response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
 	if (
 		pathname.startsWith('/app') ||
 		pathname.startsWith('/admin') ||

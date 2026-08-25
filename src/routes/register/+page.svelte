@@ -72,6 +72,7 @@
 						type={showPassword ? 'text' : 'password'}
 						id="password" 
 						name="password" 
+						maxlength="1024"
 						autocomplete="new-password"
 						placeholder="Minimum 8 characters" 
 						required 

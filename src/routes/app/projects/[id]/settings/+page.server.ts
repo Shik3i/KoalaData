@@ -198,33 +198,56 @@ export const actions: Actions = {
 		// Update inside transaction
 		try {
 			const updated = db.transaction((tx) => {
+				const slugOwner = tx.select({ id: projects.id }).from(projects).where(eq(projects.slug, newSlug)).get();
+				const redirectOwner = tx.select({ projectId: projectSlugRedirects.projectId })
+					.from(projectSlugRedirects)
+					.where(eq(projectSlugRedirects.oldSlug, newSlug))
+					.get();
+				if ((slugOwner && slugOwner.id !== projectId) || (redirectOwner && redirectOwner.projectId !== projectId)) {
+					return 'conflict' as const;
+				}
+				// Reclaiming one of this project's previous slugs makes it canonical again.
+				tx.delete(projectSlugRedirects)
+					.where(and(eq(projectSlugRedirects.oldSlug, newSlug), eq(projectSlugRedirects.projectId, projectId)))
+					.run();
+
 				// Update project slug
 				const projectUpdate = tx
 					.update(projects)
-				.set({
-					slug: newSlug,
-					updatedAt: Math.floor(Date.now() / 1000)
-				})
+					.set({
+						slug: newSlug,
+						updatedAt: Math.floor(Date.now() / 1000)
+					})
 					.where(and(eq(projects.id, projectId), isNull(projects.deletedAt)))
 					.run();
-				if (projectUpdate.changes === 0) return false;
+				if (projectUpdate.changes === 0) return 'missing' as const;
 
-				// Record redirect from old slug
-				tx
-				.insert(projectSlugRedirects)
-				.values({
-					oldSlug,
-					newSlug,
-					projectId
-				})
-				.onConflictDoUpdate({
-					target: projectSlugRedirects.oldSlug,
-					set: { newSlug, projectId }
-					})
+				// Keep every historical URL on a single redirect hop.
+				tx.update(projectSlugRedirects)
+					.set({ newSlug })
+					.where(eq(projectSlugRedirects.projectId, projectId))
 					.run();
-				return true;
-			});
-			if (!updated) return fail(404, { error: 'Project no longer exists.' });
+
+				// Record the previous canonical URL unless legacy data already reserves
+				// that path for another project.
+				const oldRedirectOwner = tx.select({ projectId: projectSlugRedirects.projectId })
+					.from(projectSlugRedirects)
+					.where(eq(projectSlugRedirects.oldSlug, oldSlug))
+					.get();
+				if (!oldRedirectOwner || oldRedirectOwner.projectId === projectId) {
+					tx
+						.insert(projectSlugRedirects)
+						.values({ oldSlug, newSlug, projectId })
+						.onConflictDoUpdate({
+							target: projectSlugRedirects.oldSlug,
+							set: { newSlug, projectId }
+						})
+						.run();
+				}
+				return 'updated' as const;
+			}, { behavior: 'immediate' });
+			if (updated === 'missing') return fail(404, { error: 'Project no longer exists.' });
+			if (updated === 'conflict') return fail(409, { error: 'This slug was claimed by another project. Choose a different slug.' });
 		} catch (error) {
 			if (isSqliteUniqueConstraint(error)) {
 				return fail(409, { error: 'This slug was claimed by another project. Choose a different slug.' });

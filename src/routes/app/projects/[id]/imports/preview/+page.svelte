@@ -222,6 +222,7 @@
 											name="name_col_{map.index}" 
 											bind:value={map.displayName} 
 											required
+											maxlength="120"
 											disabled={loading}
 										/>
 									</div>

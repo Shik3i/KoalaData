@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { onMount } from 'svelte';
 	import InfoTip from '$lib/components/InfoTip.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import MetricChart from '$lib/components/MetricChart.svelte';
@@ -30,11 +31,22 @@
 	let dateFilter = $state('90');
 	let compareMode = $state(false);
 	let showMovingAverage = $state(false);
+	let ignoreCwsZeroGlitches = $state(true);
 	let copied = $state(false);
 	let isShareModalOpen = $state(false);
 	let additionalMetricsOpen = $state(false);
 	let days = $derived(dateFilter === 'all' ? null : Number(dateFilter));
 	let isIndexable = $derived(project.visibility === 'public' && project.moderationStatus === 'active');
+
+	onMount(() => {
+		const stored = localStorage.getItem('koaladata:ignore-cws-zero-glitches');
+		if (stored !== null) ignoreCwsZeroGlitches = stored !== 'false';
+	});
+
+	function toggleCwsZeroGlitches() {
+		ignoreCwsZeroGlitches = !ignoreCwsZeroGlitches;
+		localStorage.setItem('koaladata:ignore-cws-zero-glitches', String(ignoreCwsZeroGlitches));
+	}
 
 	let metrics = $derived(data.metrics as DashboardMetric[]);
 	let sourceTabs = $derived(buildDashboardSourceTabs(metrics));
@@ -365,6 +377,15 @@
 			<div class="analysis-controls">
 				<button class="btn btn-secondary btn-sm" class:active={compareMode} aria-pressed={compareMode} disabled={days === null} onclick={() => compareMode = !compareMode}><Icon name="clock-counter-clockwise" /> Compare previous period</button>
 				<button class="btn btn-secondary btn-sm" class:active={showMovingAverage} aria-pressed={showMovingAverage} onclick={() => showMovingAverage = !showMovingAverage}><Icon name="chart-line" /> 7-day average</button>
+				{#if selectedSourceType === 'chrome_web_store' && (usersMetric || pageViewsMetric || impressionsMetric)}
+					<button
+						class="btn btn-secondary btn-sm"
+						class:active={ignoreCwsZeroGlitches}
+						aria-pressed={ignoreCwsZeroGlitches}
+						title="Treat exact zero values in Weekly Users, Store Page Views and Store Impressions as missing CWS reports. Installs and uninstalls stay unchanged."
+						onclick={toggleCwsZeroGlitches}
+					><Icon name="eye-slash" /> Ignore CWS zero glitches</button>
+				{/if}
 			</div>
 		</div>
 
@@ -400,6 +421,7 @@
 					<MetricChart
 						title="{project.name}-weekly-users"
 						observations={selectedUsers}
+						ignoreZeroValues={ignoreCwsZeroGlitches && selectedSourceType === 'chrome_web_store'}
 						exportHeading="Weekly Users"
 						exportSubtitle="Installed users, not activity telemetry"
 						exportValue={formatNumber(kpis.users ?? 0)}
@@ -422,6 +444,7 @@
 					<MetricChart
 						title="{project.name}-store-page-views"
 						observations={selectedPageViews}
+						ignoreZeroValues={ignoreCwsZeroGlitches && selectedSourceType === 'chrome_web_store'}
 						exportHeading="Store Page Views"
 						exportSubtitle="Listing demand"
 						exportValue={formatNumber(kpis.pageViews)}
@@ -445,6 +468,7 @@
 					<MetricChart
 						title="{project.name}-store-impressions"
 						observations={selectedImpressions}
+						ignoreZeroValues={ignoreCwsZeroGlitches && selectedSourceType === 'chrome_web_store'}
 						exportHeading="Store Impressions"
 						exportSubtitle="Store discovery"
 						exportValue={formatNumber(kpis.impressions)}

@@ -25,6 +25,24 @@ test('homepage presents a balanced FAQ and links its footer to the repository', 
 	expect(schemaTypes).toEqual(expect.arrayContaining(['WebSite', 'SoftwareApplication', 'FAQPage']));
 });
 
+test('homepage sends signed-in publishers to their workspace', async ({ page }) => {
+	await page.goto('/login');
+	await page.fill('input[name="username"]', 'admin');
+	await page.fill('input[name="password"]', 'admin_password');
+	await page.click('button[type="submit"]');
+	await page.waitForURL('/app');
+	await page.goto('/');
+	await expect(page.getByRole('link', { name: 'Open publisher workspace' }).first()).toHaveAttribute('href', '/app');
+	await expect(page.getByRole('link', { name: 'Publish my extension metrics' })).toHaveCount(0);
+});
+
+test('responses carry browser isolation and capability headers', async ({ request }) => {
+	const response = await request.get('/');
+	expect(response.headers()['cross-origin-opener-policy']).toBe('same-origin');
+	expect(response.headers()['permissions-policy']).toBe('camera=(), geolocation=(), microphone=()');
+	expect(response.headers()['x-content-type-options']).toBe('nosniff');
+});
+
 test('machine-readable discovery files expose canonical public sources', async ({ request }) => {
 	const [robots, sitemap, llms, llmsFull, manifest, preview, favicon, favicon16, favicon32, appleIcon, android192, android512] = await Promise.all([
 		request.get('/robots.txt'),

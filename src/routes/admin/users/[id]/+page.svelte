@@ -109,6 +109,7 @@
 							type="password" 
 							id="newPassword" 
 							name="newPassword" 
+							maxlength="1024"
 							placeholder="Minimum 8 characters"
 							required
 						/>

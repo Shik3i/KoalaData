@@ -160,3 +160,60 @@ test('cross-project identifiers and parallel mutations stay isolated', async ({ 
 		for (const filePath of draftFiles) fs.rmSync(filePath, { force: true });
 	}
 });
+
+test('ownership transfer respects the recipient project limit', async ({ page }) => {
+	await page.goto('/login');
+	await page.fill('input[name="username"]', 'admin');
+	await page.fill('input[name="password"]', 'admin_password');
+	await page.click('button[type="submit"]');
+	await page.waitForURL('/app');
+
+	const databasePath = process.env.DATABASE_PATH;
+	if (!databasePath) throw new Error('Isolated Playwright database path is missing.');
+	const sqlite = new Database(databasePath);
+	sqlite.pragma('foreign_keys = ON');
+	const admin = sqlite.prepare("SELECT id FROM users WHERE username = 'admin'").get() as { id: string };
+	const now = Math.floor(Date.now() / 1000);
+	const suffix = crypto.randomUUID().slice(0, 8);
+	const targetId = crypto.randomUUID();
+	const targetUsername = `limit_target_${suffix}`;
+	const ownedProjectId = crypto.randomUUID();
+	const transferProjectId = crypto.randomUUID();
+	const insertProject = sqlite.prepare(`
+		INSERT INTO projects (
+			id, owner_id, name, slug, short_description, full_description, category,
+			pricing_model, is_open_source, visibility, moderation_status, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, '', 'other', 'free', 0, 'unlisted', 'hidden', ?, ?)
+	`);
+	const actionHeaders = {
+		origin: 'http://127.0.0.1:4173',
+		accept: 'application/json',
+		'x-sveltekit-action': 'true'
+	};
+
+	try {
+		sqlite.transaction(() => {
+			sqlite.prepare(`
+				INSERT INTO users (id, username, normalized_username, display_name, password_hash, role, status, created_at, updated_at)
+				VALUES (?, ?, ?, ?, 'not-used', 'user', 'active', ?, ?)
+			`).run(targetId, targetUsername, targetUsername, targetUsername, now, now);
+			sqlite.prepare('INSERT INTO user_limit_overrides (user_id, max_projects) VALUES (?, 1)').run(targetId);
+			insertProject.run(ownedProjectId, targetId, 'Owned at limit', `owned-limit-${suffix}`, 'Already owned', now, now);
+			insertProject.run(transferProjectId, admin.id, 'Transfer candidate', `transfer-limit-${suffix}`, 'Transfer candidate', now, now);
+		})();
+
+		const response = await page.request.post(`/app/projects/${transferProjectId}/members?/transferOwnership`, {
+			headers: actionHeaders,
+			form: { newOwnerUsername: targetUsername, expectedOwnerId: admin.id },
+			maxRedirects: 0
+		});
+		const result = await readActionResult(response);
+		expect(result.result.status, result.body).toBe(409);
+		expect(result.body).toContain('already owns the maximum of 1 project');
+		expect((sqlite.prepare('SELECT owner_id FROM projects WHERE id = ?').get(transferProjectId) as { owner_id: string }).owner_id).toBe(admin.id);
+	} finally {
+		sqlite.prepare('DELETE FROM projects WHERE id IN (?, ?)').run(ownedProjectId, transferProjectId);
+		sqlite.prepare('DELETE FROM users WHERE id = ?').run(targetId);
+		sqlite.close();
+	}
+});

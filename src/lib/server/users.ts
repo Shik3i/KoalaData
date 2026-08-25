@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm';
 import { hashPassword, invalidateUserSessions } from './auth';
 import { logAuditEvent } from './audit';
 import { isSqliteUniqueConstraint } from './db/errors';
+import { assertPasswordLength } from './passwords';
 
 const RESERVED_USERNAMES = new Set([
 	'admin',
@@ -87,9 +88,7 @@ export async function registerUser(
 
 	validateUsername(username);
 
-	if (password.length < 8) {
-		throw new Error('Password must be at least 8 characters long.');
-	}
+	assertPasswordLength(password);
 
 	const normalized = username.toLowerCase();
 
@@ -277,9 +276,7 @@ export async function resetUserPassword(
 	forceChange: boolean,
 	actorIp = '127.0.0.1'
 ) {
-	if (newPassword.length < 8) {
-		throw new Error('Password must be at least 8 characters long.');
-	}
+	assertPasswordLength(newPassword);
 	const user = await db.select({ id: users.id }).from(users).where(eq(users.id, targetUserId)).limit(1);
 	if (user.length === 0) throw new Error('User not found.');
 

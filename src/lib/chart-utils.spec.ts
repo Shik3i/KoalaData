@@ -5,6 +5,7 @@ describe('chart derived data', () => {
 	it('keeps the moving average unavailable until a complete window exists', () => {
 		expect(computeMovingAverage([1, 2, 3, 4], 3)).toEqual([null, null, 2, 3]);
 		expect(computeMovingAverage([1, null, 3, 4], 3)).toEqual([null, null, null, null]);
+		expect(computeMovingAverage([1, null, 3, 4], 3, true)).toEqual([null, null, 2, 3.5]);
 	});
 
 	it('projects a linear trend without producing negative values', () => {
@@ -37,6 +38,19 @@ describe('chart derived data', () => {
 		expect(prepareChartData([
 			{ observations: [{ date: '2026-01-01', value: 0 }, { date: '2026-01-02', value: 0 }] }
 		])).toEqual({ dates: [], seriesValues: [[]] });
+	});
+
+	it('can treat interior zero values as missing without changing the date axis', () => {
+		expect(prepareChartData([
+			{ observations: [
+				{ date: '2026-01-01', value: 10 },
+				{ date: '2026-01-02', value: 0 },
+				{ date: '2026-01-03', value: 14 }
+			] }
+		], undefined, true)).toEqual({
+			dates: ['2026-01-01', '2026-01-02', '2026-01-03'],
+			seriesValues: [[10, null, 14]]
+		});
 	});
 
 	it('trims aligned comparison labels without shifting series against each other', () => {
