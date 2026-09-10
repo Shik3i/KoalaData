@@ -58,12 +58,12 @@
 		"svelte-check": "^4.7.4",
 		"typescript": "^6.0.3",
 		"vite": "^8.2.0",
-		"vitest": "^4.1.8",
+		"vitest": "^4.1.11",
 		"zod": "^4.4.3"
 	},
 	"dependencies": {
 		"better-sqlite3": "^13.0.2",
-		"csv-parse": "^7.0.1",
+		"csv-parse": "^7.0.2",
 		"gifenc": "^1.0.3"
 	}
 }
