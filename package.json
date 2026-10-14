@@ -48,18 +48,18 @@
 		"@sveltejs/kit": "^2.70.2",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@types/better-sqlite3": "^7.6.13",
-		"@types/node": "^26.1.2",
+		"@types/node": "^26.6.5",
 		"drizzle-kit": "^1.0.0-rc.4",
 		"drizzle-orm": "^0.45.2",
 		"echarts": "^6.1.0",
 		"hash-wasm": "^4.12.0",
-		"phosphor-svelte": "^3.1.0",
+		"phosphor-svelte": "^3.1.1",
 		"svelte": "^5.56.8",
 		"svelte-check": "^4.7.4",
 		"typescript": "^6.0.3",
 		"vite": "^8.2.0",
 		"vitest": "^4.1.11",
-		"zod": "^4.4.3"
+		"zod": "^4.6.6"
 	},
 	"dependencies": {
 		"better-sqlite3": "^13.0.2",
