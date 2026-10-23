@@ -21,12 +21,12 @@
 		impressions: number;
 	};
 
-	let { isOpen = false, onClose, project, kpis } = $props<{
+	let { isOpen = false, onClose, project, kpis }: {
 		isOpen?: boolean;
 		onClose?: () => void;
 		project: ProjectData;
 		kpis: KpiData;
-	}>();
+	} = $props();
 
 	let canvasRef: HTMLCanvasElement | undefined = $state();
 	let modalRef: HTMLDivElement | undefined = $state();

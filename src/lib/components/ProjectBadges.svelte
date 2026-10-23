@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { pricingModelLabel } from '$lib/project-classification';
 
-	let { pricingModel, isOpenSource = false } = $props<{
+	let { pricingModel, isOpenSource = false }: {
 		pricingModel: string;
 		isOpenSource?: boolean | number;
-	}>();
+	} = $props();
 
 	let pricingLabel = $derived(pricingModelLabel(pricingModel));
 </script>

@@ -51,7 +51,7 @@
 		showForecast = false,
 		releaseMarkers = [],
 		projectEvents = []
-	} = $props<{
+	}: {
 		title?: string;
 		observations?: Observation[];
 		seriesList?: SeriesData[];
@@ -73,7 +73,7 @@
 		showForecast?: boolean;
 		releaseMarkers?: ReleaseMarker[];
 		projectEvents?: ProjectEventItem[];
-	}>();
+	} = $props();
 
 	let exporting = $state(false);
 	let showReleaseMarkers = $state(false);

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { dashboardPeriodKey, type BreakdownRow, type BreakdownSummaryGroup } from '$lib/dashboard-metrics';
 
-	let { group, days = 90 } = $props<{ group: BreakdownSummaryGroup; days: number | null }>();
+	let { group, days = 90 }: { group: BreakdownSummaryGroup; days: number | null } = $props();
 	let expanded = $state(false);
 	let rows: BreakdownRow[] = $derived(group.periodRows[dashboardPeriodKey(days)]);
 	let topRows = $derived(rows.slice(0, 8));

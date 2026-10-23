@@ -2,7 +2,7 @@
 	import BreakdownPanel from '$lib/components/BreakdownPanel.svelte';
 	import type { BreakdownSummaryGroup } from '$lib/dashboard-metrics';
 
-	let { groups, days = 90 } = $props<{ groups: BreakdownSummaryGroup[]; days: number | null }>();
+	let { groups, days = 90 }: { groups: BreakdownSummaryGroup[]; days: number | null } = $props();
 	let selectedId = $state('');
 	let selectedGroup = $derived(groups.find((group: BreakdownSummaryGroup) => group.id === selectedId) ?? groups[0]);
 

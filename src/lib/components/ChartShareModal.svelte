@@ -25,7 +25,7 @@
 		hasMovingAverage = false,
 		hasEvents = false,
 		hasLogo = false
-	} = $props<{
+	}: {
 		isOpen?: boolean;
 		onClose?: () => void;
 		renderPng: (options: ChartExportOptions) => Promise<Blob>;
@@ -41,7 +41,7 @@
 		hasMovingAverage?: boolean;
 		hasEvents?: boolean;
 		hasLogo?: boolean;
-	}>();
+	} = $props();
 
 	let modalRef: HTMLDivElement | undefined = $state();
 	let theme = $state<ChartExportTheme>('current');

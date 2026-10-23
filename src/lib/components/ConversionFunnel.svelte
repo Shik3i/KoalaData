@@ -1,11 +1,11 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
 
-	let { impressions = 0, pageViews = 0, installs = 0 } = $props<{
+	let { impressions = 0, pageViews = 0, installs = 0 }: {
 		impressions?: number;
 		pageViews?: number;
 		installs?: number;
-	}>();
+	} = $props();
 
 	function formatNum(val: number): string {
 		return val.toLocaleString(undefined, { maximumFractionDigits: 0 });

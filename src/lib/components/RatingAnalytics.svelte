@@ -16,11 +16,11 @@
 		shareUrl?: string;
 	};
 
-	let { group, days = 90, shareMeta = {} } = $props<{
+	let { group, days = 90, shareMeta = {} }: {
 		group: BreakdownSummaryGroup;
 		days: number | null;
 		shareMeta?: ShareMeta;
-	}>();
+	} = $props();
 	let rows: BreakdownRow[] = $derived(group.periodRows[dashboardPeriodKey(days)]);
 	let timeline = $derived(filterBreakdownTimeline(group.timeline, days));
 	let total = $derived(rows.reduce((sum, row) => sum + row.value, 0));
